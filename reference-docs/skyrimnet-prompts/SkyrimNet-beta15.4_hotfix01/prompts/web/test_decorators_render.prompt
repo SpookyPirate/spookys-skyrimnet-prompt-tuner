@@ -1,0 +1,6 @@
+{# Web Debug: Test Decorators Renderer #}
+{# This is a simple wrapper to render the test_decorators submodule from the web UI #}
+
+{{ render_subcomponent("test_decorators", render_mode) }}
+
+

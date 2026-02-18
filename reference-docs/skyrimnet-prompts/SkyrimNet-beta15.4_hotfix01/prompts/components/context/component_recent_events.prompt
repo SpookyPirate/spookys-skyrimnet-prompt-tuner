@@ -1,0 +1,15 @@
+{# Get nearby NPCs once and store the result #}
+{% set nearby_npcs = get_nearby_npc_list(player.UUID) %}
+
+{% if length(scene.short_lived_events) > 0 %}
+    {% for event in scene.short_lived_events %}
+        {# Try to get source entity and skip if invalid #}
+        {% set source_entity = decnpc(event.source_uuid) %}
+        {# All recent events require a source - skip if it's not set #}
+        {# Skip gamemaster dialogue events #}
+        {% if source_entity and event.type != "gamemaster_dialogue" %}
+            {# Use schema-based formatting for all events #}
+            - {{ format_event(event, "recent_events") }}
+        {% endif %} {# source_entity check #}
+    {% endfor %}
+{% endif %}

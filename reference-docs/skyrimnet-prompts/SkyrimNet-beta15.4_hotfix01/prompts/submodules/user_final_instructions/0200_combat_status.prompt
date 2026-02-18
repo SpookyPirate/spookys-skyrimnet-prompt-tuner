@@ -1,0 +1,30 @@
+{% if render_mode == "full" or render_mode == "thoughts" or render_mode == "transform" %}
+{% if is_in_combat(npc.UUID) %}
+{# Combat-specific vital status reminder #}
+{% set healthRatio = decnpc(npc.UUID).health / decnpc(npc.UUID).maxHealth %}
+{% set magickaRatio = decnpc(npc.UUID).magicka / decnpc(npc.UUID).maxMagicka %}
+{% set staminaRatio = decnpc(npc.UUID).stamina / decnpc(npc.UUID).maxStamina %}
+{% if decnpc(npc.UUID).magicka == 0 %}{% set magickaRatio = 0 %}{% endif %}
+
+**COMBAT STATUS - Your Body Right Now:**
+{% if healthRatio < 0.25 %}- CRITICAL: Near death, every hit could be fatal
+{% elif healthRatio < 0.5 %}- Badly wounded, bleeding and struggling
+{% elif healthRatio < 0.75 %}- Taking damage but still fighting strong
+{% else %}- Physically holding up well
+{% endif %}
+{% if decnpc(npc.UUID).maxMagicka > 0 or is_player(npc.UUID) %}
+{% if magickaRatio < 0.15 %}- Magically spent—no energy left for spells
+{% elif magickaRatio < 0.35 %}- Magical reserves running thin
+{% elif magickaRatio < 0.6 %}- Decent magical reserves remaining
+{% elif magickaRatio < 0.85 %}- Plenty of magical energy available
+{% else %}- Full resources in terms of magical power
+{% endif %}
+{% endif %}
+{% if staminaRatio < 0.25 %}- Gasping, exhausted, can barely swing
+{% elif staminaRatio < 0.5 %}- Winded and slowing down
+{% elif staminaRatio < 0.75 %}- Breathing hard but capable
+{% else %}- Energy to spare
+{% endif %}
+{% endif %}
+{% endif %}
+

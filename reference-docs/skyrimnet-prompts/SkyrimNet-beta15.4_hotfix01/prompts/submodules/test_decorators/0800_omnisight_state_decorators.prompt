@@ -1,0 +1,260 @@
+{# TEST SUBMODULE - OmniSight, State, & Utility Decorators #}
+{# Tests: OmniSight visual descriptions, entity state tracking, #}
+{#        string utilities, random, units_to_meters, etc. #}
+{# CATEGORY: OmniSight, State, String Utilities, Utility #}
+
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+
+## 👁️ OMNISIGHT, STATE & UTILITY DECORATOR TESTS
+
+### Test 1: OmniSight - Location Descriptions
+
+**has_current_location_description():**
+- Location has description: {% if has_current_location_description() %}✓ YES{% else %}✗ NO{% endif %}
+
+**get_current_location_description():**
+{% if has_current_location_description() %}
+{{ get_current_location_description() }}
+{% else %}
+No OmniSight description available for current location.
+{% endif %}
+
+---
+
+### Test 2: OmniSight - Scene Descriptions
+
+**has_current_scene_description():**
+- Scene capture exists: {% if has_current_scene_description() %}✓ YES{% else %}✗ NO{% endif %}
+
+**get_current_scene_description():**
+{% if has_current_scene_description() %}
+{{ get_current_scene_description() }}
+{% else %}
+No current scene capture available.
+{% endif %}
+
+**is_scene_newer_than_location():**
+- Scene newer than location: {% if is_scene_newer_than_location() %}✓ YES{% else %}✗ NO{% endif %}
+
+**capture_current_scene():**
+{# This would trigger a capture - showing the call pattern #}
+{# {% set captured = capture_current_scene() %} #}
+(Capture function available but not triggered in test)
+
+---
+
+### Test 3: OmniSight - Actor Descriptions
+
+**has_omnisight_description("actor"):**
+- {{ actorName }} has description: {% if has_omnisight_description("actor", actorUUID) %}✓ YES{% else %}✗ NO{% endif %}
+
+**get_omnisight_description("actor"):**
+{% if has_omnisight_description("actor", actorUUID) %}
+{{ get_omnisight_description("actor", actorUUID) }}
+{% else %}
+No OmniSight description for {{ actorName }}.
+{% endif %}
+
+---
+
+### Test 4: OmniSight - Positional Information
+
+**get_actor_position_relative_to_camera():**
+{% set posToCamera = get_actor_position_relative_to_camera(actorUUID) %}
+- Distance: {{ posToCamera.distance }} units ({{ posToCamera.meters }}m)
+- Angle: {{ posToCamera.angle }}°
+- Pan: {{ posToCamera.pan }}
+- Direction: {{ posToCamera.direction }}
+- Cardinal Direction: {{ posToCamera.cardinalDirection }}
+
+**get_actor_position_relative_to_actor() (Actor to Player):**
+{% set posToPlayer = get_actor_position_relative_to_actor(player.UUID, actorUUID) %}
+- {{ actorName }} is {{ posToPlayer.meters }}m from player
+- Direction from player: {{ posToPlayer.cardinalDirection }}
+- Angle: {{ posToPlayer.angle }}°
+
+**get_visible_npc_list():**
+{% set visibleNPCs = get_visible_npc_list(player.UUID) %}
+Visible NPCs (with line of sight): {{ length(visibleNPCs) }}
+{% if visibleNPCs and length(visibleNPCs) > 0 %}
+{% for npc in visibleNPCs %}
+{% if loop.index <= 10 %}
+- {{ npc.name }} ({{ units_to_meters(npc.distance) }}m)
+{% endif %}
+{% endfor %}
+{% endif %}
+
+---
+
+### Test 5: OmniSight - Item Descriptions
+
+**Item Description Functions:**
+{# Using Iron Sword FormID as example - 77495 decimal (0x00012EB7 hex) #}
+{% set ironSwordFormID = 77495 %}
+
+**get_item_customization():**
+{% set itemCustom = get_item_customization(ironSwordFormID) %}
+- Name: {{ itemCustom.name }}
+- Original Name: {{ itemCustom.originalName }}
+- Description: {{ itemCustom.description }}
+- Enabled: {{ itemCustom.enabled }}
+- Has Custom Name: {{ itemCustom.hasCustomName }}
+- Has Custom Description: {{ itemCustom.hasCustomDescription }}
+- Has OmniSight Description: {{ itemCustom.hasOmniSightDescription }}
+- Plugin: {{ itemCustom.plugin }}
+- Base FormID: {{ itemCustom.baseFormID }}
+
+**has_item_description_for_wearer():**
+- Iron Sword for {{ actorName }}: {% if has_item_description_for_wearer(ironSwordFormID, actorUUID) %}✓ YES{% else %}✗ NO{% endif %}
+
+**get_item_description_for_wearer():**
+{% if has_item_description_for_wearer(ironSwordFormID, actorUUID) %}
+{{ get_item_description_for_wearer(ironSwordFormID, actorUUID) }}
+{% else %}
+No gender-specific description available.
+{% endif %}
+
+**get_item_name_for_wearer():**
+{{ get_item_name_for_wearer(ironSwordFormID, actorUUID) }}
+
+---
+
+### Test 6: Entity State Tracking
+
+**set_entity_state() & get_entity_state():**
+{# Store a test value #}
+{{ set_entity_state(actorUUID, "test_counter", 42) }}
+- Stored test_counter = 42
+
+**Retrieved Value:** {{ get_entity_state(actorUUID, "test_counter", 0) }}
+
+**has_entity_state():**
+- test_counter exists: {% if has_entity_state(actorUUID, "test_counter") %}✓ YES{% else %}✗ NO{% endif %}
+- nonexistent_key exists: {% if has_entity_state(actorUUID, "nonexistent_key") %}✓ YES{% else %}✗ NO{% endif %}
+
+**get_entity_state() with default:**
+- Get existing: {{ get_entity_state(actorUUID, "test_counter", -1) }}
+- Get nonexistent: {{ get_entity_state(actorUUID, "nonexistent_key", "default_value") }}
+
+**is_state_recent():**
+{# Check if state was set within last 60 seconds #}
+- test_counter recent (60s): {% if is_state_recent(actorUUID, "test_counter", 60) %}✓ YES{% else %}✗ NO{% endif %}
+
+**track_entity_state():**
+{% set tracked = track_entity_state(actorUUID, "tracked_value", 100, 60) %}
+- Current: {{ tracked.current }}
+- Previous: {{ tracked.previous }}
+- Has Previous: {{ tracked.hasPrevious }}
+- Is Recent: {{ tracked.isRecent }}
+- Seconds Since Update: {{ tracked.secondsSinceUpdate }}
+- Changed: {{ tracked.changed }}
+
+**Global State (UUID 0):**
+{{ set_entity_state(0, "global_test", "global_value") }}
+- Global state set: {{ get_entity_state(0, "global_test", "not_found") }}
+
+---
+
+### Test 7: String Utility Decorators
+
+**length():**
+- length("Hello World"): {{ length("Hello World") }}
+- length of actor.faction: {{ length(actor.faction) }}
+- length of empty array: {{ length([]) }}
+
+**contains():**
+- contains("Hello World", "World"): {% if contains("Hello World", "World") %}✓ TRUE{% else %}✗ FALSE{% endif %}
+- contains("Hello World", "xyz"): {% if contains("Hello World", "xyz") %}✓ TRUE{% else %}✗ FALSE{% endif %}
+- contains(array test): {% if contains(["apple", "banana", "cherry"], "banana") %}✓ TRUE{% else %}✗ FALSE{% endif %}
+
+**join():**
+- join(["a", "b", "c"], ", "): {{ join(["a", "b", "c"], ", ") }}
+- join(["one"], "-"): {{ join(["one"], "-") }}
+
+**lower():**
+- lower("HELLO WORLD"): {{ lower("HELLO WORLD") }}
+- lower(actor name): {{ lower(actorName) }}
+
+**replace():**
+- replace("Hello World", "World", "Skyrim"): {{ replace("Hello World", "World", "Skyrim") }}
+- replace("aaa", "a", "b"): {{ replace("aaa", "a", "b") }}
+- Case insensitive: {{ replace("Hello HELLO hello", "hello", "hi", false) }}
+- First only: {{ replace("aaa", "a", "X", true, true) }}
+
+**to_string():**
+- to_string(123): {{ to_string(123) }}
+- to_string(actor.UUID): {{ to_string(actor.UUID) }}
+- to_string(true): {{ to_string(true) }}
+- to_string(3.14159): {{ to_string(3.14159) }}
+
+**to_number():**
+- to_number("42"): {{ to_number("42") }}
+- to_number("3.14"): {{ to_number("3.14") }}
+- to_number("invalid"): {{ to_number("invalid") }}
+
+**is_array():**
+- is_array([1,2,3]): {% if is_array([1, 2, 3]) %}✓ TRUE{% else %}✗ FALSE{% endif %}
+- is_array("string"): {% if is_array("string") %}✓ TRUE{% else %}✗ FALSE{% endif %}
+- is_array(actor.faction): {% if is_array(actor.faction) %}✓ TRUE{% else %}✗ FALSE{% endif %}
+
+---
+
+### Test 8: Utility Decorators
+
+**random:**
+- Random 1: {{ random }}
+- Random 2: {{ random }}
+- Random 3: {{ random }}
+(Each call should produce 0-100)
+
+**Random-based logic:**
+{% if random > 50 %}
+🎲 High roll! (> 50)
+{% else %}
+🎲 Low roll! (<= 50)
+{% endif %}
+
+**units_to_meters():**
+- 100 units = {{ units_to_meters(100) }}m
+- 500 units = {{ units_to_meters(500) }}m
+- 1000 units = {{ units_to_meters(1000) }}m
+- Actor distance: {{ actor.distanceToPlayer }} units = {{ units_to_meters(actor.distanceToPlayer) }}m
+
+---
+
+### Test 9: PapyrusUtil Integration
+
+**papyrus_util() - StorageUtil Access:**
+{# These will return defaults if PapyrusUtil isn't installed or no values stored #}
+- IsInitialized: {{ papyrus_util("IsInitialized") }}
+- GetIntValue example: {{ papyrus_util("GetIntValue", actorUUID, "test_int", 0) }}
+- GetStringValue example: {{ papyrus_util("GetStringValue", actorUUID, "test_string", "default") }}
+- HasStringValue: {{ papyrus_util("HasStringValue", actorUUID, "test_string") }}
+
+---
+
+### Test 10: JSON File Access
+
+**read_json():**
+{# Attempt to read a JSON file if it exists #}
+{% if json_file_exists("SkyrimNet/config") %}
+Config exists, attempting read...
+{% set configData = read_json("SkyrimNet/config.json") %}
+Config data loaded: {% if configData %}✓ YES{% else %}✗ NO{% endif %}
+{% else %}
+No config.json file found.
+{% endif %}
+
+---
+
+### Test 11: Image Capture (OmniSight)
+
+**capture_screenshot():**
+{# This would capture and return base64 image data #}
+{# Commented out to avoid triggering during normal tests #}
+{# {% set screenshot = capture_screenshot() %} #}
+(Screenshot capture function available but not triggered)
+
+---
+

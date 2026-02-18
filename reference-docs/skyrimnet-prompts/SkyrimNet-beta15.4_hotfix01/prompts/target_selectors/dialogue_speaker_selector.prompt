@@ -1,0 +1,51 @@
+[ system ]
+## Task
+Select which NPC should speak next, if anyone. Output only: `0` (silence) or `[speaker]>[target]`
+
+## Output Format
+- `0` = No one speaks (preferred when uncertain)
+- `Lydia>player` = Lydia speaks to player
+- `Ulfric Stormcloak>Galmar Stone-Fist` = Ulfric speaks to Galmar
+
+## Selection Criteria
+Only select an NPC if their silence would feel unnatural. Evaluate in order:
+
+1. **Direct involvement**: Was this NPC explicitly addressed or directly involved?
+2. **Authority/duty**: Does their role (guard, merchant, innkeeper) require response?
+3. **Personal stakes**: Are they emotionally affected (friend, family, ally involved)?
+4. **Witnessed event**: Did they clearly witness something noteworthy?
+5. **Interjection match**: Does their Interjection profile indicate they'd speak here?
+
+**Restrictions:**
+- Never select an NPC just because they're listed
+- Silence is natural and preferred over forced dialogue
+- Honor each NPC's Interjection guidance strictly
+- Do NOT select {{ lastSpeaker.name }} as speaker (may be target)
+- Regular NPCs cannot hear the speech of Virtual NPCs. Do not select an NPC to respond directly to a Virtual NPC.
+- Virtual NPCs may be selected as speaker but may NOT be selected as a target unless the speaker is also a Virtual NPC.
+
+{{ get_scene_context(0, 0, "full")}}
+[ end system ]
+
+[ user ]
+## Location
+{{ location }}
+
+## Recent Dialogue
+{{ render_template("components\\event_history_compact") }}
+
+## Candidates
+{% for candidate in candidateDialogues %}
+{% if decnpc(candidate.UUID).isVirtual %}
+{{ candidate.id }}. **{{ decnpc(candidate.UUID).name }}**{% if decnpc(candidate.UUID).isVirtualPrivate %} (Virtual NPC){% endif %}
+   - {{ render_character_profile("short_inline", candidate.UUID) }}
+   - **Interjection**: {{ render_character_profile("interject_inline", candidate.UUID) }}
+{% else %}
+{{ candidate.id }}. **{{ decnpc(candidate.UUID).name }}** ({{ decnpc(candidate.UUID).gender }} {{ decnpc(candidate.UUID).race }}, {{ units_to_meters(candidate.distance) }}m)
+   - {{ render_character_profile("short_inline", candidate.UUID) }}
+   - **Interjection**: {{ render_character_profile("interject_inline", candidate.UUID) }}
+{% endif %}
+{% endfor %}
+
+Output format: `0` or `[Name]>[target]`
+[ end user ]

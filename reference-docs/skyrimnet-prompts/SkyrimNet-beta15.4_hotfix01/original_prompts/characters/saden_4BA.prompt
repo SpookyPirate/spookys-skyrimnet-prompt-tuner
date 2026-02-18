@@ -1,0 +1,32 @@
+{% block summary %}Saden was a Dunmer pirate who died on Horker Island while hunting horkers with his unique mace, Horksbane. His journal reveals his membership in the Blood Horkers, a notorious pirate group operating in the Sea of Ghosts.{% endblock %}
+
+{% block interject_summary %}Saden is deceased and cannot interject.{% endblock %}
+
+{% block background %}Saden joined the Blood Horkers when they were still a fledgling pirate crew, before they gained notoriety in the Sea of Ghosts. His journal indicates he specialized in hunting horkers, developing enough skill to craft Horksbane, a mace specifically designed for killing the creatures. He died alone on Horker Island, likely during a hunting expedition gone wrong, leaving behind his journal and prized weapon.{% endblock %}
+
+{% block personality %}Saden was resourceful and self-reliant, preferring to hunt alone rather than raid with the main crew. He displayed practical ingenuity in crafting a specialized weapon for his work. His journal reveals a pragmatic outlook focused on survival and contribution to his crew through providing meat and tusks rather than direct piracy.{% endblock %}
+
+{% block appearance %}Saden has the ashen skin and red eyes typical of Dunmer. His body shows signs of the harsh northern climate and physical lifestyle of a pirate, with calloused hands and weather-beaten features.{% endblock %}
+
+{% block aspirations %}
+- Perfect his horker hunting technique
+- Gain recognition and respect among the Blood Horkers
+- Accumulate enough wealth to retire comfortably in Morrowind
+{% endblock %}
+
+{% block relationships %}
+- Blood Horkers: Fellow pirates who valued his hunting skills and the provisions he supplied
+- Haldyn: Blood Horker leader whom Saden respected for bringing structure to their previously disorganized crew
+{% endblock %}
+
+{% block occupation %}Specialized hunter for the Blood Horkers, providing horker meat and valuable tusks to support the pirate crew's operations.{% endblock %}
+
+{% block skills %}
+- Expert horker hunting techniques
+- Weapon crafting, specifically his unique mace Horksbane
+- Survival skills in the harsh northern climate
+- Knowledge of horker behavior and habitats
+- Basic seamanship
+{% endblock %}
+
+{% block speech_style %}Saden is deceased and cannot speak.{% endblock %}

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyrimNet Decorator Documentation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        .header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .summary-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #667eea;
+        }
+        .summary-card .number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        .category-section {
+            background: white;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .category-header {
+            background: #667eea;
+            color: white;
+            padding: 1rem 1.5rem;
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .category-content {
+            padding: 1.5rem;
+        }
+        .decorator-item {
+            border-left: 4px solid #667eea;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            background: #f8f9fa;
+            border-radius: 0 8px 8px 0;
+        }
+        .decorator-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .decorator-description {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        .decorator-signature {
+            background: #2d3748;
+            color: #f7fafc;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .arguments {
+            margin-bottom: 1rem;
+        }
+        .argument {
+            background: white;
+            padding: 0.5rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+            border-left: 3px solid #48bb78;
+        }
+        .argument-name {
+            font-weight: bold;
+            color: #2d3748;
+        }
+        .argument-type {
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        .examples {
+            background: #edf2f7;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+        .example-code {
+            background: #2d3748;
+            color: #f7fafc;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+            overflow-x: auto;
+        }
+        .variable-item {
+            border-left: 4px solid #48bb78;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            background: #f0fff4;
+            border-radius: 0 8px 8px 0;
+        }
+        .variable-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .variable-type {
+            color: #48bb78;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        .usage-info {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: #666;
+            border-top: 1px solid #e2e8f0;
+        }
+        .toc {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .toc h2 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .toc ul {
+            list-style: none;
+            padding: 0;
+        }
+        .toc li {
+            padding: 0.25rem 0;
+        }
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SkyrimNet Decorator Documentation</h1>
+        <p>Complete reference for template decorators and variables</p>
+        <p>Generated on {{ currentTime }}</p>
+    </div>
+
+    <div class="summary">
+        <div class="summary-card">
+            <h3>Decorators</h3>
+            <div class="number">{{ documentation.summary.totalDecorators }}</div>
+        </div>
+        <div class="summary-card">
+            <h3>Variables</h3>
+            <div class="number">{{ documentation.summary.totalVariables }}</div>
+        </div>
+        <div class="summary-card">
+            <h3>Categories</h3>
+            <div class="number">{{ documentation.summary.totalCategories }}</div>
+        </div>
+    </div>
+
+    <div class="toc">
+        <h2>Table of Contents</h2>
+        <ul>
+            {% for category in documentation.categories %}
+            <li><a href="#category-{{ category }}">{{ category }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    {% for category in documentation.categories %}
+    <div class="category-section" id="category-{{ category }}">
+        <h2 class="category-header">{{ category }}</h2>
+        <div class="category-content">
+            
+            <!-- Check if we have any decorators for this category -->
+            {% set hasDecorators = false %}
+            {% for decorator in documentation.decorators %}
+                {% if decorator.category == category %}
+                    {% set hasDecorators = true %}
+                {% endif %}
+            {% endfor %}
+            
+            {% if hasDecorators %}
+            <h3>Functions</h3>
+            {% for decorator in documentation.decorators %}
+            {% if decorator.category == category %}
+            <div class="decorator-item">
+                <div class="decorator-name">{{ decorator.name }}</div>
+                <div class="decorator-description">{{ decorator.description }}</div>
+                
+                {% if existsIn(decorator, "arguments") and length(decorator.arguments) > 0 %}
+                <div class="decorator-signature">
+                    {{ decorator.name }}({% for arg in decorator.arguments %}{{ arg.name }}: {{ arg.type }}{% if not loop.is_last %}, {% endif %}{% endfor %}) → {{ decorator.returnInfo.type }}
+                </div>
+                {% else %}
+                <div class="decorator-signature">{{ decorator.name }} → {{ decorator.returnInfo.type }}</div>
+                {% endif %}
+
+                {% if existsIn(decorator, "longDescription") and decorator.longDescription %}
+                <p>{{ decorator.longDescription }}</p>
+                {% endif %}
+
+                {% if existsIn(decorator, "arguments") and length(decorator.arguments) > 0 %}
+                <div class="arguments">
+                    <strong>Arguments:</strong>
+                    {% for arg in decorator.arguments %}
+                    <div class="argument">
+                        <span class="argument-name">{{ arg.name }}</span>
+                        <span class="argument-type">({{ arg.type }})</span>
+                        {% if existsIn(arg, "required") and not arg.required %}<em>optional</em>{% endif %}
+                        <br>{{ arg.description }}
+                        {% if existsIn(arg, "defaultValue") and arg.defaultValue %}
+                        <br><small>Default: <code>{{ arg.defaultValue }}</code></small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div>
+                    <strong>Returns:</strong> {{ decorator.returnInfo.type }}
+                    {% if existsIn(decorator.returnInfo, "description") and decorator.returnInfo.description %} - {{ decorator.returnInfo.description }}{% endif %}
+                </div>
+
+                {% if existsIn(decorator, "examples") and length(decorator.examples) > 0 %}
+                <div class="examples">
+                    <strong>Examples:</strong>
+                    {% for example in decorator.examples %}
+                    <div class="example-code">{{ example }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if existsIn(decorator, "deprecated") and decorator.deprecated %}
+                <div style="background: #fed7d7; color: #9b2c2c; padding: 0.5rem; border-radius: 4px; margin-top: 1rem;">
+                    <strong>⚠️ Deprecated:</strong> {% if existsIn(decorator, "deprecationMessage") %}{{ decorator.deprecationMessage }}{% else %}This decorator is deprecated{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+
+            <!-- Check if we have any variables for this category -->
+            {% set hasVariables = false %}
+            {% for variable in documentation.variables %}
+                {% if variable.category == category %}
+                    {% set hasVariables = true %}
+                {% endif %}
+            {% endfor %}
+
+            {% if hasVariables %}
+            <h3>Variables</h3>
+            {% for variable in documentation.variables %}
+            {% if variable.category == category %}
+            <div class="variable-item">
+                <div class="variable-name">{{ variable.name }}</div>
+                <div class="variable-type">{{ variable.type }}</div>
+                {% if existsIn(variable, "description") and variable.description %}
+                <div>{{ variable.description }}</div>
+                {% endif %}
+                {% if existsIn(variable, "exampleValue") and variable.exampleValue %}
+                <div class="example-code">{{ "{{ " }}{{ variable.name }}{{ " }}" }} → {{ variable.exampleValue }}</div>
+                {% endif %}
+                <div class="usage-info">
+                    Used {{ variable.usageCount }} time{% if variable.usageCount != 1 %}s{% endif %} 
+                    in template{% if length(variable.usedInTemplates) != 1 %}s{% endif %}:
+                    {% for template in variable.usedInTemplates %}{{ template }}{% if not loop.is_last %}, {% endif %}{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="footer">
+        <p>This documentation was automatically generated from the SkyrimNet decorator system.</p>
+        <p>Total decorators: {{ documentation.summary.totalDecorators }} | Total variables: {{ documentation.summary.totalVariables }}</p>
+    </div>
+</body>
+</html> 

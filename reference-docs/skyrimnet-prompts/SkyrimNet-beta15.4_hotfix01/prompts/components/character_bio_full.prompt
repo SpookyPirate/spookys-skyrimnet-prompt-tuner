@@ -1,0 +1,35 @@
+## {{ decnpc(npc.UUID).name }} Bio
+- Gender: {{ decnpc(npc.UUID).gender }}
+- Race: {{ decnpc(npc.UUID).race }}
+## Background
+{% block background %}{% endblock %}
+
+## Personality
+{% block personality %}{% endblock %}
+
+## Appearance
+{% block appearance %}{% endblock %}
+
+## Aspirations
+{% block aspirations %}{% endblock %}
+
+## Relationships
+{% block relationships %}{% endblock %}
+
+## Occupation
+{% block occupation %}{% endblock %}
+
+## Skills
+{% block skills %}{% endblock %}
+
+## Speech Style
+{% block speech_style %}{% endblock %}
+
+## General World Knowledge
+{% block quest_integrations %}
+{% for quest in get_all_active_quests() %}
+    {% if quest.editorID and prompt_file_exists(quest.editorID, "quests") %}
+        {{ render_quest_template(quest.editorID) }}
+    {% endif %}
+{% endfor %}
+{% endblock %}

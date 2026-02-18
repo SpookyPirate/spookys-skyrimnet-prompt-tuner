@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ documentation.category }} - SkyrimNet Documentation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .decorator-item {
+            border-left: 4px solid #667eea;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            background: white;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .variable-item {
+            border-left: 4px solid #48bb78;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            background: white;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .decorator-name, .variable-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .decorator-signature {
+            background: #2d3748;
+            color: #f7fafc;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .example-code {
+            background: #2d3748;
+            color: #f7fafc;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+        }
+        .section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ documentation.category }}</h1>
+        <p>SkyrimNet Documentation Category</p>
+        <p>Generated on {{ currentTime }}</p>
+    </div>
+
+    {% if length(documentation.decorators) > 0 %}
+    <div class="section">
+        <h2>Functions</h2>
+        {% for decorator in documentation.decorators %}
+        <div class="decorator-item">
+            <div class="decorator-name">{{ decorator.name }}</div>
+            <div>{{ decorator.description }}</div>
+            
+            {% if length(decorator.arguments) > 0 %}
+            <div class="decorator-signature">
+                {{ decorator.name }}({% for arg in decorator.arguments %}{{ arg.name }}: {{ arg.type }}{% if not loop.last %}, {% endif %}{% endfor %}) → {{ decorator.returnInfo.type }}
+            </div>
+            {% else %}
+            <div class="decorator-signature">{{ decorator.name }} → {{ decorator.returnInfo.type }}</div>
+            {% endif %}
+
+            {% if length(decorator.examples) > 0 %}
+            <div style="margin-top: 1rem;">
+                <strong>Examples:</strong>
+                {% for example in decorator.examples %}
+                <div class="example-code">{{ example }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if length(documentation.variables) > 0 %}
+    <div class="section">
+        <h2>Variables</h2>
+        {% for variable in documentation.variables %}
+        <div class="variable-item">
+            <div class="variable-name">{{ variable.name }}</div>
+            <div style="color: #48bb78; font-family: 'Courier New', monospace;">{{ variable.type }}</div>
+            {% if variable.description %}
+            <div>{{ variable.description }}</div>
+            {% endif %}
+            {% if variable.exampleValue %}
+            <div class="example-code">{{ "{{ " }}{{ variable.name }}{{ " }}" }} → {{ variable.exampleValue }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</body>
+</html> 

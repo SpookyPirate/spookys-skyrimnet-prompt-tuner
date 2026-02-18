@@ -1,0 +1,500 @@
+{# TEST SUBMODULE - Quest & Game System Decorators #}
+{# Tests: get_all_active_quests, get_selected_quests, is_quest_active, get_quest_stage, #}
+{#        get_global_value, get_form_name, get_script_property (with array & ReferenceAlias support), #}
+{#        get_quest_alias_actor (NEW), is_plugin_loaded, etc. #}
+{# CATEGORY: Quest, Game System #}
+
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+
+## 📜 QUEST & GAME SYSTEM DECORATOR TESTS
+
+### Test 1: get_all_active_quests() - All Active Quests
+
+{% set activeQuests = get_all_active_quests() %}
+**Total Active Quests:** {{ length(activeQuests) }}
+
+{% if activeQuests and length(activeQuests) > 0 %}
+{% for quest in activeQuests %}
+{% if loop.index <= 15 %}
+- **{{ quest.name }}** ({{ quest.editorID }})
+  - FormID: {{ quest.formID }}
+  - Current Stage: {{ quest.currentStage }}
+{% if quest.objectives and length(quest.objectives) > 0 %}
+  - Objectives:
+{% for obj in quest.objectives %}
+    - [{% if obj.isCompleted %}✓{% else %}○{% endif %}] {{ obj.objectiveText }}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% if length(activeQuests) > 15 %}
+... and {{ length(activeQuests) - 15 }} more active quests
+{% endif %}
+{% else %}
+No active quests found.
+{% endif %}
+
+---
+
+### Test 2: get_selected_quests() - Tracked/Selected Quests
+
+{% set selectedQuests = get_selected_quests() %}
+**Tracked Quests:** {{ length(selectedQuests) }}
+
+{% if selectedQuests and length(selectedQuests) > 0 %}
+{% for quest in selectedQuests %}
+- **{{ quest.name }}** ({{ quest.editorID }})
+  - Current Stage: {{ quest.currentStage }}
+{% if quest.objectives and length(quest.objectives) > 0 %}
+  - Active Objectives:
+{% for obj in quest.objectives %}
+    - {{ obj.objectiveText }} ({% if obj.isCompleted %}Complete{% else %}In Progress{% endif %})
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% else %}
+No quests are currently being tracked.
+{% endif %}
+
+---
+
+### Test 3: is_quest_active() & get_quest_stage() - Specific Quest Checks
+
+**Main Quest Line:**
+- MQ101 (Unbound): {% if is_quest_active("MQ101") %}✓ ACTIVE (Stage: {{ get_quest_stage("MQ101") }}){% else %}✗ Not active{% endif %}
+- MQ102 (Before the Storm): {% if is_quest_active("MQ102") %}✓ ACTIVE (Stage: {{ get_quest_stage("MQ102") }}){% else %}✗ Not active{% endif %}
+- MQ103 (Bleak Falls Barrow): {% if is_quest_active("MQ103") %}✓ ACTIVE (Stage: {{ get_quest_stage("MQ103") }}){% else %}✗ Not active{% endif %}
+- MQ104 (Dragon Rising): {% if is_quest_active("MQ104") %}✓ ACTIVE (Stage: {{ get_quest_stage("MQ104") }}){% else %}✗ Not active{% endif %}
+
+**Civil War:**
+- CW01A (Joining the Stormcloaks): {% if is_quest_active("CW01A") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+- CW01B (Joining the Legion): {% if is_quest_active("CW01B") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+
+**Companions:**
+- C00 (Take Up Arms): {% if is_quest_active("C00") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+- C01 (Proving Honor): {% if is_quest_active("C01") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+
+**Thieves Guild:**
+- TG00 (A Chance Arrangement): {% if is_quest_active("TG00") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+
+**College of Winterhold:**
+- MG01 (First Lessons): {% if is_quest_active("MG01") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+
+**Misc:**
+- FreeformRiverwood01 (A Lovely Letter): {% if is_quest_active("FreeformRiverwood01") %}✓ ACTIVE (Stage: {{ get_quest_stage("FreeformRiverwood01") }}){% else %}✗ Not active{% endif %}
+
+---
+
+### Test 4: get_global_value() - Global Variables
+
+**Time Globals:**
+- GameYear: {{ get_global_value("GameYear") }}
+- GameMonth: {{ get_global_value("GameMonth") }}
+- GameDay: {{ get_global_value("GameDay") }}
+- GameHour: {{ get_global_value("GameHour") }}
+- GameDaysPassed: {{ get_global_value("GameDaysPassed") }}
+- TimeScale: {{ get_global_value("TimeScale") }}
+
+**Game Settings:**
+- Gold: {{ get_global_value("Gold") }}
+- DLC1BloodChalice: {{ get_global_value("DLC1BloodChalice") }}
+
+**Survival Mode (if installed):**
+- Survival_UpdateGameTimeIntervalHunger: {{ get_global_value("Survival_UpdateGameTimeIntervalHunger") }}
+- Survival_UpdateGameTimeIntervalExhaustion: {{ get_global_value("Survival_UpdateGameTimeIntervalExhaustion") }}
+- Survival_UpdateGameTimeIntervalCold: {{ get_global_value("Survival_UpdateGameTimeIntervalCold") }}
+
+---
+
+### Test 5: get_form_name() - Form Name Lookup
+
+**Item Names by FormID:**
+{# Note: FormIDs must be decimal - Inja doesn't support hex literals #}
+- Iron Sword (77495): {{ get_form_name(77495) }}
+- Steel Sword (80265): {{ get_form_name(80265) }}
+- Health Potion (256734): {{ get_form_name(256734) }}
+
+---
+
+### Test 6: get_script_property() - Quest Script Properties
+
+{# get_script_property() now returns typed JSON values: #}
+{# - Primitives: int, float, bool, string - used directly #}
+{# - Arrays: iterable with {% for %}, use length(), first(), last() #}
+{# - Objects (forms): have formId, editorId, name fields #}
+
+**Scalar Properties (MQ101):**
+{% set factionPath = get_script_property("MQ101", "mq101questscript", "FactionPath") %}
+{% set stage280Target = get_script_property("MQ101", "mq101questscript", "stage280Target") %}
+{% set stage45Total = get_script_property("MQ101", "mq101questscript", "stage45Total") %}
+- FactionPath (int): {{ factionPath }}{% if factionPath %} ✓{% else %} (null){% endif %}
+- stage280Target (int): {{ stage280Target }}{% if stage280Target %} ✓{% else %} (null){% endif %}
+- stage45Total (int): {{ stage45Total }}{% if stage45Total %} ✓{% else %} (null){% endif %}
+
+**Scalar Properties (DarkBrotherhood):**
+- CiceroState (int): {{ get_script_property("DarkBrotherhood", "darkbrotherhood", "CiceroState") }}
+- BlackSacrament (int): {{ get_script_property("DarkBrotherhood", "darkbrotherhood", "BlackSacrament") }}
+- FirstKill (int): {{ get_script_property("DarkBrotherhood", "darkbrotherhood", "FirstKill") }}
+
+**Object Property (form reference):**
+{% set courierLetter = get_script_property("DarkBrotherhood", "darkbrotherhood", "CourierLetter") %}
+- CourierLetter: {{ courierLetter }}
+{% if courierLetter %}
+  - FormID: {{ courierLetter.formId | default("N/A") }}
+  - EditorID: {{ courierLetter.editorId | default("N/A") }}
+  - Name: {{ courierLetter.name | default("N/A") }}
+{% endif %}
+
+---
+
+### Test 6a: SkyrimNet Test Properties (skynet_Library)
+
+{# Test data from SkyrimNet's own skynet_Library script #}
+
+**Scalar Test Properties:**
+{% set snTestInt = get_script_property("skynet_MainController", "skynet_Library", "testInt") %}
+{% set snTestFloat = get_script_property("skynet_MainController", "skynet_Library", "testFloat") %}
+{% set snTestBool = get_script_property("skynet_MainController", "skynet_Library", "testBool") %}
+{% set snTestString = get_script_property("skynet_MainController", "skynet_Library", "testString") %}
+
+- testInt (expected 42): {{ snTestInt }}{% if snTestInt == 42 %} ✓{% else %} ✗{% endif %}
+- testFloat (expected ~3.14): {{ snTestFloat }}{% if snTestFloat %} ✓{% else %} ✗{% endif %}
+- testBool (expected true): {{ snTestBool }}{% if snTestBool %} ✓{% else %} ✗{% endif %}
+- testString (expected "Hello from SkyrimNet!"): {{ snTestString }}{% if snTestString %} ✓{% else %} ✗{% endif %}
+
+**Array Test Properties:**
+{% set snTestIntArray = get_script_property("skynet_MainController", "skynet_Library", "testIntArray") %}
+{% set snTestStringArray = get_script_property("skynet_MainController", "skynet_Library", "testStringArray") %}
+
+- testIntArray: {% if snTestIntArray and is_array(snTestIntArray) %}✓ Array with {{ length(snTestIntArray) }} elements (expected 5){% else %}✗ Not found{% endif %}
+- testStringArray: {% if snTestStringArray and is_array(snTestStringArray) %}✓ Array with {{ length(snTestStringArray) }} elements (expected 3){% else %}✗ Not found{% endif %}
+
+**Int Array Iteration (expected [10, 20, 30, 40, 50]):**
+{% if snTestIntArray and is_array(snTestIntArray) and length(snTestIntArray) > 0 %}
+{% for val in snTestIntArray %}
+  - [{{ loop.index }}]: {{ val }}
+{% endfor %}
+{% else %}
+Array not initialized (run Maintenance first)
+{% endif %}
+
+**String Array Iteration (expected ["First", "Second", "Third"]):**
+{% if snTestStringArray and is_array(snTestStringArray) and length(snTestStringArray) > 0 %}
+{% for val in snTestStringArray %}
+  - [{{ loop.index }}]: "{{ val }}"
+{% endfor %}
+{% else %}
+Array not initialized (run Maintenance first)
+{% endif %}
+
+---
+
+### Test 6b: Array Type Checking
+
+{# Arrays are returned as native JSON arrays - use length() and is_array() #}
+
+**Array vs Scalar Check:**
+{% set snIntArray = get_script_property("skynet_MainController", "skynet_Library", "testIntArray") %}
+{% set snStringArray = get_script_property("skynet_MainController", "skynet_Library", "testStringArray") %}
+{% set snScalarInt = get_script_property("skynet_MainController", "skynet_Library", "testInt") %}
+
+- testIntArray: {% if snIntArray and is_array(snIntArray) %}✓ is array with {{ length(snIntArray) }} elements{% else %}✗ not an array{% endif %}
+- testStringArray: {% if snStringArray and is_array(snStringArray) %}✓ is array with {{ length(snStringArray) }} elements{% else %}✗ not an array{% endif %}
+- testInt (scalar): {% if is_array(snScalarInt) %}✗ incorrectly detected as array{% else %}✓ correctly NOT an array (value: {{ snScalarInt }}){% endif %}
+
+**Null/Missing Property Check:**
+{% set nonExistent = get_script_property("skynet_MainController", "skynet_Library", "NonExistentProperty") %}
+- NonExistent property: {% if nonExistent %}has value: {{ nonExistent }}{% else %}✓ null/not found (expected){% endif %}
+
+---
+
+### Test 6c: Array Access Functions
+
+{# Use first(), last(), and iteration to access array elements #}
+
+**Int Array Access (testIntArray - expected [10, 20, 30, 40, 50]):**
+{% set intArr = get_script_property("skynet_MainController", "skynet_Library", "testIntArray") %}
+{% if intArr and is_array(intArr) and length(intArr) > 0 %}
+- Length: {{ length(intArr) }} (expected 5)
+- First: {{ first(intArr) }} (expected 10)
+- Last: {{ last(intArr) }} (expected 50)
+{% else %}
+Array not initialized (run Maintenance first)
+{% endif %}
+
+**String Array Access (testStringArray - expected ["First", "Second", "Third"]):**
+{% set strArr = get_script_property("skynet_MainController", "skynet_Library", "testStringArray") %}
+{% if strArr and is_array(strArr) and length(strArr) > 0 %}
+- Length: {{ length(strArr) }} (expected 3)
+- First: "{{ first(strArr) }}" (expected "First")
+- Last: "{{ last(strArr) }}" (expected "Third")
+{% else %}
+Array not initialized (run Maintenance first)
+{% endif %}
+
+---
+
+### Test 6d: Array Iteration
+
+{# Iterate arrays with {% for item in array %} #}
+
+**Int Array Full Iteration:**
+{% set allInts = get_script_property("skynet_MainController", "skynet_Library", "testIntArray") %}
+{% if allInts and is_array(allInts) and length(allInts) > 0 %}
+{{ length(allInts) }} integers:
+{% for val in allInts %}
+  - [{{ loop.index }}]: {{ val }}
+{% endfor %}
+{% else %}
+Array not initialized (run Maintenance first)
+{% endif %}
+
+**String Array Full Iteration:**
+{% set allStrings = get_script_property("skynet_MainController", "skynet_Library", "testStringArray") %}
+{% if allStrings and is_array(allStrings) and length(allStrings) > 0 %}
+{{ length(allStrings) }} strings:
+{% for val in allStrings %}
+  - [{{ loop.index }}]: "{{ val }}"
+{% endfor %}
+{% else %}
+Array not initialized (run Maintenance first)
+{% endif %}
+
+---
+
+### Test 7: is_plugin_loaded() - Plugin/Mod Checks
+
+**Base Game Files:**
+- Skyrim.esm: {% if is_plugin_loaded("Skyrim.esm") %}✓ LOADED{% else %}✗ Not loaded{% endif %}
+- Update.esm: {% if is_plugin_loaded("Update.esm") %}✓ LOADED{% else %}✗ Not loaded{% endif %}
+- Dawnguard.esm: {% if is_plugin_loaded("Dawnguard.esm") %}✓ LOADED{% else %}✗ Not loaded{% endif %}
+- HearthFires.esm: {% if is_plugin_loaded("HearthFires.esm") %}✓ LOADED{% else %}✗ Not loaded{% endif %}
+- Dragonborn.esm: {% if is_plugin_loaded("Dragonborn.esm") %}✓ LOADED{% else %}✗ Not loaded{% endif %}
+
+**Common Mods:**
+- SkyUI_SE.esp: {% if is_plugin_loaded("SkyUI_SE.esp") %}✓ LOADED{% else %}✗ Not loaded{% endif %}
+- USSEP: {% if is_plugin_loaded("unofficial skyrim special edition patch.esp") %}✓ LOADED{% else %}✗ Not loaded{% endif %}
+
+**get_all_loaded_plugins():**
+{% set allPlugins = get_all_loaded_plugins() %}
+Total Plugins Loaded: {{ length(allPlugins) }}
+First 10 Plugins: {{ join(allPlugins, ", ") }}
+
+---
+
+### Test 8: System Status Decorators
+
+**isTimePaused:**
+- Game Time Paused: {% if isTimePaused %}✓ YES (in menu/console){% else %}✗ NO (time is running){% endif %}
+
+**is_continuous_mode:**
+- Continuous Scene Mode: {% if is_continuous_mode %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+
+**is_narration_enabled():**
+- Narration System: {% if is_narration_enabled() %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+
+**is_action_enabled():**
+- StartConversation Action: {% if is_action_enabled("StartConversation") %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+- Narrate Action: {% if is_action_enabled("Narrate") %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+- Follow Action: {% if is_action_enabled("Follow") %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+
+**is_caching_enabled():**
+- Default Variant Caching: {% if is_caching_enabled() %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+- Meta Variant Caching: {% if is_caching_enabled("meta") %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+
+---
+
+### Test 9: TTS & Audio
+
+**get_actor_tts():**
+- {{ actorName }}'s TTS Engine: {{ get_actor_tts(actorUUID) }}
+- Player's TTS Engine: {{ get_actor_tts(player.UUID) }}
+- Narrator's TTS Engine: {{ get_actor_tts(get_narrator_uuid()) }}
+
+**is_audio_tags_enabled():**
+- {{ actorName }} Audio Tags: {% if is_audio_tags_enabled(actorUUID) %}✓ ENABLED ([emotion] tags work){% else %}✗ DISABLED{% endif %}
+- Player Audio Tags: {% if is_audio_tags_enabled(player.UUID) %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+
+**get_narrator_uuid():**
+- Narrator UUID: {{ get_narrator_uuid() }}
+
+---
+
+### Test 10: Item & Spell Customization
+
+**is_spell_enabled():**
+{# Flames = 77773, Healing = 77772 #}
+- Flames (77773): {% if is_spell_enabled(77773) %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+- Healing (77772): {% if is_spell_enabled(77772) %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+
+**get_customized_spell_name():**
+- Custom name for Flames: {{ get_customized_spell_name(77773) }}
+
+**is_item_enabled():**
+- Iron Sword (77495): {% if is_item_enabled(77495) %}✓ ENABLED{% else %}✗ DISABLED{% endif %}
+
+**get_item_name():**
+- Iron Sword effective name: {{ get_item_name(77495) }}
+
+**get_item_description():**
+- Iron Sword description: {{ get_item_description(77495) }}
+
+---
+
+### Test 11: File System Decorators
+
+**prompt_file_exists():**
+- dialogue_response.prompt exists: {% if prompt_file_exists("dialogue_response") %}✓ YES{% else %}✗ NO{% endif %}
+- player_thoughts.prompt exists: {% if prompt_file_exists("player_thoughts") %}✓ YES{% else %}✗ NO{% endif %}
+- nonexistent_file.prompt exists: {% if prompt_file_exists("nonexistent_file") %}✓ YES{% else %}✗ NO{% endif %}
+
+**json_file_exists():**
+- SkyrimNet/config.json: {% if json_file_exists("SkyrimNet/config.json") %}✓ EXISTS{% else %}✗ Does not exist{% endif %}
+
+---
+
+### Test 12: FormID Conversion
+
+**formid_to_uuid():**
+{# Player FormID is 20 (0x14 in hex) #}
+- Player FormID (20) to UUID: {{ formid_to_uuid(20) }}
+- Verify against player.UUID: {{ player.UUID }}
+- Match: {% if formid_to_uuid(20) == player.UUID %}✓ MATCH{% else %}✗ NO MATCH{% endif %}
+
+---
+
+### Test 13: Quest Alias Access - get_quest_alias_actor()
+
+{# Direct quest alias access - get actor from a quest's alias by name #}
+{# Returns: { uuid, formId, name, editorId } or null if alias is empty #}
+{# IMPORTANT: Use the ALIAS NAME defined in the quest, not the script property name! #}
+{#   - Alias names: "Follower", "Animal", "Player" (defined in quest aliases) #}
+{#   - Script property names: "pFollowerAlias", "pAnimalAlias" (properties pointing to aliases) #}
+
+**DialogueFollower Quest Aliases:**
+
+{# Use actual alias names from the quest, not script property names #}
+{% set followerActor = get_quest_alias_actor("DialogueFollower", "Follower") %}
+- Follower Alias (Current Follower):
+{% if followerActor %}
+  - ✓ FILLED
+  - UUID: {{ followerActor.uuid }}
+  - FormID: {{ followerActor.formId }}
+  - Name: {{ followerActor.name }}
+  - EditorID: {% if followerActor.editorId %}{{ followerActor.editorId }}{% else %}(none){% endif %}
+{% else %}
+  - ✗ EMPTY (No follower currently recruited)
+{% endif %}
+
+{% set animalActor = get_quest_alias_actor("DialogueFollower", "Animal") %}
+- Animal Alias (Current Animal):
+{% if animalActor %}
+  - ✓ FILLED
+  - UUID: {{ animalActor.uuid }}
+  - FormID: {{ animalActor.formId }}
+  - Name: {{ animalActor.name }}
+{% else %}
+  - ✗ EMPTY (No animal companion currently)
+{% endif %}
+
+**Error Handling:**
+{# Test with non-existent quest #}
+{% set badQuest = get_quest_alias_actor("NonExistentQuest", "SomeAlias") %}
+- Non-existent quest: {% if badQuest %}Unexpected result{% else %}✓ null (expected){% endif %}
+
+{# Test with non-existent alias #}
+{% set badAlias = get_quest_alias_actor("DialogueFollower", "NonExistentAlias") %}
+- Non-existent alias: {% if badAlias %}Unexpected result{% else %}✓ null (expected){% endif %}
+
+{# Test with script property name (should fail - wrong type of name) #}
+{% set wrongNameType = get_quest_alias_actor("DialogueFollower", "pFollowerAlias") %}
+- Script property name (wrong): {% if wrongNameType %}Unexpected result{% else %}✓ null (script property names don't work here){% endif %}
+
+---
+
+### Test 14: ReferenceAlias Resolution via get_script_property()
+
+{# ENHANCED: get_script_property() now resolves ReferenceAlias properties to actors #}
+{# When a property is typed as ReferenceAlias, it returns the referenced actor's data #}
+{# including UUID, formId, editorId, and name #}
+
+**DialogueFollower Script ReferenceAlias Properties:**
+
+{# pFollowerAlias property - should resolve to the actual follower actor #}
+{% set followerProp = get_script_property("DialogueFollower", "dialoguefollowerscript", "pFollowerAlias") %}
+- pFollowerAlias (via get_script_property):
+{% if followerProp %}
+  {% if followerProp.uuid %}
+  - ✓ RESOLVED TO ACTOR
+  - UUID: {{ followerProp.uuid }}
+  - FormID: {{ followerProp.formId }}
+  - Name: {{ followerProp.name }}
+  - EditorID: {{ followerProp.editorId }}
+  {% else %}
+  - ⚠️ ReferenceAlias returned but not resolved: {{ followerProp }}
+  {% endif %}
+{% else %}
+  - ✗ EMPTY (No follower currently)
+{% endif %}
+
+{# pAnimalAlias property #}
+{% set animalProp = get_script_property("DialogueFollower", "dialoguefollowerscript", "pAnimalAlias") %}
+- pAnimalAlias (via get_script_property):
+{% if animalProp %}
+  {% if animalProp.uuid %}
+  - ✓ RESOLVED TO ACTOR
+  - UUID: {{ animalProp.uuid }}
+  - Name: {{ animalProp.name }}
+  {% else %}
+  - ⚠️ ReferenceAlias returned but not resolved
+  {% endif %}
+{% else %}
+  - ✗ EMPTY (No animal companion)
+{% endif %}
+
+**Comparison: Direct Alias vs Script Property:**
+{# Both methods should return the same actor when the alias is filled #}
+{# Direct alias uses the alias NAME ("Follower"), script property uses property name ("pFollowerAlias") #}
+{% set directFollower = get_quest_alias_actor("DialogueFollower", "Follower") %}
+{% set propFollower = get_script_property("DialogueFollower", "dialoguefollowerscript", "pFollowerAlias") %}
+
+{% if directFollower and propFollower %}
+- Direct alias UUID (via "Follower"): {{ directFollower.uuid }}
+- Script property UUID (via "pFollowerAlias"): {{ propFollower.uuid }}
+- UUIDs Match: {% if directFollower.uuid == propFollower.uuid %}✓ YES - Both methods reference the same actor{% else %}✗ NO{% endif %}
+{% elif not directFollower and not propFollower %}
+- Both methods return null (alias is empty) ✓
+{% else %}
+- ⚠️ Mismatch: Direct alias returned {% if directFollower %}data{% else %}null{% endif %}, Script property returned {% if propFollower %}data{% else %}null{% endif %}
+{% endif %}
+
+---
+
+### Test 15: Actor Property Resolution via get_script_property()
+
+{# Test that Actor-typed properties also get UUID resolution #}
+
+**skynet_MainController Actor Properties:**
+{% set playerRefProp = get_script_property("skynet_MainController", "skynet_MainController", "playerRef") %}
+- playerRef (Actor property):
+{% if playerRefProp %}
+  {% if playerRefProp.uuid %}
+  - ✓ RESOLVED TO ACTOR
+  - UUID: {{ playerRefProp.uuid }}
+  - FormID: {{ playerRefProp.formId }}
+  - Name: {% if playerRefProp.name %}{{ playerRefProp.name }}{% else %}(Player - name from character creation){% endif %}
+  - Is Player: {% if playerRefProp.uuid == player.UUID %}✓ YES{% else %}✗ NO{% endif %}
+  {% else %}
+  - Property found but no UUID: {{ playerRefProp }}
+  {% endif %}
+{% else %}
+  - ✗ Property not found or null
+{% endif %}
+
+{# Note: The player actor doesn't have a "name" in the traditional NPC sense - #}
+{# their name comes from character creation and is stored differently. #}
+{# Use player.name from the context instead for the player's display name. #}
+
+---
+

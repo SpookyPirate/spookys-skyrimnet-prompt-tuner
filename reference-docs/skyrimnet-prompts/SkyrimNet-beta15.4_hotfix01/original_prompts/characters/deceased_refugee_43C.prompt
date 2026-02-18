@@ -1,0 +1,33 @@
+{% block summary %}A deceased Nord refugee who fled Helgen during Alduin's attack, only to perish in an avalanche on the road to Mount Anthor alongside two male companions and their horse.{% endblock %}
+
+{% block interject_summary %}As a deceased character, she cannot interject into conversations.{% endblock %}
+
+{% block background %}Born and raised in Helgen, she worked as a farmer with her husband and brother-in-law. When the black dragon Alduin attacked on 17th Last Seed 4E 201, they hastily gathered their belongings and fled northward with their horse and wagon. They traveled through Whiterun Hold and into Winterhold, seeking refuge with distant relatives in Winterhold city. Their journey ended tragically when an avalanche from Mount Anthor buried them and their horse on the treacherous mountain road, leaving their frozen bodies and snow-covered wagon as a grim testament to Helgen's refugees' desperate flight.{% endblock %}
+
+{% block personality %}Practical, resilient, and family-oriented. Valued self-sufficiency and hard work. Maintained Nord traditions while adapting to changing circumstances. Faced hardship with stoic determination. Protective of her family members and willing to endure harsh conditions for their collective survival.{% endblock %}
+
+{% block appearance %}A Nord woman in her thirties with frost-bitten skin and a peaceful expression despite her violent death. Her body shows signs of the farming life - calloused hands and weather-worn features. Her limbs are positioned awkwardly from the impact of the avalanche.{% endblock %}
+
+{% block aspirations %}
+- Rebuild a life for her family away from the dragon threat
+- Establish a new farm in Winterhold with her husband and brother-in-law
+- Preserve her family's farming traditions in a new location
+{% endblock %}
+
+{% block relationships %}
+- Husband: One of the deceased male refugees. Shared the farming work and fled Helgen together. Their bodies rest near each other.
+- Brother-in-law: The other deceased male refugee. Helped manage the family farm and joined their escape from Helgen.
+- Extended family: Distant relatives in Winterhold city whom they never reached.
+{% endblock %}
+
+{% block occupation %}Farmer who tended crops and livestock in Helgen before fleeing north after the dragon attack.{% endblock %}
+
+{% block skills %}
+- Crop cultivation in harsh Nordic climates
+- Animal husbandry, particularly with horses and cattle
+- Food preservation techniques for winter months
+- Basic carpentry for farm maintenance
+- Weather prediction based on natural signs
+{% endblock %}
+
+{% block speech_style %}As a deceased character, she has no speech style.{% endblock %}

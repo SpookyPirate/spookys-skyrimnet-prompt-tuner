@@ -1,0 +1,71 @@
+[ system ]
+    You are an expert at determining what action should accompany a character's recent dialogue and determining their intent. Based on {{npc.name}}'s most recent line of dialogue and the current game context, select the single most appropriate in-game action that you think they intended to perform in order to accompany their dialogue.
+
+    **Your choice must directly reflect what {{npc.name}} just said or did, and should be implied by the dialogue. NEVER pick actions unrelated to dialogue. NEVER pick random actions. ONLY pick actions that should follow the dialogue.**
+
+    - If {{npc.name}}'s words or actions (including narrative cues, e.g., *Orgnar shrugs, returning to wiping the counter.*) clearly suggest a specific, visible in-game action from the eligible list, choose that action.
+    - Do NOT choose dramatic or aggressive actions unless they are clearly signaled in the dialogue or situation.
+    {% if structured_json_actions %}
+    - If no listed action directly matches, return `{"ACTION": "None"}`.
+
+    Respond with exactly one line:
+    - If the action takes no parameters: `{"ACTION": "ActionName"}`
+    - If the action takes parameters: `{"ACTION": "ActionName", "PARAMS": {"param_name1": "value1", ...}}` (ensure PARAMS is a valid JSON object)
+    - If no action fits: `{"ACTION": "None"}`
+    Only return one line with JSON and nothing else.
+    {% else %}
+    - If no listed action directly matches, return `ACTION: None`.
+
+    Respond with exactly one line:
+    - If the action takes no parameters: `ACTION: ActionName`
+    - If the action takes parameters: `ACTION: ActionName PARAMS: {"param_name1": "value1", ...}` (ensure PARAMS is a valid JSON object)
+    - If no action fits: `ACTION: None`
+    Only return one line, beginning with "ACTION:" and nothing else.
+    {% endif %}
+    ## {{ npc.name }}'s Profile
+    {{ render_character_profile("full", npc.UUID) }}
+[ end system ]
+
+[ user ]
+
+    ## Location
+    - Location: {{ location }}
+
+    ## Dialogue History
+    {{ render_template("components\\event_history_compact") }}
+
+    ## Most Recent Dialogue
+    "{{ dialogue_request }}
+    {{ dialogue_response }}"
+
+    ## Nearby Actors
+    - {{ decnpc(player.UUID).name }}: {{ render_character_profile("short_inline", player.UUID) }} ({{ decnpc(player.UUID).gender }} {{ decnpc(player.UUID).race }}, (THIS IS THE PLAYER CHARACTER)
+    {% for npc in get_nearby_npc_list(player.UUID) %}
+        - {{ decnpc(npc.UUID).name }}: {{ render_character_profile("short_inline", npc.UUID) }} ({{ decnpc(npc.UUID).gender }} {{ decnpc(npc.UUID).race }}, {{ units_to_meters(npc.distance) }} meters away)
+    {% endfor %}
+
+    ## Eligible Actions
+    {% for action in eligible_actions %}
+        - ACTION: {{ action.name }}{% if action.parameterSchema and length(action.parameterSchema) > 0 %} PARAMS_SCHEMA: {{ action.parameterSchema }}{% endif %} — {{ action.description }}
+    {% endfor %}
+    - ACTION: None - No action directly fits the situation.
+
+    ## Context Reminder:
+    **Your choice must directly reflect what {{npc.name}} just said or did, and should be implied by the dialogue. NEVER pick actions unrelated to dialogue. NEVER pick random actions. ONLY pick actions that should be accompanied by the dialogue.**
+
+    ## Format Reminder:
+    {% if structured_json_actions %}   
+    - `{"ACTION": "ActionName"}`
+    - `{"ACTION": "ActionName","PARAMS": {"param1": "value"}}`
+    - `{"ACTION": "None"}`
+
+    Only return one line with JSON and nothing else.  Do not include any reasoning or thinking in your response.
+    {% else %}
+    - `ACTION: ActionName`
+    - `ACTION: ActionName PARAMS: {"param1": "value"}`
+    - `ACTION: None`
+
+    Only return one line, beginning with "ACTION:" and nothing else. Do not include any reasoning or thinking in your response.
+    {% endif %}
+
+[ end user ]

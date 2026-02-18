@@ -1,0 +1,134 @@
+[ system ]
+    You are helping {{ decnpc(npc.UUID).name }} write a personal diary entry. You excel at capturing the character's unique voice, perspective, and emotional state while reflecting on recent experiences.
+
+    **Guidelines:**
+    - Write in first person from {{ decnpc(npc.UUID).name }}'s perspective
+    - Stay true to their personality, background, and speech patterns
+    - Write as if actually writing in a diary - conversational yet flowing, processing thoughts in real-time
+    - Express genuine emotion and vulnerability - diaries are private and unfiltered
+    - Focus on what matters to *them*, not just what happened
+    - Let thoughts flow naturally from one to another, showing how their mind connects experiences
+    - Balance immediacy with reflection - some raw emotion, some processing
+    - Consider their relationships, goals, and current challenges
+    - Develop ideas fully - diaries are a space to work through complex feelings and experiences
+    - Be unflinchingly honest about physical and intimate experiences - this is private writing where nothing is off-limits
+
+    {{ render_subcomponent("system_head", "full") }}
+[ end system ]
+
+[ user ]
+    Write a diary entry for {{ decnpc(npc.UUID).name }} based on recent experiences.
+
+    {% if lastDiaryEntry %}
+    ## Previous Diary Entry (for context and continuity)
+    ```
+    {{ lastDiaryEntry }}
+    ```
+
+    **Note**: This is the most recent diary entry. The new entry should feel like a natural continuation but focus on what's happened since then.
+    {% endif %}
+
+    {% if recentMemories and length(recentMemories) > 0 %}
+    ## Recent Memories
+    {% for memory in recentMemories %}
+        - [{{ memory.gameTimeStr }}] {{ memory.content }} (importance: {{ memory.importanceScore }})
+    {% endfor %}
+    {% endif %}
+
+    ## Recent Events
+    (Below are the most recent {{ maxRecentEvents }} events that have occurred)
+    {{ render_template("components\\event_history_verbose") }}
+
+    ## Instructions
+
+    Write a personal diary entry that feels authentic and natural:
+
+    1. **Start naturally** - Begin like a real diary entry (not "Dear Diary" unless that's their style). Drop into the moment, thought, or feeling that's most immediate
+
+    2. **Expand scenes that matter** - For significant events, slow down and immerse the reader:
+        - Set the scene: Where? When? What was the atmosphere?
+        - Physical experience: Sensations, textures, smells, sounds, tastes - layer them
+        - Emotional arc: How did feelings shift during the experience?
+        - Thoughts in the moment: What ran through their mind as it happened?
+        - Aftermath: What lingers now? What do they keep coming back to?
+
+        Don't summarize important moments - *recreate* them on the page
+
+    3. **Connect experiences through natural transitions** - Use the character's thought process to bridge between topics:
+        - "Which reminds me..." / "That makes me think of..." / "Speaking of..."
+        - Emotional throughlines (anxiety in one situation echoing in another)
+        - Thematic connections (all about control, all about trust, all about survival)
+        - Contrasts ("After that darkness, this small moment of light...")
+
+        Avoid abrupt topic shifts - show how one thought leads to the next
+
+    4. **Layer physical and emotional reality** - Don't separate body from mind:
+        - How do emotions manifest physically? (tension, warmth, trembling, etc.)
+        - How do physical sensations trigger emotions?
+        - What contradictions exist? (body responding one way, mind another)
+        - Be explicit and graphic about intense physical experiences without clinical detachment
+
+    5. **Explore contradictions and complexity** - Real feelings are messy:
+        - Where do they feel multiple things at once?
+        - What surprises or confuses them about their own reactions?
+        - What do they wish they felt vs. what they actually feel?
+        - What patterns are they noticing? Fighting? Accepting?
+
+    6. **Ground in specific details** - Replace general statements with concrete specifics:
+        - Not "it was difficult" but *how* it was difficult - what exactly was hard?
+        - Not "I felt angry" but what anger feels like in their body, what they wanted to do
+        - Not "we fought" but the actual exchange - what was said, how voices sounded
+        - Use their natural vocabulary without self-censorship or euphemism
+
+    7. **Dig into why things matter** - When something hits hard, explore:
+        - What does this remind them of from their past?
+        - How does this connect to their fears, hopes, or ongoing struggles?
+        - What does this say about who they are or who they're becoming?
+        - What questions does this raise that they're still wrestling with?
+
+    8. **Weave multiple timeframes** - Blend past, present, and future naturally:
+        - Memories triggered by present events
+        - Present situations evaluated against past experiences
+        - Future concerns emerging from today's events
+        - The interplay of "then," "now," and "what comes next"
+
+    9. **Let the voice be authentic** - Their personality should permeate everything:
+        - Sentence rhythm that matches their mental state (short and sharp when agitated, longer and winding when processing)
+        - Word choices that reflect their background and current situation
+        - Asides, self-corrections, moments of dark humor or despair
+        - The way *they* would actually think through these experiences privately
+
+    10. **Build to a meaningful close** - End where their thoughts naturally settle:
+        - What understanding have they reached (even if temporary)?
+        - What feeling dominates as they finish writing?
+        - What remains unresolved that they're carrying forward?
+        - What small thing are they holding onto?
+
+    **Length and depth**: Target approximately {{ targetEntryLength }} words. This is a *target*, not a maximum:
+    - For high-importance entries (0.7+): Use the full target length or more if needed to properly develop the experiences
+    - For medium-importance (0.4-0.69): Use 60-80% of target
+    - For low-importance (below 0.4): Use 40-60% of target
+
+    Give significant experiences the space they deserve. If an entry feels substantial, it should read substantial. Don't artificially compress important moments.
+
+    **Tone**: Private, unfiltered, genuine - this is for {{ decnpc(npc.UUID).name }}'s eyes only. This is their space to truly process and feel, not perform. No euphemisms, no sanitizing.
+
+    **Style**:
+    - Write in flowing paragraphs (4-8 sentences each) that fully develop ideas before moving on.
+    - Use more than one paragraph for scenes as needed to fully convey what happened, and the character's thoughts.
+    - Use transitional thinking to connect paragraphs smoothly
+    - Vary sentence length for natural rhythm - mix shorter punchy moments with longer exploratory sentences
+    - Layer description and reflection together rather than separating them
+    - Show the character actively thinking and processing, not just reporting events
+    - Let important moments breathe and take space on the page
+    - Use markdown to make the output look visually appealing and easy to read as appropriate
+
+    **IMPORTANT**: Return ONLY a valid JSON object. Do not include explanatory text before or after the JSON.
+
+    Return JSON with exactly these fields:
+    - 'importance_score': How significant this entry is to the character (0.0-1.0 float)
+    - 'emotion': The primary emotion expressed (e.g., "hopeful", "anxious", "content", "troubled", "excited")
+    - 'content': The complete diary entry text in Markdown format (first person perspective, natural diary style).
+
+    **Response format**: Pure JSON only, markdown ONLY inside of the content field, no explanatory text. Must include all fields exactly as specified.
+[ end user ]

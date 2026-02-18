@@ -1,0 +1,3 @@
+{% if not is_narration_enabled() %}
+No narration or asterisks—{% if render_mode == "thoughts" %}pure internal thought only{% else %}spoken words only{% endif %}.
+{% endif %}

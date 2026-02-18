@@ -1,0 +1,144 @@
+{# TEST SUBMODULE - Magic Decorators #}
+{# Tests: has_magic_effect, has_spell, has_magic_archetype, get_effect_archetype #}
+{# CATEGORY: Magic #}
+
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+
+## ✨ MAGIC DECORATOR TESTS
+
+### Test 1: has_magic_effect() - Active Magic Effects
+
+**Vampire Effects:**
+- VampireAbSkills02 (Nightstalker's Footsteps): {% if has_magic_effect(actorUUID, "VampireAbSkills02") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+- AbVampireDamageHealth: {% if has_magic_effect(actorUUID, "AbVampireDamageHealth") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+- VampireAbWeaknessFireConstant: {% if has_magic_effect(actorUUID, "VampireAbWeaknessFireConstant") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+- VampireAbResistFrost: {% if has_magic_effect(actorUUID, "VampireAbResistFrost") %}✓ ACTIVE{% else %}✗ Not active{% endif %}
+
+**Common Effects:**
+- Paralysis: {% if has_magic_effect(actorUUID, "Paralysis") %}✓ PARALYZED{% else %}✗ Not paralyzed{% endif %}
+- InvisibilityEffect: {% if has_magic_effect(actorUUID, "InvisibilityEffect") %}✓ INVISIBLE{% else %}✗ Not invisible{% endif %}
+- MuteEffect: {% if has_magic_effect(actorUUID, "MuteEffect") %}✓ MUTED{% else %}✗ Not muted{% endif %}
+
+**Transformation Effects:**
+- WerewolfChange: {% if has_magic_effect(actorUUID, "WerewolfChange") %}✓ TRANSFORMING{% else %}✗ Not transforming{% endif %}
+
+**Alchemy Effects (common ones):**
+- AlchDamageHealth: {% if has_magic_effect(actorUUID, "AlchDamageHealth") %}✓ Poisoned{% else %}✗ Not poisoned{% endif %}
+- AlchFortifyHealth: {% if has_magic_effect(actorUUID, "AlchFortifyHealth") %}✓ Health Fortified{% else %}✗ Not fortified{% endif %}
+- AlchRestoreHealth: {% if has_magic_effect(actorUUID, "AlchRestoreHealth") %}✓ Healing{% else %}✗ Not healing{% endif %}
+
+**Player Magic Effects:**
+- Player Invisible: {% if has_magic_effect(player.UUID, "InvisibilityEffect") %}✓ YES{% else %}✗ NO{% endif %}
+- Player Paralyzed: {% if has_magic_effect(player.UUID, "Paralysis") %}✓ YES{% else %}✗ NO{% endif %}
+
+---
+
+### Test 2: has_spell() - Active Spells (Running on Actor)
+
+**Common Spells (Active on {{ actorName }}):**
+- FireShield: {% if has_spell(actorUUID, "FireShield") %}✓ Active{% else %}✗ Not active{% endif %}
+- FrostShield: {% if has_spell(actorUUID, "FrostShield") %}✓ Active{% else %}✗ Not active{% endif %}
+- OakfleshSelf: {% if has_spell(actorUUID, "OakfleshSelf") %}✓ Active{% else %}✗ Not active{% endif %}
+- IronfleshSelf: {% if has_spell(actorUUID, "IronfleshSelf") %}✓ Active{% else %}✗ Not active{% endif %}
+- EbonyfleshSelf: {% if has_spell(actorUUID, "EbonyfleshSelf") %}✓ Active{% else %}✗ Not active{% endif %}
+
+**Blessing Effects:**
+- AltarArkaySpell: {% if has_spell(actorUUID, "AltarArkaySpell") %}✓ Blessed by Arkay{% else %}✗ Not blessed{% endif %}
+- AltarMara: {% if has_spell(actorUUID, "AltarMara") %}✓ Blessed by Mara{% else %}✗ Not blessed{% endif %}
+
+**Player Active Spells:**
+- Player has OakfleshSelf: {% if has_spell(player.UUID, "OakfleshSelf") %}✓ YES{% else %}✗ NO{% endif %}
+
+---
+
+### Test 3: has_magic_archetype() - Archetype Checks
+
+**Magic Archetypes Active on {{ actorName }}:**
+- Invisibility Archetype: {% if has_magic_archetype(actorUUID, "Invisibility") %}✓ INVISIBLE{% else %}✗ Not invisible{% endif %}
+- Paralysis Archetype: {% if has_magic_archetype(actorUUID, "Paralysis") %}✓ PARALYZED{% else %}✗ Not paralyzed{% endif %}
+- ValueModifier Archetype: {% if has_magic_archetype(actorUUID, "ValueModifier") %}✓ Has stat modifiers{% else %}✗ No stat modifiers{% endif %}
+- PeakValueModifier Archetype: {% if has_magic_archetype(actorUUID, "PeakValueModifier") %}✓ Has peak modifiers{% else %}✗ No peak modifiers{% endif %}
+- Dispel Archetype: {% if has_magic_archetype(actorUUID, "Dispel") %}✓ Dispelling{% else %}✗ Not dispelling{% endif %}
+- CureDisease Archetype: {% if has_magic_archetype(actorUUID, "CureDisease") %}✓ Curing disease{% else %}✗ Not curing{% endif %}
+- Cloak Archetype: {% if has_magic_archetype(actorUUID, "Cloak") %}✓ Has cloak{% else %}✗ No cloak{% endif %}
+- Reanimate Archetype: {% if has_magic_archetype(actorUUID, "Reanimate") %}✓ Reanimating{% else %}✗ Not reanimating{% endif %}
+- SummonCreature Archetype: {% if has_magic_archetype(actorUUID, "SummonCreature") %}✓ Summoning{% else %}✗ Not summoning{% endif %}
+
+**Player Archetype Checks:**
+- Player ValueModifier: {% if has_magic_archetype(player.UUID, "ValueModifier") %}✓ Active{% else %}✗ Not active{% endif %}
+- Player Invisibility: {% if has_magic_archetype(player.UUID, "Invisibility") %}✓ Active{% else %}✗ Not active{% endif %}
+
+---
+
+### Test 4: get_effect_archetype() - Archetype Info Lookup
+
+**Effect Archetype Information:**
+
+{% set invisArchetype = get_effect_archetype("Invisibility") %}
+- Invisibility Effect:
+  - Archetype ID: {{ invisArchetype.id }}
+  - Archetype Name: {{ invisArchetype.name }}
+
+{% set paralysisArchetype = get_effect_archetype("Paralysis") %}
+- Paralysis Effect:
+  - Archetype ID: {{ paralysisArchetype.id }}
+  - Archetype Name: {{ paralysisArchetype.name }}
+
+{% set damageHealthArchetype = get_effect_archetype("AlchDamageHealth") %}
+- AlchDamageHealth Effect:
+  - Archetype ID: {{ damageHealthArchetype.id }}
+  - Archetype Name: {{ damageHealthArchetype.name }}
+
+{% set vampireResistArchetype = get_effect_archetype("VampireAbResistFrost") %}
+- VampireAbResistFrost Effect:
+  - Archetype ID: {{ vampireResistArchetype.id }}
+  - Archetype Name: {{ vampireResistArchetype.name }}
+
+---
+
+### Test 5: Perk Decorators
+
+**has_perk() - Perk Checks for {{ actorName }}:**
+- AdvancedSmithing: {% if has_perk(actorUUID, "AdvancedSmithing") %}✓ HAS{% else %}✗ NO{% endif %}
+- Locksmith: {% if has_perk(actorUUID, "Locksmith") %}✓ HAS{% else %}✗ NO{% endif %}
+- AlchemySkillBoosts: {% if has_perk(actorUUID, "AlchemySkillBoosts") %}✓ HAS{% else %}✗ NO{% endif %}
+- Armsman00: {% if has_perk(actorUUID, "Armsman00") %}✓ HAS{% else %}✗ NO{% endif %}
+- SteelSmithing: {% if has_perk(actorUUID, "SteelSmithing") %}✓ HAS{% else %}✗ NO{% endif %}
+- ArcaneBlacksmith: {% if has_perk(actorUUID, "ArcaneBlacksmith") %}✓ HAS{% else %}✗ NO{% endif %}
+- DragonArmor: {% if has_perk(actorUUID, "DragonArmor") %}✓ HAS{% else %}✗ NO{% endif %}
+
+**get_all_perks() - All Perks for {{ actorName }}:**
+{% set actorPerks = get_all_perks(actorUUID) %}
+{% if actorPerks and length(actorPerks) > 0 %}
+Total Perks: {{ length(actorPerks) }}
+{% for perk in actorPerks %}
+{% if loop.index <= 15 %}
+- {{ perk.editorID }} (Rank: {{ perk.rank }})
+{% endif %}
+{% endfor %}
+{% if length(actorPerks) > 15 %}
+... and {{ length(actorPerks) - 15 }} more perks
+{% endif %}
+{% else %}
+{{ actorName }} has no perks.
+{% endif %}
+
+**Player Perks:**
+{% set playerPerks = get_all_perks(player.UUID) %}
+{% if playerPerks and length(playerPerks) > 0 %}
+Player Total Perks: {{ length(playerPerks) }}
+{% for perk in playerPerks %}
+{% if loop.index <= 10 %}
+- {{ perk.editorID }} (Rank: {{ perk.rank }})
+{% endif %}
+{% endfor %}
+{% if length(playerPerks) > 10 %}
+... and {{ length(playerPerks) - 10 }} more perks
+{% endif %}
+{% else %}
+Player has no perks.
+{% endif %}
+
+---
+

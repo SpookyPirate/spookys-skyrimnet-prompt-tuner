@@ -1,0 +1,169 @@
+{# TEST SUBMODULE - Faction & Relationship Decorators #}
+{# Tests: is_in_faction, get_faction_rank, get_relationship_rank, get_crime_gold #}
+{# CATEGORY: Faction, Relationship #}
+
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+
+## 🏛️ FACTION & RELATIONSHIP DECORATOR TESTS
+
+### Test 1: is_in_faction() - Faction Membership Checks
+
+**Major Guilds/Factions:**
+- CompanionsFaction: {% if is_in_faction(actorUUID, "CompanionsFaction") %}✓ MEMBER{% else %}✗ Not a member{% endif %}
+- CollegeOfWinterholdFaction: {% if is_in_faction(actorUUID, "CollegeOfWinterholdFaction") %}✓ MEMBER{% else %}✗ Not a member{% endif %}
+- ThievesGuildFaction: {% if is_in_faction(actorUUID, "ThievesGuildFaction") %}✓ MEMBER{% else %}✗ Not a member{% endif %}
+- DBFaction: {% if is_in_faction(actorUUID, "DBFaction") %}✓ MEMBER (Dark Brotherhood){% else %}✗ Not a member{% endif %}
+- DawnguardFaction: {% if is_in_faction(actorUUID, "DawnguardFaction") %}✓ MEMBER{% else %}✗ Not a member{% endif %}
+- VolkiharVampireFaction: {% if is_in_faction(actorUUID, "VolkiharVampireFaction") %}✓ MEMBER{% else %}✗ Not a member{% endif %}
+
+**Civil War Factions:**
+- CWImperialFaction: {% if is_in_faction(actorUUID, "CWImperialFaction") %}✓ IMPERIAL{% else %}✗ Not Imperial{% endif %}
+- CWSonsFaction: {% if is_in_faction(actorUUID, "CWSonsFaction") %}✓ STORMCLOAK{% else %}✗ Not Stormcloak{% endif %}
+
+**Hold Guard Factions:**
+- GuardFaction: {% if is_in_faction(actorUUID, "GuardFaction") %}✓ GUARD{% else %}✗ Not a guard{% endif %}
+- CrimeFactionWhiterun: {% if is_in_faction(actorUUID, "CrimeFactionWhiterun") %}✓ YES{% else %}✗ NO{% endif %}
+- CrimeFactionRift: {% if is_in_faction(actorUUID, "CrimeFactionRift") %}✓ YES{% else %}✗ NO{% endif %}
+- CrimeFactionImperial: {% if is_in_faction(actorUUID, "CrimeFactionImperial") %}✓ YES{% else %}✗ NO{% endif %}
+
+**Miscellaneous Factions:**
+- BardSingerFaction: {% if is_in_faction(actorUUID, "BardSingerFaction") %}✓ BARD{% else %}✗ Not a bard{% endif %}
+- ServicesInnFaction: {% if is_in_faction(actorUUID, "ServicesInnFaction") %}✓ INNKEEPER{% else %}✗ Not an innkeeper{% endif %}
+- JobMerchantFaction: {% if is_in_faction(actorUUID, "JobMerchantFaction") %}✓ MERCHANT{% else %}✗ Not a merchant{% endif %}
+- JobBlacksmithFaction: {% if is_in_faction(actorUUID, "JobBlacksmithFaction") %}✓ BLACKSMITH{% else %}✗ Not a blacksmith{% endif %}
+
+---
+
+### Test 2: get_faction_rank() - Faction Ranks
+
+**Guild Ranks for {{ actorName }}:**
+{% set companionsRank = get_faction_rank(actorUUID, "CompanionsFaction") %}
+- CompanionsFaction Rank: {{ companionsRank }}{% if companionsRank >= 0 %} (In faction){% else %} (Not in faction){% endif %}
+
+{% set collegeRank = get_faction_rank(actorUUID, "CollegeOfWinterholdFaction") %}
+- College of Winterhold Rank: {{ collegeRank }}{% if collegeRank >= 0 %} (In faction){% else %} (Not in faction){% endif %}
+
+{% set thievesRank = get_faction_rank(actorUUID, "ThievesGuildFaction") %}
+- Thieves Guild Rank: {{ thievesRank }}{% if thievesRank >= 0 %} (In faction){% else %} (Not in faction){% endif %}
+
+**Player's Guild Ranks:**
+{% set playerCompanionsRank = get_faction_rank(player.UUID, "CompanionsFaction") %}
+{% set playerCollegeRank = get_faction_rank(player.UUID, "CollegeOfWinterholdFaction") %}
+{% set playerThievesRank = get_faction_rank(player.UUID, "ThievesGuildFaction") %}
+{% set playerDBRank = get_faction_rank(player.UUID, "DBFaction") %}
+- Player Companions Rank: {{ playerCompanionsRank }}
+- Player College Rank: {{ playerCollegeRank }}
+- Player Thieves Guild Rank: {{ playerThievesRank }}
+- Player Dark Brotherhood Rank: {{ playerDBRank }}
+
+**Rank Interpretation Example:**
+{% if companionsRank >= 4 %}
+{{ actorName }} is a senior member of the Companions (Rank {{ companionsRank }})
+{% elif companionsRank >= 2 %}
+{{ actorName }} is a full member of the Companions (Rank {{ companionsRank }})
+{% elif companionsRank >= 0 %}
+{{ actorName }} is a new member of the Companions (Rank {{ companionsRank }})
+{% else %}
+{{ actorName }} is not a member of the Companions
+{% endif %}
+
+---
+
+### Test 3: get_relationship_rank() - Relationship Levels
+
+**Relationship between {{ actorName }} and Player:**
+{% set relToPlayer = get_relationship_rank(actorUUID, player.UUID) %}
+- Raw Relationship Value: {{ relToPlayer }}
+- Interpretation:
+{% if relToPlayer == 4 %}
+  💕 LOVER (4)
+{% elif relToPlayer == 3 %}
+  🤝 Ally (3)
+{% elif relToPlayer == 2 %}
+  💬 Confidant (2)
+{% elif relToPlayer == 1 %}
+  😊 Friend (1)
+{% elif relToPlayer == 0 %}
+  🤷 Acquaintance (0)
+{% elif relToPlayer == -1 %}
+  😤 Rival (-1)
+{% elif relToPlayer == -2 %}
+  😠 Foe (-2)
+{% elif relToPlayer == -3 %}
+  👿 Enemy (-3)
+{% elif relToPlayer == -4 %}
+  ☠️ ARCHNEMESIS (-4)
+{% else %}
+  Unknown relationship level ({{ relToPlayer }})
+{% endif %}
+
+**Reverse Relationship (Player to {{ actorName }}):**
+{% set playerToActor = get_relationship_rank(player.UUID, actorUUID) %}
+- Player's relationship to {{ actorName }}: {{ playerToActor }}
+
+---
+
+### Test 4: get_crime_gold() - Bounty/Crime Gold
+
+{# Note: get_crime_gold only works for player #}
+**Player's Bounty in Various Holds:**
+
+{% set whiterunCrime = get_crime_gold(player.UUID, "CrimeFactionWhiterun") %}
+- Whiterun Hold:
+  - Total Bounty: {{ whiterunCrime.total }} gold
+  - Violent Crimes: {{ whiterunCrime.violent }} gold
+  - Non-Violent Crimes: {{ whiterunCrime.nonViolent }} gold
+
+{% set riftCrime = get_crime_gold(player.UUID, "CrimeFactionRift") %}
+- The Rift:
+  - Total Bounty: {{ riftCrime.total }} gold
+  - Violent Crimes: {{ riftCrime.violent }} gold
+  - Non-Violent Crimes: {{ riftCrime.nonViolent }} gold
+
+{% set imperialCrime = get_crime_gold(player.UUID, "CrimeFactionImperial") %}
+- Imperial (Solitude):
+  - Total Bounty: {{ imperialCrime.total }} gold
+  - Violent Crimes: {{ imperialCrime.violent }} gold
+  - Non-Violent Crimes: {{ imperialCrime.nonViolent }} gold
+
+{% set eastmarchCrime = get_crime_gold(player.UUID, "CrimeFactionEastmarch") %}
+- Eastmarch (Windhelm):
+  - Total Bounty: {{ eastmarchCrime.total }} gold
+
+{% set falkreathCrime = get_crime_gold(player.UUID, "CrimeFactionFalkreath") %}
+- Falkreath:
+  - Total Bounty: {{ falkreathCrime.total }} gold
+
+**Bounty Status Summary:**
+{% if whiterunCrime.total > 0 or riftCrime.total > 0 or imperialCrime.total > 0 %}
+⚠️ Player has active bounties!
+{% else %}
+✓ Player has no bounties
+{% endif %}
+
+---
+
+### Test 5: Civil War Allegiance
+
+**get_civil_war_side():**
+- Player's Side: {{ get_civil_war_side() }}
+
+{% if get_civil_war_side() == "Imperial" %}
+The player fights for the Empire! Long live the Emperor!
+{% elif get_civil_war_side() == "Stormcloak" %}
+The player fights for Skyrim's independence! Ulfric's rebellion!
+{% else %}
+The player has not chosen a side in the Civil War (Neutral)
+{% endif %}
+
+---
+
+### Test 6: is_follower() - Teammate Check
+
+**Follower Status:**
+- Is {{ actorName }} a follower: {% if is_follower(actorUUID) %}✓ YES (following player){% else %}✗ NO{% endif %}
+- Is Player a follower: {% if is_follower(player.UUID) %}✓ YES{% else %}✗ NO (player can't be their own follower){% endif %}
+
+---
+

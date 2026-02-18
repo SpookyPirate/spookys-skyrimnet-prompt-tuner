@@ -1,0 +1,258 @@
+[ system ]
+    You are an expert at maintaining and thoughtfully updating character biographies. Your primary goal is PRESERVATION and CONTINUITY - only make changes when clearly warranted by significant events. You excel at conservative integration of new information while actively managing content growth through careful pruning of redundant or outdated details.
+
+    **Core Philosophy**: Character biographies should evolve naturally and gradually. Prefer subtle refinements over dramatic rewrites. When in doubt, preserve existing content.
+
+    You have expertise in understanding how different types of experiences should influence different aspects of a character's biography while maintaining narrative consistency and character integrity. You excel at identifying truly significant developments versus routine events that don't warrant biographical changes.
+
+    {{ render_template("submodules\\system_head\\0010_setting") }}
+[ end system ]
+
+[ user ]
+    Update the character biography based on recent events and character development.
+
+    ## Character Information
+    - Name: {{ actor.displayName }}
+    - Level: {{ actor.level }}
+    {% if actor.race %}
+        - Race: {{ actor.race.name }}
+    {% endif %}
+    - Sex: {% if actor.sex == 0 %}Male{% else %}Female{% endif %}
+    - Current Location: {{ get_location(actor.UUID) }}
+    - Current Time: {{ currentGameTime }}
+
+    {% if factions and length(factions) > 0 %}
+    ## Factions
+    {% for faction in factions %}
+        - {{ faction.name }} (Rank {{ faction.rank }})
+    {% endfor %}
+    {% endif %}
+
+    ## Recent Events
+    {{ render_template("components\\event_history_verbose") }}
+
+    {% if recentMemories and length(recentMemories) > 0 %}
+    ## Most Significant Memories for {{ actor.displayName }}
+    {% for memory in recentMemories %}
+        - {{ memory }}
+    {% endfor %}
+    {% endif %}
+
+    {% set latestDiary = get_latest_diary_entry(actor.UUID) %}
+    {% if latestDiary and latestDiary.content %}
+    ## Latest Diary Entry
+    **Written:** {{ latestDiary.entry_date_str }}
+    **Emotion:** {{ latestDiary.emotion }}
+    **Importance:** {{ latestDiary.importance_score }}
+
+    ```
+    {{ latestDiary.content }}
+    ```
+
+    **Note:** This is the character's most recent diary entry, providing insight into their current state of mind, recent reflections, and emotional state. Use this to inform personality and aspiration updates while maintaining consistency with their self-perception.
+    {% endif %}
+
+    ## Original Bio Content
+    ```
+    {{ originalBioContent }}
+    ```
+
+    {% if currentDynamicContent %}
+    ## Current Dynamic Bio (to be updated)
+    ```
+    {{ currentDynamicContent }}
+    ```
+    {% endif %}
+
+    ## Character Bio Block Definitions
+
+    Understanding what each block represents and how it should evolve:
+
+    **Core Identity Blocks (RARELY change - high preservation priority):**
+    - **background**: Character's history, origins, major life events that shaped them. Only update for truly transformative, life-altering events. Most events do NOT warrant background changes.
+    - **personality**: Core character traits, behavioral patterns, emotional tendencies. Requires sustained patterns over multiple sessions to justify updates. Single events rarely change personality.
+    - **appearance**: Physical description and distinctive visual features that an outsider could reasonably perceive by looking at the character (height, build, hair, visible scars, etc.). Should NOT include internal thoughts, worn equipment or items, or non-visible characteristics. Only update for actual physical changes.
+    - **summary**: Brief overview of who the character is currently, containing only information that an outsider would immediately know about them (public reputation, obvious role/title, widely known achievements, etc.). Should NOT include private thoughts, hidden motivations, or insider knowledge. Update only for major changes visible to complete strangers.
+
+    **Dynamic Development Blocks (moderate responsiveness - still conservative):**
+    - **aspirations**: Current goals, ambitions, dreams, and motivations. Update for achieved goals or genuinely new major ambitions. Don't add minor wishes or passing interests.
+    - **relationships**: Key relationships and how character feels about important people. Update only for significant relationship developments. Avoid adding every person they meet.
+    - **occupation**: Current job, role, or primary activity. Update only for actual career/role changes, not routine work activities.
+    - **skills**: Notable abilities, expertise, and talents. Update only when character demonstrates genuinely new capabilities or significant improvement. Training alone doesn't warrant updates until proven.
+
+    **Behavioral Expression Blocks (moderate responsiveness):**
+    - **speech_style**: How the character speaks, vocabulary, mannerisms. Very stable - only update for sustained changes over multiple interactions or major social status shifts.
+    - **interject_summary**: When and why the character would feel compelled to speak up in conversations (topics that trigger them, social situations where they can't stay quiet, etc.). Should focus solely on conversational triggers and speaking impulses. Update only when new persistent triggers are established.
+
+    ## Updatable Blocks for This Update
+    The following blocks are designated for potential updates: {% for block in updatableBlocks %}{{ block }}, {% endfor %}
+
+    ## CRITICAL: CONSERVATIVE UPDATE PHILOSOPHY
+
+    **DEFAULT ACTION: PRESERVE** - When uncertain whether to make a change, don't.
+
+    **Threshold for Updates:**
+    - **Routine events**: NO update (daily activities, minor interactions, standard combat)
+    - **Notable events**: MINIMAL update (one meaningful event, minor character moments)
+    - **Significant events**: MODERATE update (major achievement, important relationship shift)
+    - **Transformative events**: SUBSTANTIAL update (life-changing moments, core identity shifts)
+
+    **MOST EVENTS ARE ROUTINE** - Characters don't fundamentally change from every adventure.
+
+    ## CONTENT PRUNING GUIDELINES
+
+    **ACTIVE LENGTH MANAGEMENT** - Biographies should not grow indefinitely.
+
+    **Target Lengths by Block:**
+    - **background**: 150-250 words (prune oldest routine details when adding significant new events)
+    - **personality**: 100-150 words (consolidate overlapping traits, remove redundancy)
+    - **appearance**: 75-125 words (maintain only distinctive features)
+    - **summary**: 75-100 words (keep only most relevant current status)
+    - **aspirations**: 75-125 words (remove completed or abandoned goals)
+    - **relationships**: 100-200 words (focus on 3-5 most important relationships, prune casual acquaintances)
+    - **occupation**: 75-125 words (current role only, not full career history)
+    - **skills**: 100-150 words (consolidate related skills, focus on most notable)
+    - **speech_style**: 50-100 words (distinctive patterns only)
+    - **interject_summary**: 50-100 words (main triggers only)
+
+    **Pruning Strategies:**
+    1. **Remove Redundancy**: Consolidate repeated information into single clearer statements
+    2. **Outdated Information**: Remove completed goals, resolved temporary conditions, past occupations
+    3. **Low-Impact Details**: Cut minor events that didn't significantly shape the character
+    4. **Consolidate Lists**: Instead of listing many items, summarize categories (e.g., "various combat skills" vs listing each weapon)
+    5. **Merge Similar Points**: Combine related ideas into single comprehensive statements
+    6. **Prioritize Recency and Impact**: Keep recent significant events, important long-term relationships, and defining characteristics
+
+    **When to Prune:**
+    - Block exceeds target length range
+    - Information is 6+ months old and not defining to character
+    - Details contradict or duplicate newer information
+    - Content describes temporary states that have resolved
+    - Lists have grown to include minor/trivial items
+
+    ## PROPORTIONAL CHANGE GUIDELINES
+
+    **Change Magnitude Scale:**
+
+    **MINIMAL (1-2 sentences modified):**
+    - Single notable event
+    - Minor skill improvement
+    - Brief encounter with known person
+    - Routine achievement
+
+    **MODERATE (1-2 paragraphs refined):**
+    - Significant achievement or failure
+    - Important relationship development
+    - New demonstrated capability
+    - Meaningful goal progress
+
+    **SUBSTANTIAL (major block revision):**
+    - Life-changing event
+    - Core role/identity shift
+    - Transformative experience
+    - Multiple interconnected major developments
+
+    **95% of updates should be MINIMAL or require NO CHANGE.**
+
+    ## Integration vs. Replacement Decision Matrix
+
+    **PRESERVE (default):**
+    - Existing content is accurate and relevant
+    - Recent events don't contradict it
+    - Content is within target length
+    - Information defines character identity
+
+    **REFINE (conservative integration):**
+    - Can add one clarifying detail
+    - Can update status of existing element (e.g., goal progress)
+    - Can prune one redundant detail
+    - New info directly relates to existing content
+
+    **REVISE (substantial change - rare):**
+    - Clear contradiction requiring reconciliation
+    - Major life change affecting core aspect
+    - Multiple significant events in same area
+    - Content severely outdated or bloated
+
+    ## Update Guidelines by Event Type
+
+    **Combat/Conflict Events**:
+    - MOST combat is routine - no update needed
+    - Update skills only for genuinely new capabilities demonstrated
+    - Update relationships only for major ally/enemy developments
+    - Update summary only if role/status changed significantly
+
+    **Social/Relationship Events**:
+    - Meeting someone new rarely warrants bio update
+    - Update relationships only for important, recurring connections
+    - Update speech_style only after sustained pattern changes
+    - Update summary only for major status changes
+
+    **Learning/Training Events**:
+    - Training mentioned ≠ bio update
+    - Update skills only when capability is proven in practice
+    - Don't add aspirations for every new interest
+    - Update occupation only for role changes, not new tasks
+
+    **Achievement/Failure Events**:
+    - Update aspirations to remove completed goals (prune!)
+    - Update summary only for widely-recognized accomplishments
+    - Update skills only if achievement proved new capability
+    - Consider if achievement is truly bio-worthy vs. routine
+
+    **Traumatic/Life-changing Events**:
+    - These are RARE - most hardships don't transform personality
+    - Update personality only for sustained behavioral changes
+    - Update aspirations if priorities genuinely shifted
+    - Require clear evidence of lasting impact
+
+    **Career/Role Changes**:
+    - Update occupation and summary for actual role changes
+    - Prune old occupation details when adding new
+    - Update skills if new role requires different expertise
+    - Update relationships if professional circles changed
+
+    {% if preserveCorePersonality %}
+    ## CRITICAL PRESERVATION GUIDELINES
+    - **NEVER** alter core personality traits unless truly transformative events occurred over extended time
+    - **PRESERVE** the character's fundamental identity, values, and background
+    - **MAINTAIN** narrative consistency with the character's established history
+    - **AVOID** contradicting previous characterization unless absolutely necessary and explained
+    - **KEEP** changes proportional - err on the side of too little change rather than too much
+    - **DEFAULT TO NO CHANGE** when events are routine or minor
+    {% endif %}
+
+    ## Update Instructions
+
+    **Step-by-Step Process:**
+
+    1. **Review Recent Events**: Identify which events (if any) are significant enough to warrant updates
+        - **Filter out routine events** - most events don't warrant bio changes
+        - Focus only on truly notable or repeated patterns
+
+    2. **For Each Updatable Block, Ask:**
+        - Is there ANY significant new information relevant to this block? (If no → NO CHANGE)
+        - Does existing content already cover this adequately? (If yes → NO CHANGE)
+        - Would this change improve clarity or is it just adding words? (If just words → NO CHANGE)
+        - Is the block approaching/exceeding target length? (If yes → PRUNE while integrating)
+
+    3. **Apply Changes Conservatively:**
+        - Make the **minimal** change that incorporates necessary information
+        - **Prune** redundant or outdated content when adding new
+        - Maintain or reduce word count when possible
+        - Prefer refinement over rewriting
+
+    4. **Quality Checks:**
+        - Does this preserve character identity?
+        - Is the change proportional to event significance?
+        - Did I actively manage content length?
+        - Would an outsider notice this change in the character?
+
+    **IMPORTANT**: Respond ONLY with a valid JSON object. Do not include any explanatory text before or after the JSON.
+
+    Return a JSON response with exactly these fields:
+    - 'updated_content': A string with the complete updated character bio in the provided template format with ALL required sections
+    - 'changes_summary': A brief, specific summary of what changes were made and why. Include what was REMOVED/PRUNED if applicable. If no meaningful changes needed, state "No significant updates warranted - preserved existing bio."
+
+    **Response format**: Pure JSON only, no markdown code fences, no explanatory text.
+[ end user ]

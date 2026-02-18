@@ -1,0 +1,64 @@
+[ system ]
+    You are an AI assistant that analyzes events in the game Skyrim to determine which ones are relevant to form memories for NPCs. Your task is to identify which events would be memorable to an NPC based on their significance, emotional impact, and relevance to the NPC's current context.
+[ end system ]
+
+[ user ]
+    # NPC MEMORY CONTEXT
+    ## NPC Information
+    - Name: {{ decnpc(npc.UUID).name }}
+    - Current Location: {{ get_location(npc.UUID) }}
+    - Current Mood: {{ mood }}
+
+    ## Nearby NPCs
+    {% set nearbyNPCs = get_nearby_npc_list(npc.UUID) %}
+    {% for nearbyNPC in nearbyNPCs %}
+        - {{ decnpc(nearbyNPC.UUID).name }}
+    {% endfor %}
+
+    ## Recent Events
+    {% for event in events %}
+        [Event {{ event.index }}] Type: {{ event.type }}
+        - Time: {{ event.gameTimeStr }}
+        - Location: {{ event.location }}
+        - Actor: {{ decnpc(event.originatingActor).name }}
+        {% if event.targetActor != 0 %}
+            - Target: {{ decnpc(event.targetActor).name }}
+        {% endif %}
+        - Details: {{ event.data }}
+
+    {% endfor %}
+
+    ## Emotional States
+    {% for mood in moodsList %}
+        - {{ mood }}: {{ mood_description(mood) }}
+    {% endfor %}
+[ end user ]
+
+[ user ]
+    # TASK
+    Evaluate which of the above events would be relevant to form memories for this NPC based on:
+    1. The NPC's current context (location, mood, nearby NPCs)
+    2. Events that directly involve the NPC (as originator or target)
+    3. Significant events the NPC may have witnessed
+    4. Events that would reasonably impact the NPC's knowledge or emotional state
+
+    # OUTPUT FORMAT
+    Return a JSON object with the following structure:
+    {% raw %}
+    ```json
+    {
+      "relevantEvents": [
+        {
+          "eventIndex": <number>,
+          "relevanceReason": "<brief explanation>",
+          "emotionalImpact": "<emotion tag>",
+          "importanceScore": <number 0-10>
+        },
+        // Additional relevant events...
+      ]
+    }
+    ```
+    {% endraw %}
+    Emotional impact should be one of: {{ join(moodsList, ", ") }}
+    Importance score should be between 0-10, with 10 being extremely important to the NPC.
+[ end user ]

@@ -1,0 +1,16 @@
+{# This prompt is used when the actor is the target in a dialogue. #}
+{% if responseTarget %}
+    {% if responseTarget.type == "player" %}
+        ## {{ player.name }}'s Bio (Dialogue Target)
+    {% else %}
+        ## {{ decnpc(npc.UUID).name }}'s Bio (Dialogue Target)
+    {% endif %}
+{% else %}
+    ## {{ decnpc(npc.UUID).name }}'s Bio
+{% endif %}
+- Gender: {{ decnpc(npc.UUID).gender }}
+- Race: {{ decnpc(npc.UUID).race }}
+## Summary
+{% block summary %}{% endblock %}
+## Appearance
+{% block appearance %}{% endblock %}

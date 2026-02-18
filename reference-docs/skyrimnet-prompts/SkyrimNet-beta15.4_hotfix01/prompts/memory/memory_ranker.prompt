@@ -1,0 +1,47 @@
+You are tasked with ranking an actor's memories in order of their contextual relevance. Your job is to select the most relevant memories based on the current situation.
+
+## Context
+The NPC is {{ decnpc(actorUUID).name }}, who is currently in {{ get_location(actorUUID) }}. Their current mood is {{ npcMood }}.
+The current game time is {{ gameTime }}.
+
+{% if playerRelationship %}
+Their relationship with the player is {{ playerRelationship }} on a scale from -100 (enemy) to 100 (ally).
+{% endif %}
+
+## Recent Events
+These are the recent events that have occurred:
+{% for event in recentEvents %}
+    - {{ event.type }}: {{ event.summary }} (time: {{ event.timestamp }})
+{% endfor %}
+
+## Available Memories
+You have the following memories available to rank (showing their indices):
+
+{% for memory in memories %}
+    [{{ memory.index }}] Summary: "{{ memory.summary }}"
+    Details: "{{ memory.details }}"
+    Memory Type: {{ memory.memoryType }}
+    Emotion: {{ memory.emotion }}
+    Importance: {{ memory.importanceScore }}
+    Location: {{ memory.location }}
+    Game Time: {{ memory.gameTime }}
+    Tags: {% for tag in memory.tags %}{{ tag }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% endfor %}
+
+## Instructions
+1. Analyze the memories and determine which are most relevant to the NPC's current situation, mood, and recent events.
+2. Consider these factors when ranking:
+    - Relevance to current location and situation
+    - Emotional alignment with current mood
+    - Importance score of the memory
+    - Recency of the memory (more recent memories may be more relevant)
+    - Memory type (short-term memories might be more immediately relevant)
+    - Connections to recent events
+    - Relevance to other NPCs currently present
+    - Any ongoing quests or activities
+
+3. Return exactly {{ maxCount }} memory indices in JSON array format, ordered from most to least relevant.
+    Example: [5, 12, 0, 7, 2]
+
+## Output Format
+Respond with a JSON array of memory indices, in order of relevance. Do not include any explanation or comments, only the JSON array.

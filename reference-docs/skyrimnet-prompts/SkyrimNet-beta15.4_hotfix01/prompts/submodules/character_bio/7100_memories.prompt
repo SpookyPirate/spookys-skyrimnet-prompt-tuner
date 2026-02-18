@@ -1,0 +1,10 @@
+{% if render_mode == "full" or render_mode == "thoughts" or render_mode == "transform" %}
+    {% set memories = get_relevant_memories(actorUUID) %}
+    {% if length(memories) > 0 %}
+        ### {{ decnpc(actorUUID).name }}'s Potentially Relevant Memories
+        {% for memory in memories %}
+            {{ loop.index }}. **{{ memory.memory.content }}** ({{ memory.memory.emotion }}, Importance: {{ memory.memory.importance_score }})
+            {% if memory.memory.tags %}{{ memory.memory.tags }}{% endif %}
+        {% endfor %}
+    {% endif %}
+{% endif %}

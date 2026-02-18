@@ -1,0 +1,3 @@
+{% if triggeringEvent and triggeringEvent.type == "direct_narration" %}
+This event just happened and must be responded to, no matter what: `{{ format_event(triggeringEvent, "verbose") }}`. This event is completely factual.
+{% endif %}

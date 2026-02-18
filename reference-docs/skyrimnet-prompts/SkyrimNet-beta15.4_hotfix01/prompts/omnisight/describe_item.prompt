@@ -1,0 +1,77 @@
+[user]
+    Analyze this item's visual appearance and provide a JSON response with a suggested display name and description.
+
+    **Item Data:**
+    - Original Name: {{subject_name}}
+    - Type: {{item_type}}
+    {% if item_editor_id %}- Editor ID: {{item_editor_id}}{% endif %}
+    {% if item_value %}- Value: {{item_value}} gold{% endif %}
+    {% if item_weight %}- Weight: {{item_weight}}{% endif %}
+    {% if weapon_damage %}- Damage: {{weapon_damage}}{% endif %}
+    {% if armor_rating %}- Armor Rating: {{armor_rating}}{% endif %}
+    {% if item_enchanted %}- Enchantment: {{item_enchantment}}{% endif %}
+    {% if is_potion %}- Category: Potion{% endif %}
+    {% if is_food %}- Category: Food/Drink{% endif %}
+    {% if is_poison %}- Category: Poison{% endif %}
+    {% if is_spell_tome %}- Category: Spell Tome{% endif %}
+    {% if is_skill_book %}- Category: Skill Book{% endif %}
+    {% if soul_level %}- Soul Level: {{soul_level}}{% endif %}
+    {% if item_keywords %}- Keywords: {{item_keywords}}{% endif %}
+{{ render_subcomponent("omnisight_item", "full") }}
+    The item data provides context, but ALWAYS prioritize what you SEE in the images over metadata. Keywords like "ArmorHeavy" or "Cuirass" may be game classifications that don't match the visual reality. Describe what's actually visible.
+
+    **Response Format:** You MUST respond with valid JSON only, no markdown formatting:
+    ```
+    {
+      "suggestedName": "A concise display name (2-5 words)",
+      "description": "A 4-sentence visual description"
+    }
+    ```
+
+    **Suggested Name Guidelines:**
+    - Create a short name based ONLY on what you SEE (2-5 words max)
+    - IGNORE the Original Name completely - don't copy or rephrase it. Create a fresh name from visual observation.
+    - Focus on the most distinctive visual feature: unique color, unusual shape, notable decoration, distinctive material
+    - Good examples: "Jade-Hilted Dagger", "Crescent Moon Axe", "Etched Bronze Plates", "Tattered Gray Cloak"
+    - Bad examples: "Iron Sword III" (copying game name), "Beautiful Sword" (vague), "Armor Piece" (generic)
+    - What single visual feature would someone use to identify THIS item vs similar ones? Name that.
+
+    **Description Guidelines:**
+    **Sentence 1 - Identity & Key Traits:** State what category of item this is and its key characteristics. Be accurate - don't overstate or understate what you see. If something is minimal, say minimal. If something is heavy-duty, say heavy-duty.
+
+    **Sentence 2 - Materials & Colors:** State the primary material(s) and color(s) you observe. Be specific: "black leather with gray steel reinforcement" not "dark material with metal parts".
+
+    **Sentence 3 - Construction & Features:** Describe how it's made, starting with the most visually prominent elements. If there are hanging strips, flowing cloth, or dangling parts - describe those first, they're often the main feature. Then cover shape, components, attachments, mechanisms, etc.
+
+    **Sentence 4 - Distinguishing Details:** Any remaining visual details that help identify this specific item. Could be overall shape, notable proportions, or unique features not yet mentioned. Keep it concrete - skip filler.
+
+    **Quality standards:**
+    - Be DIRECT. State what the item IS. Don't dance around it with vague terms.
+    - Every word must convey visual information. Cut filler phrases like "appears to be", "featuring a".
+    - Name specific colors (ash gray, deep crimson, oiled walnut) not vague ones (dark, colorful, metallic).
+    - Describe the ACTUAL visible structure, not assumed construction. If something looks like a single connected plate, don't describe it as "two cups" just because bikinis typically have cups. Describe the shapes you actually see.
+    - Use accurate terminology for partial armor. Ab guards protect the abdomen only (not a cuirass). A breastplate covers the chest. Pauldrons cover shoulders. Don't call partial pieces by full-armor names.
+
+    **Inscriptions, Runes & Patterns:**
+    - ONLY describe inscriptions, runes, engravings, or decorative patterns if you can clearly see them in the image
+    - If present, be specific: "Nordic knotwork along the blade edge", "glowing blue runes on the hilt", "engraved serpent motif on the pommel"
+    - Do NOT invent or assume decorative details. Plain items are plain. Smooth metal is smooth metal.
+    - Vague filler like "ornate pattern", "decorative detailing", or "intricate design" without specifics = hallucination. Don't do it.
+{% if has_mannequin_body %}
+    **CRITICAL - MANNEQUIN WARNING:** This item is rendered on a humanoid mannequin body. You MUST completely ignore the body/mannequin - do NOT describe skin, flesh, body shape, body parts, curves, or any anatomical features. Focus ONLY on the actual clothing/armor item itself. The mannequin is just a display stand, not part of the item.
+{% endif %}
+
+    **Bad example:** "A finely crafted item featuring intricate detailing and quality craftsmanship."
+    **Good example:** "A locking bondage corset designed to cinch and immobilize the waist. Black leather exterior reinforced with vertical steel stays and gray metal plating at the sides. The front features a central locking mechanism with visible keyhole, connected by riveted seams and silver stitching. The steel stays create visible vertical ridges beneath the leather surface."
+
+    **Bad example:** "A sturdy piece of armor with a battle-worn appearance showing signs of use and minor scratches."
+    **Good example:** "A heavy infantry cuirass providing torso protection. Gunmetal gray steel with layered horizontal plates over the abdomen. Riveted leather straps at the shoulders secure front and back pieces, with brass buckles at each side. An embossed crest on the chest and flared edges at the waist for mobility."
+
+    **Bad example (hallucinated decoration):** "A decorative metal piece with an ornate pattern is affixed to the front, adding a distinct visual detail."
+    **Why it's bad:** Vague "ornate pattern" with no specifics is invented filler. Either describe the EXACT pattern (Celtic knot, dragon motif, geometric diamonds) or don't mention decoration at all.
+
+    Remember: Respond with ONLY the JSON object, no additional text or markdown code fences.
+    [image]
+    {{imageDataUrls}}
+    [end image]
+[end user]

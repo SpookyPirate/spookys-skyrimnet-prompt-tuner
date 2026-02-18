@@ -1,0 +1,59 @@
+[ system ]
+    You are an expert at updating character profiles for NPCs in The Elder Scrolls V: Skyrim. Update the existing character bio based on the user's request and current game data. You MUST return a complete bio with ALL sections (summary, interject_summary, background, personality, appearance, aspirations, relationships, occupation, skills, speech_style) in proper template format. Return your response as a JSON object with 'updated_content' containing the complete updated bio and 'changes_summary' describing what was changed.
+
+    {{ render_template("submodules\\system_head\\0010_setting") }}
+[ end system ]
+
+[ user ]
+    Update the following character bio based on the user's request and current game data:
+
+    ## Current Character Bio
+    ```
+    {{ currentBioContent }}
+    ```
+
+    ## Actor Information
+    - Name: {{ actor_name }}
+    - Level: {{ actor_level }}
+    - Race: {{ actor_race }}
+    - Sex: {{ actor_sex }}
+    - Location: {{ actor_location }}
+    - Voice ID: {{ actor_voice_id }}
+
+    {% if factions and length(factions) > 0 %}
+        - Factions:
+        {% for faction in factions %}
+            - {{ faction.name }} (Rank {{ faction.rank }})
+        {% endfor %}
+    {% endif %}
+
+    {% if recent_events and length(recent_events) > 0 %}
+    ## Recent Events
+    {% for event in recent_events %}
+        - {{ event.data }}
+    {% endfor %}
+    {% endif %}
+
+    ## User's Update Request
+    {{ update_request }}
+
+    Please return a JSON response with:
+    - 'updated_content': A string with the complete updated character bio in original template format with ALL required sections
+    - 'changes_summary': A brief summary of what changes were made
+
+    Only update the fields which are relevant to the user's request. You do not need to update the fields which are not relevant to the user's request.
+
+    IMPORTANT: Your response must include ALL of these sections in template format:
+    {% block summary %}...{% endblock %}
+    {% block interject_summary %}...{% endblock %}
+    {% block background %}...{% endblock %}
+    {% block personality %}...{% endblock %}
+    {% block appearance %}...{% endblock %}
+    {% block aspirations %}...{% endblock %}
+    {% block relationships %}...{% endblock %}
+    {% block occupation %}...{% endblock %}
+    {% block skills %}...{% endblock %}
+    {% block speech_style %}...{% endblock %}
+
+    Maintain the template structure and update the content within blocks based on the user's request and current game data. If a section doesn't need changes, keep the original content.
+[ end user ]

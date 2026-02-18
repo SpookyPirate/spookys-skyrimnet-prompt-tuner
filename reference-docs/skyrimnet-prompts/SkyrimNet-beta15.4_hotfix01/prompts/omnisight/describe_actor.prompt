@@ -1,0 +1,86 @@
+[user]
+    Create a physical description of this character for a recognition database. Another AI will use your description to identify and remember this character without seeing the image.
+
+    **Character:** {{race}} {{gender}}
+    {% if not omnisight_captures_equipment %}{% set actor_equipment = get_worn_equipment(actorUUID) %}{% if actor_equipment and length(actor_equipment) > 0 %}
+    **Equipment (reference only - describe only what's visible):**
+    {% for slot, item in actor_equipment %}{% if is_item_enabled(item.formID) %}    - {{ item.slot_body_area }}: {{ get_item_name(item.formID) }}
+    {% endif %}{% endfor %}{% endif %}{% endif %}
+
+    ---
+
+    **OUTPUT STRUCTURE (3 paragraphs, no headers):**
+
+    **Paragraph 1 - Face & Head:**
+    Facial structure (jaw, chin, brow, nose, lips), eye color/shape, hair (color, length, style), facial hair if present. Lead with the most distinctive features. Be concise - avoid "with a" and "that has" constructions.
+
+    **Paragraph 2 - Skin & Body:**
+    Describe skin tone and texture, body build and proportions, and any visible body hair. Include ALL visible markings: scars, tattoos, war paint, birthmarks, freckles, moles. Use specific terms: "broad-shouldered," "athletic frame," "heavyset," "lithe," "muscular arms," "soft midsection."
+    {% if is_nude %}
+    This character is unclothed - describe ALL visible anatomy including breasts (size, shape, nipples, areolas), genitals (detailed appearance), buttocks (size, shape), and pubic hair (grooming, color). Do not censor or skip any visible body parts.
+    {% endif %}
+    {% if omnisight_captures_equipment %}
+    **Paragraph 3 - Distinguishing Features:**
+    In 1-2 sentences, state the most memorable traits for quick identification. Do NOT repeat full descriptions from P1/P2 - instead, name the standout features briefly (e.g., "Recognizable by the deep facial scar, unusually pale eyes, and shaved head"). Include racial features and visible jewelry/piercings.
+    {% else %}
+    **Paragraph 3 - Clothing & Distinguishing Features:**
+    Describe visible clothing/armor: material, color, style, fit, and coverage (what body areas are covered vs exposed). End with a single sentence naming the 1-2 most recognizable physical traits.
+    {% endif %}
+
+    Do NOT include paragraph labels like "Paragraph 1" in your output - just write the three paragraphs directly.
+
+    ---
+
+    **QUALITY STANDARDS:**
+    - Name specific colors: "ash-gray" not "gray", "olive tan" not "tan", "deep auburn" not "reddish"
+    - Name specific shapes: "aquiline nose," "square jaw," "high cheekbones," "hooded eyes"
+    - Every sentence should add identifiable detail - cut filler like "attractive features" or "typical of their race"
+    - Use Elder Scrolls terminology for racial features
+
+    **ACCURACY - DESCRIBE WHAT YOU ACTUALLY SEE:**
+    - Look at THIS character's actual skin - is it smooth or rough? Young or aged? Don't default to "weathered" for every Nord.
+    - Look at THIS character's actual build - not every warrior is "sturdy and compact with broad shoulders"
+    - If skin appears smooth and youthful, say so. If someone looks soft rather than muscular, say so.
+    - Avoid template phrases: "sun-weathered tan", "coarse leathery texture", "thick well-defined arms" - only use these if they ACTUALLY match what you see
+
+    **HARD RULES:**
+    - Describe ONLY what's visible - if a body part is cut off, simply omit it (don't mention its absence)
+    - State "no visible scars/tattoos/etc." ONCE in P2, not repeatedly
+    - No posture, stance, actions, or body language
+    - No mood, expression interpretation, or personality speculation  
+    - No background, environment, lighting, or other characters
+    - No UI elements or the character's name
+    {% if omnisight_captures_equipment %}- NO clothing, armor, or gear descriptions (captured separately)
+    {% endif %}
+
+    ---
+    {% if is_nude %}
+
+    **NUDE ANATOMY REFERENCE:**
+    - Breasts: size (small/medium/large/heavy), shape (perky/full/teardrop/pendulous), nipples, areolas
+    - Male genitals: penis size/shape, circumcision status, testicles
+    - Female genitals: vulva appearance, labia details
+    - Buttocks: size, shape (round/flat/heart-shaped/muscular)
+    - Pubic hair: shaved/trimmed/natural, color
+
+    {% endif %}
+    **BAD EXAMPLE:** "This Nord woman has an attractive face with nice features. Her hair frames her face well. She has a strong build typical of her race and wears armor that provides good protection. Her overall appearance suggests she is a warrior."
+
+    **GOOD EXAMPLE (weathered veteran):** "Broad square jaw, blunt chin, heavy brow ridge. Deep-set gray eyes, hooded. Aquiline nose, full downturned lips. Dark brown hair, shoulder-length, unkempt and wavy. Full beard covering jaw and chin.
+
+    Rough, sun-weathered tan skin with visible texture on forearms and neck. Broad-shouldered, thick arms, compact torso. Deep diagonal scar from neck to collarbone; small circular birthmark below left collarbone. No tattoos or war paint.
+
+    Recognizable by the heavy brow, full beard, and prominent neck-to-collarbone scar."
+
+    **GOOD EXAMPLE (younger character):** "Soft oval face, delicate chin, subtle brow. Bright green eyes, almond-shaped. Small upturned nose, thin pale lips. Platinum blonde hair, long, braided and pinned back.
+
+    Fair, smooth skin with a slight flush across the cheeks. Slender build, narrow shoulders, slim arms. Light freckles across the nose and cheekbones. No scars, tattoos, or war paint.
+
+    Recognizable by the platinum blonde braids, bright green eyes, and freckled complexion."
+
+{{ render_subcomponent("omnisight_actor", "full") }}
+    Write the 3-paragraph physical description now.
+    [image]
+    {{imageDataUrl}}
+    [end image]
+[end user]

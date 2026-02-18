@@ -1,0 +1,66 @@
+[ system ]
+    You are an AI assistant that analyzes an NPC's recent experiences in Skyrim to determine their current mood. You'll consider their personality, recent interactions, and significant events they've witnessed or been involved in.
+[ end system ]
+
+[ user ]
+    # NPC INFORMATION
+    - Name: {{ decnpc(npc.UUID).name }}
+    - Race: {{ decnpc(npc.UUID).race }}
+    - Gender: {{ decnpc(npc.UUID).gender }}
+    - Class: {{ decnpc(npc.UUID).class }}
+    - Base Disposition: {{ decnpc(npc.UUID).disposition }}
+    - Current Location: {{ get_location(npc.UUID) }}
+    - Personality: {{ npcPersonality }}
+
+    ## Recent Events and Interactions
+    {% for event in events %}
+        [Event {{ loop.index0 }}] Type: {{ event.type }}
+        - Time: {{ event.gameTimeStr }}
+        - Location: {{ event.location }}
+        - Actor: {{ decnpc(event.originatingActor).name }}
+        {% if event.targetActor != 0 %}
+            - Target: {{ decnpc(event.targetActor).name }}
+        {% endif %}
+        - Details: {{ event.data }}
+        {% if event.emotionalImpact %}
+            - Emotional Impact: {{ event.emotionalImpact }}
+            - Importance: {{ event.importanceScore }}/10
+        {% endif %}
+
+    {% endfor %}
+
+    ## Available Moods
+    {% for mood in moodsList %}
+        - {{ mood }}: {{ mood_description(mood) }}
+    {% endfor %}
+[ end user ]
+
+[ user ]
+    # TASK
+    Based on the NPC's personality and recent experiences, determine their current emotional state/mood.
+
+    Consider:
+    1. The NPC's base personality and disposition
+    2. Recent events that directly involved them
+    3. Significant events they witnessed
+    4. The emotional impact of these events
+    5. The time that has passed since these events
+
+    # OUTPUT FORMAT
+    Return a JSON object with the following structure:
+    {% raw %}
+    ```json
+    {
+      "primaryMood": "<primary mood>",
+      "secondaryMood": "<secondary mood or empty string>",
+      "intensity": <number 1-10>,
+      "reason": "<brief explanation for this mood>",
+      "towardPlayer": "<positive|neutral|negative|unknown>"
+    }
+    ```
+    {% endraw %}
+
+    Primary mood must be one of the available moods listed above.
+    Secondary mood is optional and can be more specific or left as an empty string.
+    Intensity should reflect how strongly the NPC feels this emotion (1-10).
+[ end user ]

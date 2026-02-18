@@ -1,0 +1,173 @@
+{# TEST SUBMODULE - Combat Decorators #}
+{# Tests: get_actor_value, get_base_actor_value, is_in_combat, has_weapon_drawn, #}
+{#        is_hostile_to_actor, is_knocked_down, is_reanimated, is_summoned, #}
+{#        get_spell_list (enhanced: school, spellType, castingType, delivery, etc.) #}
+{# CATEGORY: Combat #}
+
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+
+## ⚔️ COMBAT DECORATOR TESTS
+
+### Test 1: get_actor_value() - Current Values
+
+**Attributes:**
+- Health: {{ get_actor_value(actorUUID, "Health") }}
+- Magicka: {{ get_actor_value(actorUUID, "Magicka") }}
+- Stamina: {{ get_actor_value(actorUUID, "Stamina") }}
+- CarryWeight: {{ get_actor_value(actorUUID, "CarryWeight") }}
+- SpeedMult: {{ get_actor_value(actorUUID, "SpeedMult") }}
+
+**Skills via get_actor_value:**
+- OneHanded: {{ get_actor_value(actorUUID, "OneHanded") }}
+- TwoHanded: {{ get_actor_value(actorUUID, "TwoHanded") }}
+- Archery: {{ get_actor_value(actorUUID, "Archery") }}
+- Destruction: {{ get_actor_value(actorUUID, "Destruction") }}
+- Restoration: {{ get_actor_value(actorUUID, "Restoration") }}
+- Sneak: {{ get_actor_value(actorUUID, "Sneak") }}
+- Speech: {{ get_actor_value(actorUUID, "Speech") }}
+
+**Resistances:**
+- ResistFire: {{ get_actor_value(actorUUID, "ResistFire") }}
+- ResistFrost: {{ get_actor_value(actorUUID, "ResistFrost") }}
+- ResistShock: {{ get_actor_value(actorUUID, "ResistShock") }}
+- ResistPoison: {{ get_actor_value(actorUUID, "ResistPoison") }}
+- ResistMagic: {{ get_actor_value(actorUUID, "ResistMagic") }}
+- ResistDisease: {{ get_actor_value(actorUUID, "ResistDisease") }}
+
+---
+
+### Test 2: get_base_actor_value() - Base/Permanent Values
+
+**Base Attributes (without modifiers):**
+- Base Health: {{ get_base_actor_value(actorUUID, "Health") }}
+- Base Magicka: {{ get_base_actor_value(actorUUID, "Magicka") }}
+- Base Stamina: {{ get_base_actor_value(actorUUID, "Stamina") }}
+- Base CarryWeight: {{ get_base_actor_value(actorUUID, "CarryWeight") }}
+
+**Base Skills:**
+- Base OneHanded: {{ get_base_actor_value(actorUUID, "OneHanded") }}
+- Base Destruction: {{ get_base_actor_value(actorUUID, "Destruction") }}
+- Base Sneak: {{ get_base_actor_value(actorUUID, "Sneak") }}
+
+**Calculated Differences (current - base):**
+{% set healthDiff = get_actor_value(actorUUID, "Health") - get_base_actor_value(actorUUID, "Health") %}
+{% set magickaDiff = get_actor_value(actorUUID, "Magicka") - get_base_actor_value(actorUUID, "Magicka") %}
+- Health Modifier: {{ healthDiff }}{% if healthDiff > 0 %} (buffed){% elif healthDiff < 0 %} (debuffed/damaged){% else %} (unchanged){% endif %}
+- Magicka Modifier: {{ magickaDiff }}{% if magickaDiff > 0 %} (buffed){% elif magickaDiff < 0 %} (debuffed/drained){% else %} (unchanged){% endif %}
+
+---
+
+### Test 3: Combat Status Checks
+
+**is_in_combat():**
+- {{ actorName }}: {% if is_in_combat(actorUUID) %}⚔️ IN COMBAT{% else %}🕊️ Not in combat{% endif %}
+- Player: {% if is_in_combat(player.UUID) %}⚔️ IN COMBAT{% else %}🕊️ Not in combat{% endif %}
+
+**has_weapon_drawn():**
+- {{ actorName }}: {% if has_weapon_drawn(actorUUID) %}🗡️ Weapon DRAWN{% else %}🔒 Weapon sheathed{% endif %}
+- Player: {% if has_weapon_drawn(player.UUID) %}🗡️ Weapon DRAWN{% else %}🔒 Weapon sheathed{% endif %}
+
+**is_hostile_to_actor():**
+- {{ actorName }} hostile to Player: {% if is_hostile_to_actor(actorUUID, player.UUID) %}⚠️ HOSTILE{% else %}✓ Not hostile{% endif %}
+- Player hostile to {{ actorName }}: {% if is_hostile_to_actor(player.UUID, actorUUID) %}⚠️ HOSTILE{% else %}✓ Not hostile{% endif %}
+
+---
+
+### Test 4: Special Combat States
+
+**is_knocked_down():**
+- {{ actorName }}: {% if is_knocked_down(actorUUID) %}💀 KNOCKED DOWN (bleeding out/essential down){% else %}✓ Standing{% endif %}
+- Player: {% if is_knocked_down(player.UUID) %}💀 KNOCKED DOWN{% else %}✓ Standing{% endif %}
+
+**is_reanimated():**
+- {{ actorName }}: {% if is_reanimated(actorUUID) %}🧟 REANIMATED (undead thrall){% else %}✓ Not reanimated{% endif %}
+
+**is_summoned():**
+- {{ actorName }}: {% if is_summoned(actorUUID) %}✨ SUMMONED CREATURE{% else %}✓ Not summoned{% endif %}
+
+---
+
+### Test 5: get_spell_list() - Known Spells (Enhanced)
+
+{% set actorSpells = get_spell_list(actorUUID) %}
+{% if actorSpells and length(actorSpells) > 0 %}
+**{{ actorName }}'s Known Spells:** ({{ length(actorSpells) }} total)
+{% for spell in actorSpells %}
+{% if loop.index <= 10 %}
+- **{{ spell.name }}** ({{ spell.spellType }})
+  - School: {% if spell.school %}{{ spell.school }}{% else %}N/A (Power){% endif %}
+  - Casting: {{ spell.castingType }} | Delivery: {{ spell.delivery }}
+  - Magicka Cost: {{ spell.magickaCost }} | Charge Time: {{ spell.chargeTime }}s
+  - Two-Handed: {% if spell.isTwoHanded %}Yes{% else %}No{% endif %} | Hostile: {% if spell.isHostile %}⚠️ Yes{% else %}No{% endif %}
+{% endif %}
+{% endfor %}
+{% if length(actorSpells) > 10 %}
+... and {{ length(actorSpells) - 10 }} more spells
+{% endif %}
+{% else %}
+**{{ actorName }}** knows no spells.
+{% endif %}
+
+**Spell Filtering Examples:**
+
+{% set destructionSpells = [] %}
+{% set restorationSpells = [] %}
+{% set powers = [] %}
+{% for spell in actorSpells %}
+{% if spell.school == "Destruction" %}{% set _ = destructionSpells.append(spell) %}{% endif %}
+{% if spell.school == "Restoration" %}{% set _ = restorationSpells.append(spell) %}{% endif %}
+{% if spell.spellType == "Power" or spell.spellType == "LesserPower" %}{% set _ = powers.append(spell) %}{% endif %}
+{% endfor %}
+
+- Destruction Spells: {{ length(destructionSpells) }}
+- Restoration Spells: {{ length(restorationSpells) }}
+- Powers: {{ length(powers) }}
+
+{% set playerSpells = get_spell_list(player.UUID) %}
+{% if playerSpells and length(playerSpells) > 0 %}
+**Player's Known Spells:** ({{ length(playerSpells) }} total)
+{% for spell in playerSpells %}
+{% if loop.index <= 8 %}
+- {{ spell.name }} ({% if spell.school %}{{ spell.school }}{% else %}{{ spell.spellType }}{% endif %}) - {{ spell.castingType }}
+{% endif %}
+{% endfor %}
+{% if length(playerSpells) > 8 %}
+... and {{ length(playerSpells) - 8 }} more spells
+{% endif %}
+{% else %}
+**Player** knows no spells.
+{% endif %}
+
+---
+
+### Test 6: Skill Threshold Logic Examples
+
+{% set actorDestruction = get_actor_value(actorUUID, "Destruction") %}
+{% set actorSpeech = get_actor_value(actorUUID, "Speech") %}
+
+**Skill Level Descriptions:**
+{% if actorDestruction >= 100 %}
+- Destruction: LEGENDARY ({{ actorDestruction }})
+{% elif actorDestruction >= 75 %}
+- Destruction: Expert ({{ actorDestruction }})
+{% elif actorDestruction >= 50 %}
+- Destruction: Adept ({{ actorDestruction }})
+{% elif actorDestruction >= 25 %}
+- Destruction: Apprentice ({{ actorDestruction }})
+{% else %}
+- Destruction: Novice ({{ actorDestruction }})
+{% endif %}
+
+{% if actorSpeech >= 75 %}
+- Speech: Master negotiator ({{ actorSpeech }})
+{% elif actorSpeech >= 50 %}
+- Speech: Skilled speaker ({{ actorSpeech }})
+{% elif actorSpeech >= 25 %}
+- Speech: Decent conversationalist ({{ actorSpeech }})
+{% else %}
+- Speech: Poor communicator ({{ actorSpeech }})
+{% endif %}
+
+---
+

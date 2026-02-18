@@ -1,0 +1,4 @@
+{{ render_character_profile("full", npc.UUID) }}
+{% if responseTarget and responseTarget.UUID != 0 %}
+{{ render_character_profile("dialogue_target", responseTarget.UUID) }}
+{% endif %}{# end render mode check #}

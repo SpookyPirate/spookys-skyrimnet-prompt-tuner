@@ -1,0 +1,30 @@
+{# TEST SUBMODULE - Decorator Testing Header #}
+{# This file establishes test context and common variables #}
+{# CATEGORY: Test Infrastructure #}
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{#                         TEST DECORATOR SUBMODULE                            #}
+{#   Purpose: Comprehensively exercise ALL decorators for template validation  #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+{# Establish render mode perspective (standard pattern) #}
+{% set first_person = (render_mode == "full" or render_mode == "thoughts" or render_mode == "transform") %}
+{% set third_person = (render_mode == "target" or render_mode == "dialogue_target") %}
+{% set brief_mode = (render_mode == "short_inline" or render_mode == "interject_inline") %}
+
+{# Cache actor data to avoid repeated calls #}
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+{% set subj = actor.subjectivePronoun %}
+{% set obj = actor.objectivePronoun %}
+{% set poss = actor.possessivePronoun %}
+{% set refl = actor.reflexivePronoun %}
+
+## 🧪 DECORATOR TEST MODULE - Active
+
+**Test Subject:** {{ actorName }}
+**Render Mode:** {{ render_mode }}
+**Perspective:** {% if first_person %}First Person{% elif third_person %}Third Person{% else %}Brief{% endif %}
+
+---
+

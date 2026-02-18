@@ -1,0 +1,26 @@
+[user]
+    You are cataloging furniture and objects in the world of Skyrim. Provide a detailed, objective description of this furniture based on the screenshot.
+
+    Furniture Information:
+    - Name: {{subject_name}}
+    - Location: {{location_name}} ({% if is_indoors %}Indoors{% else %}Outdoors{% endif %})
+    - Time: {{gameTime}}
+    {% if not is_indoors %}- Weather: {{currentWeather.name}}{% if currentWeather.isRaining %} (Raining){% else if currentWeather.isSnowing %} (Snowing){% endif %}{% endif %}
+
+    Your description should:
+    - Be factual and objective (1-2 paragraphs)
+    - Focus on appearance, design, and materials
+    - Note craftsmanship, condition (new, worn, damaged), and style
+    - Describe any decorative elements or functional features
+    - Consider the lighting and setting ({% if is_indoors %}indoor environment{% else %}outdoor environment with {{currentWeather.name}}{% if currentWeather.isRaining or currentWeather.isSnowing %} weather effects{% endif %}{% endif %})
+    - Use appropriate Elder Scrolls lore terminology
+    - IGNORE any UI elements, menus, or HUD overlays - describe only the furniture
+    - Avoid speculation about gameplay mechanics
+
+{{ render_subcomponent("omnisight_furniture", "full") }}
+    Describe the visual characteristics and notable features of this furniture shown in the image.
+    [image]
+    {{imageDataUrl}}
+    [end image]
+[end user]
+

@@ -1,0 +1,427 @@
+{# TEST SUBMODULE - Scene & World Decorators #}
+{# Tests: location, get_location, currentWeather, gameTime, gameTimeJson, gameTimeNumeric, #}
+{#        currentTime, is_indoors, short_time, get_nearby_npc_list, #}
+{#        get_active_short_lived_events, get_nearby_references, #}
+{#        get_nearby_references_for_entity, get_container_contents, etc. #}
+{# CATEGORY: Scene, World, Environment #}
+
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+
+## 🌍 SCENE & WORLD DECORATOR TESTS
+
+### Test 1: Location Decorators
+
+**location (player's current location):**
+- Current Location: {{ location }}
+
+**get_location() - Location for any actor:**
+- Player Location: {{ get_location(player.UUID) }}
+- {{ actorName }}'s Location: {{ get_location(actorUUID) }}
+
+**Location Comparison:**
+{% if get_location(actorUUID) == get_location(player.UUID) %}
+📍 {{ actorName }} is in the same location as the player.
+{% else %}
+📍 {{ actorName }} is in a different location than the player.
+  - Player: {{ get_location(player.UUID) }}
+  - {{ actorName }}: {{ get_location(actorUUID) }}
+{% endif %}
+
+**is_indoors:**
+- Indoor Status: {% if is_indoors %}🏠 INDOORS{% else %}🌲 OUTDOORS{% endif %}
+
+---
+
+### Test 2: Weather Decorators
+
+**currentWeather:**
+- Weather Name: {{ currentWeather.name }}
+- Editor ID: {{ currentWeather.editorID }}
+- FormID: {{ currentWeather.formID }}
+- Is Raining: {% if currentWeather.isRaining %}🌧️ YES{% else %}✗ NO{% endif %}
+- Is Snowing: {% if currentWeather.isSnowing %}❄️ YES{% else %}✗ NO{% endif %}
+- Wind Speed: {{ currentWeather.windSpeed }}
+
+**Weather Description Logic:**
+{% if currentWeather.isSnowing %}
+❄️ Snow is falling from the sky.
+{% elif currentWeather.isRaining %}
+🌧️ Rain is pouring down.
+{% elif currentWeather.windSpeed > 0.7 %}
+💨 Strong winds are blowing.
+{% elif currentWeather.windSpeed > 0.3 %}
+🍃 A light breeze is present.
+{% else %}
+☀️ The weather is calm and clear.
+{% endif %}
+
+---
+
+### Test 3: Time Decorators
+
+**gameTime (Formatted):**
+- {{ gameTime }}
+
+**gameTimeJson (Structured):**
+- Hour (24h): {{ gameTimeJson.hour }}
+- Minute: {{ gameTimeJson.minute }}
+- Display Hour (12h): {{ gameTimeJson.displayHour }}
+- AM/PM: {{ gameTimeJson.ampm }}
+- Day: {{ gameTimeJson.day }}
+- Day Ordinal: {{ gameTimeJson.dayOrdinal }}
+- Month Name: {{ gameTimeJson.monthName }}
+- Weekday Name: {{ gameTimeJson.weekdayName }}
+- Year: {{ gameTimeJson.year }}
+
+**Time of Day Logic:**
+{% set hour = gameTimeJson.hour %}
+{% if hour >= 5 and hour < 8 %}
+🌅 It is early morning (dawn).
+{% elif hour >= 8 and hour < 12 %}
+☀️ It is morning.
+{% elif hour >= 12 and hour < 14 %}
+🌞 It is midday.
+{% elif hour >= 14 and hour < 18 %}
+🌤️ It is afternoon.
+{% elif hour >= 18 and hour < 21 %}
+🌆 It is evening.
+{% elif hour >= 21 or hour < 5 %}
+🌙 It is nighttime.
+{% endif %}
+
+**gameTimeNumeric:**
+- Seconds since epoch: {{ gameTimeNumeric }}
+
+**currentTime (System Time):**
+- {{ currentTime }}
+
+**short_time():**
+- Formatted game time: {{ short_time(gameTime) }}
+
+---
+
+### Test 4: get_nearby_npc_list() - Nearby NPCs
+
+{% set nearbyNPCs = get_nearby_npc_list(player.UUID) %}
+
+**NPCs Near Player:** {{ length(nearbyNPCs) }} found
+
+{% if nearbyNPCs and length(nearbyNPCs) > 0 %}
+{% for npc in nearbyNPCs %}
+{% if loop.index <= 20 %}
+- **{{ npc.name }}**
+  - UUID: {{ npc.UUID }}
+  - Distance: {{ npc.distance }} units ({{ units_to_meters(npc.distance) }}m)
+{% endif %}
+{% endfor %}
+{% if length(nearbyNPCs) > 20 %}
+... and {{ length(nearbyNPCs) - 20 }} more nearby NPCs
+{% endif %}
+{% else %}
+No NPCs found nearby.
+{% endif %}
+
+**Nearby NPCs from {{ actorName }}'s perspective:**
+{% set nearbyFromActor = get_nearby_npc_list(actorUUID) %}
+{% if nearbyFromActor and length(nearbyFromActor) > 0 %}
+{{ length(nearbyFromActor) }} NPCs near {{ actorName }}:
+{% for npc in nearbyFromActor %}
+{% if loop.index <= 10 %}
+- {{ npc.name }} ({{ units_to_meters(npc.distance) }}m)
+{% endif %}
+{% endfor %}
+{% else %}
+No NPCs near {{ actorName }}.
+{% endif %}
+
+---
+
+### Test 5: Short-Lived Events
+
+**get_active_short_lived_events():**
+{% set activeEvents = get_active_short_lived_events() %}
+Total Active Events: {{ length(activeEvents) }}
+
+{% if activeEvents and length(activeEvents) > 0 %}
+{% for event in activeEvents %}
+{% if loop.index <= 15 %}
+- Type: {{ event.type }}
+  - Entity: {{ event.entity }}
+  - Timestamp: {{ event.timestamp }}
+{% if event.data %}
+  - Data: {{ event.data }}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% else %}
+No active short-lived events.
+{% endif %}
+
+**get_short_lived_events_count():**
+- Event Count: {{ get_short_lived_events_count() }}
+
+**get_short_lived_events_by_type() - Combat Events:**
+{% set combatEvents = get_short_lived_events_by_type("combat") %}
+Combat Events: {{ length(combatEvents) }}
+
+**get_short_lived_events_by_type() - Dialogue Events:**
+{% set dialogueEvents = get_short_lived_events_by_type("dialogue") %}
+Dialogue Events: {{ length(dialogueEvents) }}
+
+**get_short_lived_events_by_entity() - Actor's Events:**
+{% set actorEvents = get_short_lived_events_by_entity(actorUUID) %}
+Events involving {{ actorName }}: {{ length(actorEvents) }}
+
+**get_short_lived_events_by_entity() - Player's Events:**
+{% set playerEvents = get_short_lived_events_by_entity(player.UUID) %}
+Events involving Player: {{ length(playerEvents) }}
+
+---
+
+### Test 6: Camera Decorators
+
+**is_first_person():**
+- First Person View: {% if is_first_person() %}✓ YES (1st person){% else %}✗ NO (3rd person){% endif %}
+
+**is_vr():**
+- VR Mode: {% if is_vr() %}🥽 VR MODE{% else %}🖥️ Flat Screen{% endif %}
+
+---
+
+### Test 7: Movement State Decorators
+
+**Actor Movement States:**
+- {{ actorName }} is_sneaking: {% if is_sneaking(actorUUID) %}🤫 SNEAKING{% else %}✗ Not sneaking{% endif %}
+- {{ actorName }} is_sprinting: {% if is_sprinting(actorUUID) %}🏃 SPRINTING{% else %}✗ Not sprinting{% endif %}
+- {{ actorName }} is_walking: {% if is_walking(actorUUID) %}🚶 WALKING{% else %}✗ Not walking{% endif %}
+- {{ actorName }} is_swimming: {% if is_swimming(actorUUID) %}🏊 SWIMMING{% else %}✗ Not swimming{% endif %}
+- {{ actorName }} is_unconscious: {% if is_unconscious(actorUUID) %}💤 UNCONSCIOUS{% else %}✗ Conscious{% endif %}
+
+**Player Movement States:**
+- Player is_sneaking: {% if is_sneaking(player.UUID) %}🤫 SNEAKING{% else %}✗ Not sneaking{% endif %}
+- Player is_sprinting: {% if is_sprinting(player.UUID) %}🏃 SPRINTING{% else %}✗ Not sprinting{% endif %}
+- Player is_walking: {% if is_walking(player.UUID) %}🚶 WALKING{% else %}✗ Not walking{% endif %}
+- Player is_swimming: {% if is_swimming(player.UUID) %}🏊 SWIMMING{% else %}✗ Not swimming{% endif %}
+
+---
+
+### Test 8: Diary Decorators
+
+**get_latest_diary_entry():**
+{% set latestDiary = get_latest_diary_entry(actorUUID) %}
+{% if latestDiary and latestDiary.content %}
+- Content: {{ latestDiary.content }}
+- Emotion: {{ latestDiary.emotion }}
+- Importance: {{ latestDiary.importance_score }}
+- Location: {{ latestDiary.location }}
+- Date: {{ latestDiary.entry_date_str }}
+- Age (hours): {{ latestDiary.age_hours }}
+{% else %}
+No diary entries found for {{ actorName }}.
+{% endif %}
+
+**get_diary_entries() - Last 5 Entries:**
+{% set diaryEntries = get_diary_entries(actorUUID, 5) %}
+{% if diaryEntries and length(diaryEntries) > 0 %}
+Found {{ length(diaryEntries) }} diary entries:
+{% for entry in diaryEntries %}
+- Entry {{ loop.index }}:
+  - Date: {{ entry.entry_date_str }}
+  - Emotion: {{ entry.emotion }}
+  - Content preview: {{ entry.content }}
+{% endfor %}
+{% else %}
+No diary entries found.
+{% endif %}
+
+---
+
+### Test 9: Mood Decorators
+
+**moodsList:**
+Available Moods: {{ length(moodsList) }}
+{% for mood in moodsList %}
+- {{ mood }}
+{% endfor %}
+
+**mood_description() examples:**
+- happy: {{ mood_description("happy") }}
+- sad: {{ mood_description("sad") }}
+- angry: {{ mood_description("angry") }}
+
+**moodDescriptions object:**
+{% for mood, desc in moodDescriptions %}
+{% if loop.index <= 5 %}
+- {{ mood }}: {{ desc }}
+{% endif %}
+{% endfor %}
+
+---
+
+### Test 10: get_nearby_references() - World Objects
+
+**All nearby objects (items, furniture, containers):**
+{% set nearbyRefs = get_nearby_references(1500) %}
+{% if nearbyRefs and length(nearbyRefs) > 0 %}
+Found {{ length(nearbyRefs) }} objects within 1500 units:
+{% for ref in nearbyRefs %}
+{% if loop.index <= 15 %}
+- **{{ ref.name }}** ({{ ref.type }}/{{ ref.subtype }})
+  - FormID: {{ ref.formID }}
+  - Position: {{ ref.position.meters }}m {{ ref.position.cardinalDirection }} ({{ ref.position.direction }})
+{% if ref.locked  %}  - Locked: {% if ref.locked %}🔒 Yes{% else %}🔓 No{% endif %}{% endif %}
+{% endif %}
+{% endfor %}
+{% if length(nearbyRefs) > 15 %}
+... and {{ length(nearbyRefs) - 15 }} more objects
+{% endif %}
+{% else %}
+No objects found nearby.
+{% endif %}
+
+**Filtered: Nearby Potions**
+{% set nearbyPotions = get_nearby_references(1000, "potion") %}
+{% if nearbyPotions and length(nearbyPotions) > 0 %}
+Found {{ length(nearbyPotions) }} potions:
+{% for potion in nearbyPotions %}
+{% if loop.index <= 5 %}
+- {{ potion.name }} ({{ potion.position.meters }}m {{ potion.position.cardinalDirection }})
+{% endif %}
+{% endfor %}
+{% else %}
+No potions found nearby.
+{% endif %}
+
+**Filtered: Nearby Furniture**
+{% set nearbyFurniture = get_nearby_references(800, "furniture") %}
+{% if nearbyFurniture and length(nearbyFurniture) > 0 %}
+Found {{ length(nearbyFurniture) }} furniture items:
+{% for furn in nearbyFurniture %}
+{% if loop.index <= 5 %}
+- {{ furn.name }} ({{ furn.subtype }}) - {{ furn.position.meters }}m {{ furn.position.cardinalDirection }}
+{% endif %}
+{% endfor %}
+{% else %}
+No furniture found nearby.
+{% endif %}
+
+**Filtered: Nearby Containers**
+{% set nearbyContainers = get_nearby_references(1000, "container") %}
+{% if nearbyContainers and length(nearbyContainers) > 0 %}
+Found {{ length(nearbyContainers) }} containers:
+{% for container in nearbyContainers %}
+{% if loop.index <= 5 %}
+- {{ container.name }} ({{ container.position.meters }}m {{ container.position.cardinalDirection }}){% if container.locked %} 🔒 LOCKED{% endif %}
+{% endif %}
+{% endfor %}
+{% else %}
+No containers found nearby.
+{% endif %}
+
+**Filtered: Nearby Equipment (weapons/armor)**
+{% set nearbyEquipment = get_nearby_references(800, "equipment") %}
+Equipment found: {{ length(nearbyEquipment) }}
+{% for eq in nearbyEquipment %}
+{% if loop.index <= 5 %}
+- {{ eq.name }} ({{ eq.subtype }})
+{% endif %}
+{% endfor %}
+
+**Filtered: Nearby Consumables (potions/food/ingredients)**
+{% set nearbyConsumables = get_nearby_references(800, "consumable") %}
+Consumables found: {{ length(nearbyConsumables) }}
+
+---
+
+### Test 11: get_container_contents() - Container Inventory
+
+{% if nearbyContainers and length(nearbyContainers) > 0 %}
+{% set firstContainer = first(nearbyContainers) %}
+**Inspecting: {{ firstContainer.name }}** (FormID: {{ firstContainer.formID }})
+
+{% set contents = get_container_contents(firstContainer.formID) %}
+{% if not contents.error %}
+- Container Name: {{ contents.name }}
+- Locked: {% if contents.locked %}🔒 Yes (Level: {{ contents.lockLevel }}){% else %}🔓 No{% endif %}
+- Total Items: {{ contents.itemCount }}
+
+{% if contents.items and length(contents.items) > 0 %}
+**Contents:**
+{% for item in contents.items %}
+{% if loop.index <= 10 %}
+- {{ item.name }} x{{ item.count }} ({{ item.type }})
+  - Value: {{ item.value }} gold | Weight: {{ item.weight }}
+{% endif %}
+{% endfor %}
+{% if length(contents.items) > 10 %}
+... and {{ length(contents.items) - 10 }} more items
+{% endif %}
+{% else %}
+Container is empty.
+{% endif %}
+{% else %}
+Error: {{ contents.error }}
+{% endif %}
+{% else %}
+No containers nearby to inspect.
+{% endif %}
+
+---
+
+### Test 12: get_nearby_references_for_entity() - World Objects from Entity Position
+
+**All nearby objects from {{ actorName }}'s position:**
+{% set actorNearbyRefs = get_nearby_references_for_entity(actorUUID, 1500) %}
+{% if actorNearbyRefs and length(actorNearbyRefs) > 0 %}
+Found {{ length(actorNearbyRefs) }} objects within 1500 units of {{ actorName }}:
+{% for ref in actorNearbyRefs %}
+{% if loop.index <= 10 %}
+- **{{ ref.name }}** ({{ ref.type }}/{{ ref.subtype }})
+  - FormID: {{ ref.formID }}
+  - Position: {{ ref.position.meters }}m {{ ref.position.cardinalDirection }}
+{% endif %}
+{% endfor %}
+{% if length(actorNearbyRefs) > 10 %}
+... and {{ length(actorNearbyRefs) - 10 }} more objects
+{% endif %}
+{% else %}
+No objects found near {{ actorName }}.
+{% endif %}
+
+**Filtered: Furniture near {{ actorName }}**
+{% set actorFurniture = get_nearby_references_for_entity(actorUUID, 800, "furniture") %}
+{% if actorFurniture and length(actorFurniture) > 0 %}
+Found {{ length(actorFurniture) }} furniture items near {{ actorName }}:
+{% for furn in actorFurniture %}
+{% if loop.index <= 5 %}
+- {{ furn.name }} ({{ furn.subtype }}) - {{ furn.position.meters }}m {{ furn.position.cardinalDirection }}
+{% endif %}
+{% endfor %}
+{% else %}
+No furniture found near {{ actorName }}.
+{% endif %}
+
+**Filtered: Containers near {{ actorName }}**
+{% set actorContainers = get_nearby_references_for_entity(actorUUID, 1000, "container") %}
+{% if actorContainers and length(actorContainers) > 0 %}
+Found {{ length(actorContainers) }} containers near {{ actorName }}:
+{% for container in actorContainers %}
+{% if loop.index <= 5 %}
+- {{ container.name }} ({{ container.position.meters }}m){% if container.locked %} 🔒 LOCKED{% endif %}
+{% endif %}
+{% endfor %}
+{% else %}
+No containers found near {{ actorName }}.
+{% endif %}
+
+**Comparison: Player vs {{ actorName }} perspective**
+- Objects near Player: {{ length(nearbyRefs) }}
+- Objects near {{ actorName }}: {{ length(actorNearbyRefs) }}
+{% if length(nearbyRefs) != length(actorNearbyRefs) %}
+📍 Different object counts - actors are in different locations or have different surroundings.
+{% else %}
+📍 Same object count - actors may be near each other.
+{% endif %}
+
+---

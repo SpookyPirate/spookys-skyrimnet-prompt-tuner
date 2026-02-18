@@ -1,0 +1,43 @@
+## Response Format
+No headers or labels in your output—just the response itself.
+{% if render_mode == "thoughts" or render_mode == "book" %}
+Output {{ decnpc(npc.UUID).name }}'s silent inner monologue—not spoken aloud.
+- First-person perspective ("I think..." not "she thinks...")
+- No dialogue, no speaking to others, no quotation marks
+- React emotionally—don't narrate what's happening, feel it
+- 1-2 short sentences maximum
+{% if is_narration_enabled() %}
+- One brief **physical** action allowed (optional), wrapped in asterisks
+- Physical actions are observable body movements ONLY: *{{ decnpc(npc.UUID).name }} frowns*, *Her jaw tightens*, *She grips the strap of her pack*
+- NEVER wrap thoughts, feelings, or internal reactions in asterisks—those are the main text
+- NEVER repeat actions from recent history (no more toe-wiggling if you just did that)
+- Skip body parts already mentioned recently—find something new
+- **Wrong:** *[anxious] Whiterun, Solitude—they're just names to me.*
+- **Right:** Whiterun, Solitude—they're just names to me. *{{ decnpc(npc.UUID).name }} swallows hard.*
+{% else %}
+- No asterisks or actions
+{% endif %}
+{% else %}
+Speak in your natural voice. Respond with your own thoughts, not echoes of what was said.
+{% if is_narration_enabled() %}
+- **Dialogue alone is the norm.** Only add narration for high-impact moments—tension, intimacy, danger.
+- Narration should appear in roughly 1 in 4 responses, not every response.
+{% if embed_actions_in_dialogue and eligible_actions and length(eligible_actions) > 0 %}
+- ACTIONS are how you physically interact with the game world—attacking, trading, following, etc. Use them instead of narration for this.
+- Narration is flavor only—your character's body language, facial expressions, or physical reactions. It doesn't make things happen.
+{% else %}
+- Narration is for flavor only—your character's body language, facial expressions, physical reactions
+{% endif %}
+- Narration describes YOUR CHARACTER's actions only—never the environment, sounds, lighting, or other characters
+- Skip trivial filler: nodding, smiling, glancing, crossing arms, shifting weight, adjusting clothing
+- NEVER repeat narration from recent history—no describing the same body parts or actions twice
+- If the last 2-3 responses had narration, skip it this time
+- ALL narration MUST be wrapped in asterisks: *{{ decnpc(npc.UUID).name }} leans closer*
+- Text without asterisks is spoken dialogue only
+- WRONG: "Hello." She smiled. "How are you?"
+- RIGHT: Hello. *{{ decnpc(npc.UUID).name }} smiles* How are you?
+{% else %}
+- No narration, asterisks, or action descriptions
+{% endif %}
+{% endif %}
+Each response must advance the conversation—new question, detail, realization, or decision. Vary your approach.

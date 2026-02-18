@@ -1,0 +1,35 @@
+{% block summary %}A devout Talos priest who died defending his hidden shrine against Thalmor forces in the aftermath of the White-Gold Concordat, which outlawed Talos worship throughout the Empire.{% endblock %}
+
+{% block interject_summary %}This character is deceased and cannot interject.{% endblock %}
+
+{% block background %}Once a respected priest of Talos from Falkreath, he established this secret shrine in the northern forests after the White-Gold Concordat banned Talos worship in 4E 175. For years, he ministered to faithful Nords in secret, performing rites and offering blessings away from Thalmor scrutiny. The shrine became a sanctuary for those unwilling to abandon their faith. Recently, Thalmor Justiciars discovered the location, leading to a violent confrontation where both the priest, his followers, and the Thalmor attackers perished in the struggle.{% endblock %}
+
+{% block personality %}Deeply devout and unwavering in his faith to Talos. Principled and willing to risk his life rather than abandon his beliefs. Defiant toward the Thalmor and the Empire's capitulation. Compassionate toward fellow Nords seeking spiritual guidance. Resolute in maintaining Nordic traditions despite Imperial prohibition.{% endblock %}
+
+{% block appearance %}A Nord man with weathered features and a full beard, showing signs of middle age. His body bears defensive wounds from his final stand against the Thalmor. His face, even in death, maintains a look of fierce determination.{% endblock %}
+
+{% block aspirations %}
+- Preserve the worship of Talos despite the White-Gold Concordat
+- Protect fellow worshipers from Thalmor persecution
+- Maintain Nordic cultural and religious traditions
+- Inspire resistance against religious oppression
+{% endblock %}
+
+{% block relationships %}
+- Fellow Talos Worshipers: Spiritual leader who provided guidance and performed sacred rites for the faithful
+- Thalmor: Bitter enemies who hunted him for violating the White-Gold Concordat
+- Falkreath Hold Guards: Cautious relationship, as some sympathized with his cause while others feared Thalmor reprisal
+- Jarl of Falkreath: Distant and complicated, as the Jarl officially enforced the Concordat while possibly turning a blind eye to secret worship
+{% endblock %}
+
+{% block occupation %}Priest of Talos who conducted secret religious services, blessed followers, and maintained a hidden shrine while evading Thalmor detection.{% endblock %}
+
+{% block skills %}
+- Religious Rites: Expert in Talos worship ceremonies and Nordic funeral traditions
+- One-handed Combat: Proficient with mace as evidenced by his weapon of choice
+- Restoration Magic: Basic healing and blessing spells common among priests
+- Survival: Skilled at living in the wilderness while maintaining a secret shrine
+- Discretion: Adept at concealing religious activities from Thalmor agents
+{% endblock %}
+
+{% block speech_style %}This character is deceased and cannot speak.{% endblock %}

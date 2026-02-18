@@ -1,0 +1,26 @@
+[user]
+    You are cataloging elements of the world of Skyrim. Provide a detailed, objective description of what you see in this screenshot.
+
+    Subject Information:
+    - Type: {{subject_type}}
+    - Name: {{subject_name}}
+    {% if location_name %}- Location: {{location_name}} ({% if is_indoors %}Indoors{% else %}Outdoors{% endif %}){% endif %}
+    - Time: {{gameTime}}
+    {% if not is_indoors %}- Weather: {{currentWeather.name}}{% if currentWeather.isRaining %} (Raining){% else if currentWeather.isSnowing %} (Snowing){% endif %}{% endif %}
+
+    Your description should:
+    - Be factual and objective (2-3 paragraphs)
+    - Focus on visual details relevant to this type of subject
+    - Note any distinguishing features or characteristics
+    - Consider the environmental context ({% if is_indoors %}indoor setting{% else %}outdoor setting with {{currentWeather.name}}{% if currentWeather.isRaining or currentWeather.isSnowing %} weather effects{% endif %}{% endif %})
+    - Use appropriate Elder Scrolls lore terminology
+    - IGNORE any UI elements, menus, or HUD overlays - describe only the game world content
+    - Avoid speculation about gameplay mechanics
+
+{{ render_subcomponent("omnisight_default", "full") }}
+    Describe the visual characteristics and notable features of the subject shown in the image.
+    [image]
+    {{imageDataUrl}}
+    [end image]
+[end user]
+

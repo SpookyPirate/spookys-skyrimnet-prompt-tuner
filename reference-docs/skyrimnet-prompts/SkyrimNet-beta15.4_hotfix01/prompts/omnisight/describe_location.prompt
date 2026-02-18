@@ -1,0 +1,51 @@
+[ user ]
+    You are cataloging "{{subject_name}}" for a visual location database in Skyrim. Use BOTH your knowledge of this location from Elder Scrolls lore AND the visual evidence in this screenshot to create a comprehensive description.
+
+    Location Context:
+    - Name: {{subject_name}}
+    - Type: {% if is_indoors %}Interior{% else %}Exterior{% endif %}
+    - Current Position: {{location_name}}
+
+    YOUR TASK:
+    Describe this location by grounding your response in what you visually observe in the screenshot, supplemented by your knowledge of Skyrim lore where applicable.
+
+    1. PHYSICAL CHARACTERISTICS (primary focus - what you SEE):
+        - {% if is_indoors %}Architectural style and interior layout{% else %}Terrain type and natural features{% endif %}
+        - {% if is_indoors %}Building materials visible (stone, wood, metal, etc.){% else %}Landscape characteristics (vegetation, rock formations, water bodies){% endif %}
+        - {% if is_indoors %}Room structure, key structural features (doors, windows, columns, stairs){% else %}Visible structures, landmarks, or terrain features{% endif %}
+        - Permanent fixtures, furnishings, and distinctive objects
+        - Color schemes and visual atmosphere
+        - {% if not is_indoors %}Geographic context (mountains, forests, water, distant structures){% endif %}
+
+    2. LOCATION IDENTITY (if recognizable from visuals):
+        - What type of place this is (home, shop, guild hall, dungeon, wilderness, etc.)
+        - Its purpose or function in Skyrim (based on what you see)
+        - If you recognize this as a well-known lore location, you may reference its significance
+
+    3. DEFINING FEATURES:
+        - What makes this location visually recognizable or unique
+        - Key visual elements that distinguish it from similar locations
+        - Architectural or natural details that characterize it
+
+    IMPORTANT RULES:
+    - Ground your description in VISUAL EVIDENCE first, supplement with lore knowledge second
+    - DO NOT mention or repeat the location name "{{subject_name}}" in your output
+    - If this appears to be a generic area (wilderness trail, crossroads, unnamed path), describe it as what you see, not as a significant lore location
+    - Start directly with the description (no preamble like "This location is..." or "{{subject_name}} is...")
+    - Focus on PERMANENT features, not temporary conditions
+    - DO NOT describe: NPCs in detail, current lighting/shadows, weather effects, UI elements, time of day.
+    - Use present tense for permanent features
+    - Be concise and factual - don't invent details not visible in the screenshot
+
+    EXAMPLE GOOD OUTPUT (famous location):
+    "The jarl's palace serves as the seat of power in Whiterun. The great hall features soaring Nordic timber construction with massive wooden beams and a raised throne platform. Stone walls are adorned with mounted animal heads and banners, while a long central fire pit runs the length of the hall..."
+
+    EXAMPLE GOOD OUTPUT (generic wilderness):
+    "A forested trail winds through dense evergreen woodland. The dirt path is flanked by tall pine and fir trees with thick undergrowth of ferns covering the forest floor. Rocky outcroppings dot the uneven terrain, while distant mountain peaks rise above the treeline. A stone watchtower is visible on a nearby hillside, suggesting proximity to a settlement or fortification."
+
+{{ render_subcomponent("omnisight_location", "full") }}
+    FORMAT: Write 2-3 concise paragraphs describing what you observe and what makes this location distinctive. Do not include the location name itself in your output.
+    [ image ]
+    {{imageDataUrl}}
+    [ end image ]
+[ end user ]

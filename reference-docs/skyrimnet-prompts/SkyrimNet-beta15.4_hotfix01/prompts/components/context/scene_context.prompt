@@ -1,0 +1,68 @@
+{% block setup %}
+    {# Get nearby NPCs once and store the result #}
+    {# Use sourceEntity.UUID if available (for NPC speakers), otherwise use player.UUID #}
+    {% if sourceEntity %}
+        {% set nearby_npcs = get_nearby_npc_list(sourceEntity.UUID) %}
+        {% set npcLocation = get_location(sourceEntity.UUID) %}
+    {% else %}
+        {% set nearby_npcs = get_nearby_npc_list(player.UUID) %}
+        {% set npcLocation = location %}
+    {% endif %}
+{% endblock %}
+
+{% block nearbyNpcs %}
+    {% if length(nearby_npcs) > 0 %}
+        {% for npc in nearby_npcs %}
+            {% if decnpc(npc.UUID).isDead %}
+                {{ npc.id }}. [DEAD] The dead corpse of {{ decnpc(npc.UUID).name }}: {{ render_character_profile("short_inline", npc.UUID) }} ({{ decnpc(npc.UUID).gender }} {{ decnpc(npc.UUID).race }}, {{ units_to_meters(npc.distance) }} meters away)
+            {% else %}
+                {{ npc.id }}. {% if is_summoned(npc.UUID) %}{% if is_hostile_to_actor(npc.UUID, player.UUID) %}[Summoned creature hostile to {{ decnpc(player.UUID).name }}] {% else %}[Summoned creature serving {{ decnpc(player.UUID).name }}] {% endif %}{% else if is_reanimated(npc.UUID) %}{% if is_hostile_to_actor(npc.UUID, player.UUID) %}[Reanimated undead hostile to {{ decnpc(player.UUID).name }}] {% else %}[Reanimated undead thrall serving {{ decnpc(player.UUID).name }}] {% endif %}{% endif %}{{ decnpc(npc.UUID).name }}{% if decnpc(npc.UUID).isVirtualPrivate %} (Virtual NPC){% endif %}: {{ render_character_profile("short_inline", npc.UUID) }}{% if not decnpc(npc.UUID).isVirtual %} ({{ decnpc(npc.UUID).gender }} {{ decnpc(npc.UUID).race }}, {{ units_to_meters(npc.distance) }} meters away){% endif %}
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        No one else is nearby.
+    {% endif %}
+{% endblock %}
+
+{% block situationSummary %}
+    ## Current Location
+    The scene is taking place in **{{ npcLocation }}**
+
+    ## Current Time
+    **Time**: {{ gameTime }}
+
+    {% if gameTimeJson.hour >= 22 or gameTimeJson.hour <= 5 %}
+        - It's currently late at night - most people would be sleeping
+    {% else if gameTimeJson.hour >= 6 and gameTimeJson.hour <= 11 %}
+        - It's currently morning time
+    {% else if gameTimeJson.hour >= 12 and gameTimeJson.hour <= 17 %}
+        - It's currently afternoon
+    {% else if gameTimeJson.hour >= 18 and gameTimeJson.hour <= 21 %}
+        - It's currently evening.
+    {% endif %}
+{% endblock %}
+
+## Current Weather
+**Weather**: {% if is_indoors %}You are indoors and sheltered from the weather. Outside, it is {% endif %}{{ currentWeather.name }}{% if currentWeather.isRaining %} (Raining){% else if currentWeather.isSnowing %} (Snowing){% endif %}
+{% if currentWeather.isRaining and currentWeather.isSnowing %}
+    *{% if is_indoors %}Outside, {%endif %}A harsh storm is raging with both rain and snow*
+{% else if currentWeather.isRaining %}
+    *{% if is_indoors %}Outside, {%endif %}Rain is falling, making outdoor activities unpleasant*
+{% else if currentWeather.isSnowing %}
+    *{% if is_indoors %}Outside, {%endif %}Snow is falling, creating a winter atmosphere*
+{% else if currentWeather.windSpeed > 0.5 %}
+    *{% if is_indoors %}Outside, {%endif %}Strong winds are blowing*
+{% endif %}
+
+## Current Location
+{% block currentLocation %}
+    {{ location }}
+{% endblock %}
+
+{% block recentEvents %}
+    {{ render_template("components\\context\\component_recent_events") }}
+{% endblock  %}
+
+{% block npcStateSummary %}
+    {{ render_template("components\\context\\component_npc_state_summary") }}
+{% endblock %}

@@ -1,0 +1,57 @@
+{% block summary %}
+
+{% endblock %}
+
+
+
+{% block interject_summary %}
+
+{% endblock %}
+
+
+
+{% block background %}
+
+{% endblock %}
+
+
+
+{% block personality %}
+
+{% endblock %}
+
+
+
+{% block appearance %}
+
+{% endblock %}
+
+
+
+{% block aspirations %}
+
+{% endblock %}
+
+
+
+{% block relationships %}
+
+{% endblock %}
+
+
+
+{% block occupation %}
+
+{% endblock %}
+
+
+
+{% block skills %}
+
+{% endblock %}
+
+
+
+{% block speech_style %}
+
+{% endblock %}

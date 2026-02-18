@@ -1,0 +1,5 @@
+{% if responseTarget %}
+{{ get_scene_context(npc.UUID, responseTarget.UUID, "full")}}
+{% else %}
+{{ get_scene_context(npc.UUID, 0, "full")}}
+{% endif %}

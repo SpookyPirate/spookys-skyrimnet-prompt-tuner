@@ -1,0 +1,23 @@
+{% block setup %}
+{% endblock %}
+## Scene Information
+{% block situationSummary %}
+{% endblock %}
+
+## Nearby People
+{% block nearbyNpcs %}
+{% endblock %}
+
+{% if get_short_lived_events_count() > 0 %}
+## Recent Events
+{% block recentEvents %}
+{% endblock %}
+{% endif %}
+
+## Scene Summary
+{% block npcStateSummary %}
+{% endblock %}
+
+{# The header is inside of the block #}
+{% block triggeringEvent %}
+{% endblock %}

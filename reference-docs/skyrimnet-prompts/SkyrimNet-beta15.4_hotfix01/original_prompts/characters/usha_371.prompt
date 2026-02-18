@@ -1,0 +1,31 @@
+{% block summary %}Usha was a desperate Argonian skooma addict who died alone at his makeshift gold panning camp on Solstheim, having failed to overcome his addiction despite his brother's attempts to help him.{% endblock %}
+
+{% block interject_summary %}Usha is deceased and cannot interject.{% endblock %}
+
+{% block background %}Usha came to Solstheim seeking a fresh start away from his skooma addiction. His brother sent him a letter and money, urging him to return home to Black Marsh. Instead of using the gold for travel, Usha established a small gold panning operation near Ashfallow Citadel, likely to fund his worsening skooma habit. His addiction ultimately proved fatal, as evidenced by the numerous empty skooma bottles surrounding his corpse. His final days were spent alone in his hidden camp, panning for gold ore in the nearby stream while consumed by his addiction.{% endblock %}
+
+{% block personality %}Usha was deeply addicted to skooma, with his decision-making dominated by securing his next dose. He maintained enough practical sense to establish a gold-panning operation but lacked the willpower to overcome his addiction or return home despite family support. He was solitary and secretive, choosing an isolated location far from settlements to avoid scrutiny of his habit. Despite his addiction, he showed resourcefulness in identifying a viable gold source and setting up a functional camp.{% endblock %}
+
+{% block appearance %}An Argonian male with the typical reptilian features of his race. His body shows signs of long-term skooma addiction, including emaciation and discoloration of his scales. His corpse bears no obvious wounds, suggesting death from overdose or exposure.{% endblock %}
+
+{% block aspirations %}
+- Feed his overwhelming skooma addiction
+- Pan enough gold to sustain himself and his habit
+- Deep down, escape his addiction and return to Black Marsh
+{% endblock %}
+
+{% block relationships %}
+- Brother (unnamed): Concerned family member who sent money and urged Usha to return home to Black Marsh
+- Skooma dealers: Transactional relationships with whoever supplied his addiction on Solstheim
+{% endblock %}
+
+{% block occupation %}Gold panner who worked alone at a stream near Ashfallow Citadel, collecting small amounts of gold ore to sell or trade for skooma.{% endblock %}
+
+{% block skills %}
+- Gold panning and prospecting
+- Wilderness survival in harsh Solstheim conditions
+- Knowledge of hidden routes and secluded areas on eastern Solstheim
+- Basic crafting and camp-making abilities
+{% endblock %}
+
+{% block speech_style %}Usha is deceased and cannot speak.{% endblock %}

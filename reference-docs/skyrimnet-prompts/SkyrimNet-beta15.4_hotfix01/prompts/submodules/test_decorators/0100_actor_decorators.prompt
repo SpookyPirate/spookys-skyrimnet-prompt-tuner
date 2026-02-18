@@ -1,0 +1,172 @@
+{# TEST SUBMODULE - Actor Decorators #}
+{# Tests: decnpc, isValidActor, actor_has_keyword, has_line_of_sight, distance_between #}
+{# CATEGORY: Actor #}
+
+{% set actor = decnpc(actorUUID) %}
+
+## 📋 ACTOR DECORATOR TESTS
+
+### Test 1: decnpc() - Core Actor Data
+
+{% if isValidActor(actorUUID) %}
+**✓ isValidActor(actorUUID) = true** - Actor is valid
+
+#### Basic Identity
+- **UUID:** {{ actor.UUID }}
+- **Name:** {{ actor.name }}
+- **First Name:** {{ actor.firstName }}
+- **Last Name:** {{ actor.lastName }}
+- **Gender:** {{ actor.gender }}
+- **Sex:** {{ actor.sex }}
+- **Race:** {{ actor.race }}
+- **Class:** {{ actor.class }}
+- **Level:** {{ actor.level }}
+- **Is Female:** {{ actor.isFemale }}
+- **Is Child:** {{ actor.isChild }}
+
+#### Pronouns (from decnpc)
+- **Subjective:** {{ actor.subjectivePronoun }} ({{ subj | capitalize }} walks)
+- **Objective:** {{ actor.objectivePronoun }} (I see {{ obj }})
+- **Possessive Adjective:** {{ actor.possessiveAdjective }} ({{ actor.possessiveAdjective | capitalize }} sword)
+- **Possessive Pronoun:** {{ actor.possessivePronoun }} (The sword is {{ actor.possessivePronoun }})
+- **Reflexive:** {{ actor.reflexivePronoun }} ({{ subj | capitalize }} hurt {{ refl }})
+
+#### Vital Stats
+- **Health:** {{ actor.health }} / {{ actor.maxHealth }}
+- **Magicka:** {{ actor.magicka }} / {{ actor.maxMagicka }}
+- **Stamina:** {{ actor.stamina }} / {{ actor.maxStamina }}
+- **Weight:** {{ actor.weight }}
+- **Gold Count:** {{ actor.goldCount }}
+
+#### Status Flags
+- **Is Dead:** {{ actor.isDead }}
+- **Is Essential:** {{ actor.isEssential }}
+- **Is Guard:** {{ actor.isGuard }}
+- **Is Hostile:** {{ actor.isHostile }}
+- **Is In Combat:** {{ actor.isInCombat }}
+- **Is Busy:** {{ actor.isBusy }}
+- **Is Capable of Speech:** {{ actor.isCapableOfSpeech }}
+- **Distance to Player:** {{ actor.distanceToPlayer }} units ({{ units_to_meters(actor.distanceToPlayer) }}m)
+
+#### Conditions
+- **Paralysis:** {{ actor.paralysis }}
+- **Brain Condition:** {{ actor.brainCondition }}
+
+#### Skills (from decnpc object)
+**Combat Skills:**
+- One-Handed: {{ actor.oneHanded }}
+- Two-Handed: {{ actor.twoHanded }}
+- Archery: {{ actor.archery }}
+- Block: {{ actor.block }}
+- Heavy Armor: {{ actor.heavyArmor }}
+- Light Armor: {{ actor.lightArmor }}
+
+**Magic Skills:**
+- Destruction: {{ actor.destruction }}
+- Restoration: {{ actor.restoration }}
+- Alteration: {{ actor.alteration }}
+- Conjuration: {{ actor.conjuration }}
+- Illusion: {{ actor.illusion }}
+- Enchanting: {{ actor.enchanting }}
+
+**Stealth Skills:**
+- Sneak: {{ actor.sneak }}
+- Lockpicking: {{ actor.lockpicking }}
+- Pickpocket: {{ actor.pickpocket }}
+- Speech: {{ actor.speech }}
+- Alchemy: {{ actor.alchemy }}
+- Smithing: {{ actor.smithing }}
+
+#### Factions (from decnpc)
+{% if actor.faction and length(actor.faction) > 0 %}
+Factions: {{ join(actor.faction, ", ") }}
+{% else %}
+No factions found in decnpc data
+{% endif %}
+
+#### Keywords (from decnpc)
+{% if actor.keywords and length(actor.keywords) > 0 %}
+Keywords found: {{ length(actor.keywords) }}
+{% for kw in actor.keywords %}
+- {{ kw.editorID }} (FormID: {{ kw.formID }})
+{% endfor %}
+{% else %}
+No keywords in decnpc data
+{% endif %}
+
+{% else %}
+**✗ isValidActor(actorUUID) = false** - Actor is NOT valid
+{% endif %}
+
+---
+
+### Test 2: actor_has_keyword() - Keyword Checks
+
+Testing common actor type keywords:
+- **ActorTypeNPC:** {% if actor_has_keyword(actorUUID, "ActorTypeNPC") %}✓ YES{% else %}✗ NO{% endif %}
+- **ActorTypeUndead:** {% if actor_has_keyword(actorUUID, "ActorTypeUndead") %}✓ YES{% else %}✗ NO{% endif %}
+- **ActorTypeAnimal:** {% if actor_has_keyword(actorUUID, "ActorTypeAnimal") %}✓ YES{% else %}✗ NO{% endif %}
+- **ActorTypeCreature:** {% if actor_has_keyword(actorUUID, "ActorTypeCreature") %}✓ YES{% else %}✗ NO{% endif %}
+- **ActorTypeDaedra:** {% if actor_has_keyword(actorUUID, "ActorTypeDaedra") %}✓ YES{% else %}✗ NO{% endif %}
+- **ActorTypeDragon:** {% if actor_has_keyword(actorUUID, "ActorTypeDragon") %}✓ YES{% else %}✗ NO{% endif %}
+- **ActorTypeGhost:** {% if actor_has_keyword(actorUUID, "ActorTypeGhost") %}✓ YES{% else %}✗ NO{% endif %}
+- **ActorTypeDwarven:** {% if actor_has_keyword(actorUUID, "ActorTypeDwarven") %}✓ YES{% else %}✗ NO{% endif %}
+
+---
+
+### Test 3: Player Comparison
+
+{% set playerData = decnpc(player.UUID) %}
+**Player Info:**
+- Name: {{ player.name }}
+- Level: {{ player.level }}
+- Race: {{ player.race }}
+- UUID: {{ player.UUID }}
+- Is In Combat: {{ player.isInCombat }}
+- Is Player Check: {% if is_player(player.UUID) %}✓ YES{% else %}✗ NO{% endif %}
+- Is Actor Player: {% if is_player(actorUUID) %}✓ YES (actor IS player){% else %}✗ NO (actor is NOT player){% endif %}
+
+---
+
+### Test 4: isValidActor() Edge Cases
+
+- **Actor UUID Valid:** {{ isValidActor(actorUUID) }}
+- **Player UUID Valid:** {{ isValidActor(player.UUID) }}
+- **Zero UUID Valid:** {{ isValidActor(0) }}
+
+---
+
+### Test 5: has_line_of_sight() - Line of Sight Checks
+
+{# Checks if two actors can see each other using gaze direction, FOV, and raycast physics #}
+
+{% set nearbyNPCs = get_nearby_npc_list(player.UUID) %}
+{% if nearbyNPCs and length(nearbyNPCs) > 0 %}
+**LOS to Nearby NPCs (from Actor's perspective):**
+{% for npc in nearbyNPCs %}
+{% if loop.index <= 5 and npc.UUID != actorUUID %}
+- {{ npc.name }}: {% if has_line_of_sight(actorUUID, npc.UUID) %}✓ Can see{% else %}✗ Cannot see{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+
+---
+
+### Test 6: distance_between() - Distance Calculations
+
+{# Returns 3D distance between two actors in game units (128 units ≈ 1.828 meters) #}
+
+
+{% if nearbyNPCs and length(nearbyNPCs) > 0 %}
+**Distances Between Actor and Nearby NPCs:**
+{% for npc in nearbyNPCs %}
+{% if loop.index <= 5 and npc.UUID != actorUUID %}
+{% set dist = distance_between(actorUUID, npc.UUID) %}
+- {{ npc.name }}: {{ dist }} units ({{ units_to_meters(dist) }}m)
+{% endif %}
+{% endfor %}
+{% endif %}
+
+---
+

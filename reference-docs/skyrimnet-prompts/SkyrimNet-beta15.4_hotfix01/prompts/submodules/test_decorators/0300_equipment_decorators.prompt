@@ -1,0 +1,218 @@
+{# TEST SUBMODULE - Equipment & Inventory Decorators #}
+{# Tests: get_worn_equipment, worn_has_keyword, get_inventory, get_merchant_inventory #}
+{# CATEGORY: Equipment #}
+
+{% set actor = decnpc(actorUUID) %}
+{% set actorName = actor.name %}
+
+## 🛡️ EQUIPMENT & INVENTORY DECORATOR TESTS
+
+### Test 1: get_worn_equipment() - All Worn Equipment
+
+{% set equipment = get_worn_equipment(actorUUID) %}
+
+{# Check if actor is wearing torso clothing/armor #}
+{% set isClothed = has_key(equipment, "torso") %}
+
+**Torso Clothed:** {% if isClothed %}✓ TRUE - Wearing torso equipment{% else %}✗ FALSE - No torso equipment{% endif %}
+
+**{{ actorName }}'s Current Equipment:**
+
+{% if equipment.head %}
+**Head Slot:**
+- Name: {{ equipment.head.name }}
+- Type: {{ equipment.head.type }}
+- Armor Rating: {{ equipment.head.armorRating }}
+- Value: {{ equipment.head.value }}
+- FormID: {{ equipment.head.formID }}
+{% if equipment.head.keywords and length(equipment.head.keywords) > 0 %}
+- Keywords: {% for kw in equipment.head.keywords %}{{ kw.editorID }}{% if not loop.is_last %}, {% endif %}{% endfor %}
+{% endif %}
+{% else %}
+**Head Slot:** Empty
+{% endif %}
+
+{% if equipment.body %}
+**Body Slot:**
+- Name: {{ equipment.body.name }}
+- Type: {{ equipment.body.type }}
+- Armor Rating: {{ equipment.body.armorRating }}
+- Value: {{ equipment.body.value }}
+{% if equipment.body.keywords and length(equipment.body.keywords) > 0 %}
+- Keywords: {% for kw in equipment.body.keywords %}{{ kw.editorID }}{% if not loop.is_last %}, {% endif %}{% endfor %}
+{% endif %}
+{% else %}
+**Body Slot:** Empty
+{% endif %}
+
+{% if equipment.hands %}
+**Hands Slot:**
+- Name: {{ equipment.hands.name }}
+- Type: {{ equipment.hands.type }}
+- Armor Rating: {{ equipment.hands.armorRating }}
+{% else %}
+**Hands Slot:** Empty
+{% endif %}
+
+{% if equipment.feet %}
+**Feet Slot:**
+- Name: {{ equipment.feet.name }}
+- Type: {{ equipment.feet.type }}
+- Armor Rating: {{ equipment.feet.armorRating }}
+{% else %}
+**Feet Slot:** Empty
+{% endif %}
+
+{% if equipment.rightHand %}
+**Right Hand (Weapon):**
+- Name: {{ equipment.rightHand.name }}
+- Type: {{ equipment.rightHand.type }}
+- Damage: {{ equipment.rightHand.damage }}
+- Value: {{ equipment.rightHand.value }}
+- FormID: {{ equipment.rightHand.formID }}
+{% if equipment.rightHand.keywords and length(equipment.rightHand.keywords) > 0 %}
+- Keywords: {% for kw in equipment.rightHand.keywords %}{{ kw.editorID }}{% if not loop.is_last %}, {% endif %}{% endfor %}
+{% endif %}
+{% else %}
+**Right Hand:** Empty
+{% endif %}
+
+{% if equipment.leftHand %}
+**Left Hand (Shield/Weapon/Spell):**
+- Name: {{ equipment.leftHand.name }}
+- Type: {{ equipment.leftHand.type }}
+{% if equipment.leftHand.armorRating %}
+- Armor Rating: {{ equipment.leftHand.armorRating }}
+{% endif %}
+{% if equipment.leftHand.damage %}
+- Damage: {{ equipment.leftHand.damage }}
+{% endif %}
+{% else %}
+**Left Hand:** Empty
+{% endif %}
+
+---
+
+### Test 2: worn_has_keyword() - Equipment Keyword Checks
+
+**Armor Type Keywords:**
+- ArmorHeavy: {% if worn_has_keyword(actorUUID, "ArmorHeavy") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorLight: {% if worn_has_keyword(actorUUID, "ArmorLight") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorClothing: {% if worn_has_keyword(actorUUID, "ArmorClothing") %}✓ YES{% else %}✗ NO{% endif %}
+
+**Armor Material Keywords:**
+- ArmorMaterialIron: {% if worn_has_keyword(actorUUID, "ArmorMaterialIron") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorMaterialSteel: {% if worn_has_keyword(actorUUID, "ArmorMaterialSteel") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorMaterialLeather: {% if worn_has_keyword(actorUUID, "ArmorMaterialLeather") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorMaterialDragonplate: {% if worn_has_keyword(actorUUID, "ArmorMaterialDragonplate") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorMaterialDaedric: {% if worn_has_keyword(actorUUID, "ArmorMaterialDaedric") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorMaterialElven: {% if worn_has_keyword(actorUUID, "ArmorMaterialElven") %}✓ YES{% else %}✗ NO{% endif %}
+- ArmorMaterialGlass: {% if worn_has_keyword(actorUUID, "ArmorMaterialGlass") %}✓ YES{% else %}✗ NO{% endif %}
+
+**Weapon Type Keywords:**
+- WeapTypeSword: {% if worn_has_keyword(actorUUID, "WeapTypeSword") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeGreatsword: {% if worn_has_keyword(actorUUID, "WeapTypeGreatsword") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeDagger: {% if worn_has_keyword(actorUUID, "WeapTypeDagger") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeWarAxe: {% if worn_has_keyword(actorUUID, "WeapTypeWarAxe") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeBattleaxe: {% if worn_has_keyword(actorUUID, "WeapTypeBattleaxe") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeMace: {% if worn_has_keyword(actorUUID, "WeapTypeMace") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeWarhammer: {% if worn_has_keyword(actorUUID, "WeapTypeWarhammer") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeBow: {% if worn_has_keyword(actorUUID, "WeapTypeBow") %}✓ YES{% else %}✗ NO{% endif %}
+- WeapTypeStaff: {% if worn_has_keyword(actorUUID, "WeapTypeStaff") %}✓ YES{% else %}✗ NO{% endif %}
+
+**Miscellaneous Keywords:**
+- VendorItemJewelry: {% if worn_has_keyword(actorUUID, "VendorItemJewelry") %}✓ YES{% else %}✗ NO{% endif %}
+- MagicDisallowEnchanting: {% if worn_has_keyword(actorUUID, "MagicDisallowEnchanting") %}✓ YES{% else %}✗ NO{% endif %}
+
+---
+
+### Test 3: get_inventory() - Full Inventory
+
+{% set inventory = get_inventory(actorUUID) %}
+
+**{{ actorName }}'s Inventory:**
+{% set itemCount = 0 %}
+{% for formID, item in inventory %}
+{% set itemCount = itemCount + 1 %}
+{% if itemCount <= 20 %}
+- **{{ item.name }}** (x{{ item.count }})
+  - Type: {{ item.type }}
+  - Value: {{ item.value }} gold
+  - Weight: {{ item.weight }}
+  - FormID: {{ formID }}
+{% if item.keywords and length(item.keywords) > 0 %}
+  - Keywords: {% for kw in item.keywords %}{{ kw.editorID }}{% if not loop.is_last %}, {% endif %}{% endfor %}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% if itemCount > 20 %}
+... and {{ itemCount - 20 }} more items in inventory
+{% endif %}
+{% if itemCount == 0 %}
+(Inventory is empty or not accessible)
+{% endif %}
+
+---
+
+### Test 4: Player Equipment Comparison
+
+{% set playerEquip = get_worn_equipment(player.UUID) %}
+
+**Player's Equipment Summary:**
+{% if playerEquip.head %}- Head: {{ playerEquip.head.name }}{% endif %}
+{% if playerEquip.body %}- Body: {{ playerEquip.body.name }}{% endif %}
+{% if playerEquip.hands %}- Hands: {{ playerEquip.hands.name }}{% endif %}
+{% if playerEquip.feet %}- Feet: {{ playerEquip.feet.name }}{% endif %}
+{% if playerEquip.rightHand %}- Right Hand: {{ playerEquip.rightHand.name }}{% endif %}
+{% if playerEquip.leftHand %}- Left Hand: {{ playerEquip.leftHand.name }}{% endif %}
+
+**Player Armor Type:**
+{% if worn_has_keyword(player.UUID, "ArmorHeavy") %}
+Player wears heavy armor
+{% elif worn_has_keyword(player.UUID, "ArmorLight") %}
+Player wears light armor
+{% elif worn_has_keyword(player.UUID, "ArmorClothing") %}
+Player wears clothing (no armor)
+{% else %}
+Player armor type unknown
+{% endif %}
+
+---
+
+### Test 5: get_merchant_inventory() - Merchant Shop Items
+
+{# Gets items for sale from a merchant's faction container (separate from personal inventory) #}
+
+{% set nearbyActors = get_nearby_npc_list(player.UUID) %}
+
+**Scanning Nearby NPCs for Merchants:**
+{% set foundMerchant = false %}
+{% for npc in nearbyActors %}
+{% set merchantData = get_merchant_inventory(npc.UUID) %}
+{% if merchantData.isMerchant %}
+{% set foundMerchant = true %}
+
+
+**{{ npc.name }} is a Merchant!**
+- Vendor Faction: {{ merchantData.vendorFaction }}
+- Vendor Faction FormID: {{ merchantData.vendorFactionFormID }}
+- Shop Hours: {{ merchantData.startHour }}:00 - {{ merchantData.endHour }}:00
+- Buys Stolen Goods: {% if merchantData.buysStolen %}✓ YES{% else %}✗ NO{% endif %}
+
+**Items For Sale:**
+{% if merchantData.items and length(merchantData.items) > 0 %}
+{% for item in merchantData.items %}
+- **{{ item.name }}** (x{{ item.count }}) - {{ item.value }} gold
+{% endfor %}
+{% else %}
+(Merchant container is empty)
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% if not foundMerchant %}
+No merchants found among nearby NPCs.
+{% endif %}
+
+---
+

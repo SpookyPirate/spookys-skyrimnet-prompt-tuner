@@ -1,0 +1,12 @@
+{% if has_current_scene_description() and is_scene_newer_than_location() %}
+## What You Currently See Around You
+{{ get_current_scene_description() }}
+
+*(This describes your immediate surroundings with actionable detail: spatial scale, people present and their activities, furniture and objects, interactive features, and atmosphere. Use this information naturally when it's relevant to your decisions, reactions, or observations.)*
+{% endif %}
+{% if has_current_location_description() %}
+## Where You Are
+{{ get_current_location_description()  }}
+
+*(General knowledge about this place - its character and features. This informs your understanding of the location, but you wouldn't normally recite these facts unless directly relevant to the moment.)*
+{% endif %}
