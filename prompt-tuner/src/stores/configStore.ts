@@ -164,6 +164,13 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
         slots: state.slots,
       })
     );
+
+    // Sync changes to the active profile
+    const { useProfileStore } = require("@/stores/profileStore");
+    const profileState = useProfileStore.getState();
+    if (profileState.activeProfileId) {
+      profileState.updateActiveProfile(state.globalApiKey, state.slots);
+    }
   },
 
   load: () => {

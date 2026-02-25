@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type {
+  AgentType,
   SettingsProfile,
   SkyrimNetAgentType,
   ModelSlot,
@@ -10,8 +11,9 @@ const STORAGE_KEY = "skyrimnet-profiles";
 
 interface ProfileState {
   profiles: SettingsProfile[];
+  activeProfileId: string;
 
-  load: () => void;
+  load: (currentGlobalApiKey: string, currentSlots: Record<AgentType, ModelSlot>) => void;
   save: () => void;
   addProfile: (
     name: string,
@@ -20,27 +22,65 @@ interface ProfileState {
   ) => SettingsProfile;
   deleteProfile: (id: string) => void;
   getProfile: (id: string) => SettingsProfile | undefined;
+  setActiveProfileId: (id: string) => void;
+  updateActiveProfile: (
+    globalApiKey: string,
+    allSlots: Record<AgentType, ModelSlot>
+  ) => void;
   exportToMarkdown: (id: string) => string | null;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
   profiles: [],
+  activeProfileId: "",
 
-  load: () => {
+  load: (currentGlobalApiKey, currentSlots) => {
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        set({ profiles: JSON.parse(raw) });
+        const data = JSON.parse(raw);
+        const profiles: SettingsProfile[] = data.profiles || [];
+        const activeProfileId: string = data.activeProfileId || "";
+
+        if (profiles.length > 0) {
+          // Ensure activeProfileId points to a valid profile
+          const valid = profiles.some((p) => p.id === activeProfileId);
+          set({
+            profiles,
+            activeProfileId: valid ? activeProfileId : profiles[0].id,
+          });
+          return;
+        }
       }
     } catch {
-      // Ignore parse errors
+      // Ignore parse errors, fall through to create default
     }
+
+    // No saved profiles — create a "Default" profile from current config
+    const defaultProfile: SettingsProfile = {
+      id: crypto.randomUUID(),
+      name: "Default",
+      createdAt: new Date().toISOString().split("T")[0],
+      globalApiKey: currentGlobalApiKey,
+      slots: Object.fromEntries(
+        SKYRIMNET_AGENTS.map((agent) => [
+          agent,
+          JSON.parse(JSON.stringify(currentSlots[agent])),
+        ])
+      ) as Record<SkyrimNetAgentType, ModelSlot>,
+    };
+    set({ profiles: [defaultProfile], activeProfileId: defaultProfile.id });
+    get().save();
   },
 
   save: () => {
     if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().profiles));
+    const { profiles, activeProfileId } = get();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ profiles, activeProfileId })
+    );
   },
 
   addProfile: (name, globalApiKey, slots) => {
@@ -56,20 +96,52 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         ])
       ) as Record<SkyrimNetAgentType, ModelSlot>,
     };
-    set((state) => ({ profiles: [...state.profiles, profile] }));
+    set((state) => ({
+      profiles: [...state.profiles, profile],
+      activeProfileId: profile.id,
+    }));
     get().save();
     return profile;
   },
 
   deleteProfile: (id) => {
-    set((state) => ({
-      profiles: state.profiles.filter((p) => p.id !== id),
-    }));
+    const state = get();
+    const remaining = state.profiles.filter((p) => p.id !== id);
+    if (remaining.length === 0) return; // Never delete the last profile
+    const newActiveId =
+      state.activeProfileId === id ? remaining[0].id : state.activeProfileId;
+    set({ profiles: remaining, activeProfileId: newActiveId });
     get().save();
   },
 
   getProfile: (id) => {
     return get().profiles.find((p) => p.id === id);
+  },
+
+  setActiveProfileId: (id) => {
+    set({ activeProfileId: id });
+    get().save();
+  },
+
+  updateActiveProfile: (globalApiKey, allSlots) => {
+    const { activeProfileId, profiles } = get();
+    if (!activeProfileId) return;
+    const idx = profiles.findIndex((p) => p.id === activeProfileId);
+    if (idx === -1) return;
+
+    const updated = [...profiles];
+    updated[idx] = {
+      ...updated[idx],
+      globalApiKey,
+      slots: Object.fromEntries(
+        SKYRIMNET_AGENTS.map((agent) => [
+          agent,
+          JSON.parse(JSON.stringify(allSlots[agent])),
+        ])
+      ) as Record<SkyrimNetAgentType, ModelSlot>,
+    };
+    set({ profiles: updated });
+    get().save();
   },
 
   exportToMarkdown: (id) => {

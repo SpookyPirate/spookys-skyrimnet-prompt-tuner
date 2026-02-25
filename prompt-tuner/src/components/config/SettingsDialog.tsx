@@ -36,7 +36,8 @@ export function SettingsDialog() {
 
   useEffect(() => {
     load();
-    loadProfiles();
+    const state = useConfigStore.getState();
+    loadProfiles(state.globalApiKey, state.slots);
   }, [load, loadProfiles]);
 
   return (

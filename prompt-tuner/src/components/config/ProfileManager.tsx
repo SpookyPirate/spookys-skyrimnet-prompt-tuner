@@ -15,11 +15,12 @@ import {
 import { toast } from "sonner";
 
 export function ProfileManager() {
-  const [selectedId, setSelectedId] = useState<string>("");
   const [showSave, setShowSave] = useState(false);
   const [saveName, setSaveName] = useState("");
 
   const profiles = useProfileStore((s) => s.profiles);
+  const activeProfileId = useProfileStore((s) => s.activeProfileId);
+  const setActiveProfileId = useProfileStore((s) => s.setActiveProfileId);
   const addProfile = useProfileStore((s) => s.addProfile);
   const deleteProfile = useProfileStore((s) => s.deleteProfile);
   const getProfile = useProfileStore((s) => s.getProfile);
@@ -47,16 +48,16 @@ export function ProfileManager() {
   };
 
   const handleSelect = (id: string) => {
-    setSelectedId(id);
-    if (!id) return;
+    if (!id || id === activeProfileId) return;
     const profile = getProfile(id);
     if (!profile) return;
+    setActiveProfileId(id);
     applyProfile(profile.globalApiKey, profile.slots);
     toast.success(`Profile "${profile.name}" loaded`);
   };
 
   const handleExport = () => {
-    const md = exportToMarkdown(selectedId);
+    const md = exportToMarkdown(activeProfileId);
     if (!md) {
       toast.error("Profile not found");
       return;
@@ -66,10 +67,19 @@ export function ProfileManager() {
   };
 
   const handleDelete = () => {
-    const profile = getProfile(selectedId);
+    if (profiles.length <= 1) {
+      toast.error("Cannot delete the last profile");
+      return;
+    }
+    const profile = getProfile(activeProfileId);
     if (!profile) return;
-    deleteProfile(selectedId);
-    setSelectedId("");
+    deleteProfile(activeProfileId);
+    // deleteProfile auto-selects a new active profile; load it
+    const newState = useProfileStore.getState();
+    const newProfile = newState.getProfile(newState.activeProfileId);
+    if (newProfile) {
+      applyProfile(newProfile.globalApiKey, newProfile.slots);
+    }
     toast.success(`Profile "${profile.name}" deleted`);
   };
 
@@ -79,11 +89,10 @@ export function ProfileManager() {
       {/* Profile selector + actions */}
       <div className="flex items-center gap-1.5">
         <select
-          value={selectedId}
+          value={activeProfileId}
           onChange={(e) => handleSelect(e.target.value)}
           className="h-7 flex-1 rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
         >
-          <option value="">None</option>
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -95,7 +104,7 @@ export function ProfileManager() {
           size="icon"
           className="h-7 w-7 shrink-0"
           onClick={handleExport}
-          disabled={!selectedId}
+          disabled={!activeProfileId}
           title="Copy as markdown"
         >
           <Download className="h-3.5 w-3.5" />
@@ -105,7 +114,7 @@ export function ProfileManager() {
           size="icon"
           className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
           onClick={handleDelete}
-          disabled={!selectedId}
+          disabled={profiles.length <= 1}
           title="Delete profile"
         >
           <Trash2 className="h-3.5 w-3.5" />
