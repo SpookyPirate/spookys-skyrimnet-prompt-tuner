@@ -48,7 +48,7 @@ export function SettingsDialog() {
         </DialogHeader>
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Global API Key */}
-          <div className="px-6 py-3 border-b bg-card/50">
+          <div className="border-b px-4 py-2">
             <div className="flex items-center gap-3">
               <Key className="h-4 w-4 text-muted-foreground shrink-0" />
               <Label htmlFor="global-key" className="text-xs font-medium shrink-0">

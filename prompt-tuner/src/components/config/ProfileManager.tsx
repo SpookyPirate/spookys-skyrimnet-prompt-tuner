@@ -84,7 +84,7 @@ export function ProfileManager() {
   };
 
   return (
-    <div className="px-6 py-2 border-b bg-card/50 space-y-2">
+    <div className="border-b px-4 py-2 space-y-2">
       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Profiles</span>
       {/* Profile selector + actions */}
       <div className="flex items-center gap-1.5">
