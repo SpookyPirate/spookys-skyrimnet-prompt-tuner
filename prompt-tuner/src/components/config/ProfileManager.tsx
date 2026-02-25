@@ -75,6 +75,7 @@ export function ProfileManager() {
 
   return (
     <div className="px-6 py-2 border-b bg-card/50 space-y-2">
+      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Profiles</span>
       {/* Profile selector + actions */}
       <div className="flex items-center gap-1.5">
         <select
@@ -82,7 +83,7 @@ export function ProfileManager() {
           onChange={(e) => handleSelect(e.target.value)}
           className="h-7 flex-1 rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
         >
-          <option value="">Profiles{profiles.length > 0 ? ` (${profiles.length})` : ""}</option>
+          <option value="">None</option>
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
