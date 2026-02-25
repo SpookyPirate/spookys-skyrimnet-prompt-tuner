@@ -10,26 +10,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useConfigStore } from "@/stores/configStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { ModelSlotPanel } from "./ModelSlotPanel";
+import { ProfileManager } from "./ProfileManager";
 import {
   AGENT_LABELS,
+  SKYRIMNET_AGENTS,
   type AgentType,
 } from "@/types/config";
-import { Key, RotateCcw } from "lucide-react";
-
-const SKYRIMNET_AGENTS: AgentType[] = [
-  "default",
-  "game_master",
-  "memory_gen",
-  "profile_gen",
-  "action_eval",
-  "meta_eval",
-  "diary",
-];
+import { Key } from "lucide-react";
 
 const ALL_AGENTS: AgentType[] = [...SKYRIMNET_AGENTS, "tuner"];
 
@@ -39,12 +30,14 @@ export function SettingsDialog() {
   const globalApiKey = useConfigStore((s) => s.globalApiKey);
   const setGlobalApiKey = useConfigStore((s) => s.setGlobalApiKey);
   const load = useConfigStore((s) => s.load);
+  const loadProfiles = useProfileStore((s) => s.load);
 
   const [activeAgent, setActiveAgent] = useState<AgentType>("default");
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadProfiles();
+  }, [load, loadProfiles]);
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
@@ -70,6 +63,9 @@ export function SettingsDialog() {
               />
             </div>
           </div>
+
+          {/* Profiles */}
+          <ProfileManager />
 
           {/* Model Slot Tabs */}
           <Tabs

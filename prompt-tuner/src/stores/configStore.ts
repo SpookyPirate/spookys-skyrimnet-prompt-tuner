@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import type {
   AgentType,
+  SkyrimNetAgentType,
   ModelSlot,
   ApiSettings,
   AiTuningSettings,
 } from "@/types/config";
 import {
+  SKYRIMNET_AGENTS,
   DEFAULT_API_SETTINGS,
   DEFAULT_TUNING_SETTINGS,
   DEFAULT_MODEL_NAMES,
@@ -51,6 +53,10 @@ interface ConfigState {
   getEffectiveApiKey: (agent: AgentType) => string;
   getNextModel: (agent: AgentType) => string;
   resetSlot: (agent: AgentType) => void;
+  applyProfile: (
+    globalApiKey: string,
+    profileSlots: Record<SkyrimNetAgentType, ModelSlot>
+  ) => void;
   save: () => void;
   load: () => void;
 }
@@ -132,6 +138,19 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
         },
       },
     }));
+    get().save();
+  },
+
+  applyProfile: (globalApiKey, profileSlots) => {
+    set((state) => {
+      const newSlots = { ...state.slots };
+      for (const agent of SKYRIMNET_AGENTS) {
+        if (profileSlots[agent]) {
+          newSlots[agent] = JSON.parse(JSON.stringify(profileSlots[agent]));
+        }
+      }
+      return { globalApiKey, slots: newSlots };
+    });
     get().save();
   },
 

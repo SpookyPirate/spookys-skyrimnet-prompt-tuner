@@ -8,6 +8,18 @@ export type AgentType =
   | "diary"
   | "tuner";
 
+export type SkyrimNetAgentType = Exclude<AgentType, "tuner">;
+
+export const SKYRIMNET_AGENTS: SkyrimNetAgentType[] = [
+  "default",
+  "game_master",
+  "memory_gen",
+  "profile_gen",
+  "action_eval",
+  "meta_eval",
+  "diary",
+];
+
 export const AGENT_LABELS: Record<AgentType, string> = {
   default: "Default",
   game_master: "Game Master",
@@ -97,3 +109,11 @@ export const DEFAULT_MODEL_NAMES: Record<AgentType, string> = {
   diary: "google/gemini-2.5-flash",
   tuner: "anthropic/claude-sonnet-4",
 };
+
+export interface SettingsProfile {
+  id: string;
+  name: string;
+  createdAt: string;
+  globalApiKey: string;
+  slots: Record<SkyrimNetAgentType, ModelSlot>;
+}
