@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       stream,
       providerSettings,
       providerSorting,
+      allowReasoning,
     } = body;
 
     if (!apiKey) {
@@ -49,19 +50,32 @@ export async function POST(request: NextRequest) {
     if (presencePenalty) payload.presence_penalty = presencePenalty;
     if (stopSequences?.length) payload.stop = stopSequences;
 
-    // OpenRouter-specific provider settings
-    if (apiEndpoint.includes("openrouter.ai") && providerSettings) {
-      try {
-        const parsed =
-          typeof providerSettings === "string"
-            ? JSON.parse(providerSettings)
-            : providerSettings;
-        payload.provider = {
-          ...parsed,
-          sort: providerSorting || "latency",
-        };
-      } catch {
-        // Ignore invalid JSON
+    // OpenRouter-specific settings
+    if (apiEndpoint.includes("openrouter.ai")) {
+      // Provider object controls routing preferences (sort, allow_fallbacks, etc.)
+      const provider: Record<string, unknown> = {
+        sort: providerSorting || "latency",
+      };
+
+      // Merge user-provided provider settings JSON (routing preferences only)
+      if (providerSettings) {
+        try {
+          const parsed =
+            typeof providerSettings === "string"
+              ? JSON.parse(providerSettings)
+              : providerSettings;
+          Object.assign(provider, parsed);
+        } catch {
+          // Ignore invalid JSON
+        }
+      }
+
+      payload.provider = provider;
+
+      // Reasoning is a top-level parameter, not inside provider.
+      // Non-reasoning models silently ignore it.
+      if (allowReasoning) {
+        payload.reasoning = { effort: "minimal" };
       }
     }
 

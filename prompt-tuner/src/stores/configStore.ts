@@ -153,9 +153,39 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       const raw = localStorage.getItem("skyrimnet-config");
       if (raw) {
         const data = JSON.parse(raw);
+        const defaults = createDefaultSlots();
+        const mergedSlots = { ...defaults, ...data.slots };
+
+        // Migrate: remove reasoning/cache from providerSettings (these were incorrectly
+        // placed there in older versions — reasoning is a top-level API parameter)
+        for (const agent of ALL_AGENTS) {
+          const ps = mergedSlots[agent]?.api?.providerSettings;
+          if (ps) {
+            try {
+              const parsed = JSON.parse(ps);
+              let changed = false;
+              if (parsed.reasoning !== undefined) {
+                delete parsed.reasoning;
+                changed = true;
+              }
+              if (parsed.cache !== undefined) {
+                delete parsed.cache;
+                changed = true;
+              }
+              if (changed) {
+                const remaining = Object.keys(parsed);
+                mergedSlots[agent].api.providerSettings =
+                  remaining.length > 0 ? JSON.stringify(parsed) : "";
+              }
+            } catch {
+              // Not valid JSON, leave as-is
+            }
+          }
+        }
+
         set({
           globalApiKey: data.globalApiKey || "",
-          slots: { ...createDefaultSlots(), ...data.slots },
+          slots: mergedSlots,
         });
       }
     } catch {

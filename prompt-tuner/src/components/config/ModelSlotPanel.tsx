@@ -295,19 +295,16 @@ export function ModelSlotPanel({ agent }: ModelSlotPanelProps) {
           </Field>
 
           <Field label="Allow Reasoning">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={slot.tuning.allowReasoning}
-                onChange={(e) =>
-                  updateTuning(agent, { allowReasoning: e.target.checked })
-                }
-                className="rounded"
-              />
-              <span className="text-xs">
-                {slot.tuning.allowReasoning ? "Enabled" : "Disabled"}
-              </span>
-            </label>
+            <select
+              value={slot.tuning.allowReasoning ? "yes" : "no"}
+              onChange={(e) =>
+                updateTuning(agent, { allowReasoning: e.target.value === "yes" })
+              }
+              className="h-7 w-full rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
+            >
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </select>
           </Field>
 
           {(agent !== "tuner") && (

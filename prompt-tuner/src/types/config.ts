@@ -69,7 +69,7 @@ export const DEFAULT_API_SETTINGS: ApiSettings = {
   requestTimeout: 30,
   connectTimeout: 10,
   useSSE: true,
-  providerSettings: '{"cache": true, "reasoning": {"effort": "minimal"}}',
+  providerSettings: "",
   providerSorting: "latency",
   maxRetries: 1,
 };

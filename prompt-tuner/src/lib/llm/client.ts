@@ -48,6 +48,7 @@ export async function sendLlmRequest({
     stream: slot.api.useSSE,
     providerSettings: slot.api.providerSettings,
     providerSorting: slot.api.providerSorting,
+    allowReasoning: slot.tuning.allowReasoning,
   };
 
   const response = await fetch("/api/llm/chat", {

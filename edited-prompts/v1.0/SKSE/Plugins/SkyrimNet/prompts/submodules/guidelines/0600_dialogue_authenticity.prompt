@@ -1,0 +1,7 @@
+{% if render_mode == "thoughts" or render_mode == "book" %}
+Vary sentence rhythm. Express feelings through how thoughts form, not by labeling them. Let thoughts wander, contradict, trail off.
+{% else if render_mode == "full" or render_mode == "transform" %}
+Use contractions naturally. Mix short and long sentences. Use plain, direct vocabulary over fancy synonyms.
+Show emotions through speech patterns, not by naming them. Leave things unsaid—half-answer, sidestep, or go quiet.
+Speak with conviction, not balance. Sound distinctly like your character—draw specific word choices, sentence rhythms, and expressions from your speech profile.
+{% endif %}

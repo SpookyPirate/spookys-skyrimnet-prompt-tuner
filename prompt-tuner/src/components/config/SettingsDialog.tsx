@@ -21,7 +21,7 @@ import {
 } from "@/types/config";
 import { Key, RotateCcw } from "lucide-react";
 
-const AGENT_ORDER: AgentType[] = [
+const SKYRIMNET_AGENTS: AgentType[] = [
   "default",
   "game_master",
   "memory_gen",
@@ -29,8 +29,9 @@ const AGENT_ORDER: AgentType[] = [
   "action_eval",
   "meta_eval",
   "diary",
-  "tuner",
 ];
+
+const ALL_AGENTS: AgentType[] = [...SKYRIMNET_AGENTS, "tuner"];
 
 export function SettingsDialog() {
   const settingsOpen = useConfigStore((s) => s.settingsOpen);
@@ -47,7 +48,7 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-[600px] h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
@@ -74,23 +75,41 @@ export function SettingsDialog() {
           <Tabs
             value={activeAgent}
             onValueChange={(v) => setActiveAgent(v as AgentType)}
-            className="flex-1 flex flex-col overflow-hidden"
+            className="flex-1 flex flex-col min-h-0"
           >
-            <div className="border-b px-2">
-              <TabsList className="h-8 bg-transparent flex-wrap">
-                {AGENT_ORDER.map((agent) => (
+            <div className="border-b px-4 py-2 shrink-0 space-y-2">
+              <div>
+                <div className="mb-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Prompt Tuner</span>
+                </div>
+                <TabsList className="h-auto bg-transparent p-0 w-full justify-center">
                   <TabsTrigger
-                    key={agent}
-                    value={agent}
-                    className="text-xs h-7 data-[state=active]:bg-background px-2"
+                    value="tuner"
+                    className="text-xs h-7 data-[state=active]:bg-background px-2.5 rounded-md w-full"
                   >
-                    {AGENT_LABELS[agent]}
+                    {AGENT_LABELS["tuner"]}
                   </TabsTrigger>
-                ))}
-              </TabsList>
+                </TabsList>
+              </div>
+              <div>
+                <div className="mb-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">SkyrimNet Models</span>
+                </div>
+                <TabsList className="h-auto bg-transparent gap-1 justify-center p-0 flex-wrap">
+                  {SKYRIMNET_AGENTS.map((agent) => (
+                    <TabsTrigger
+                      key={agent}
+                      value={agent}
+                      className="text-xs h-7 data-[state=active]:bg-background px-2.5 rounded-md"
+                    >
+                      {AGENT_LABELS[agent]}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
             </div>
-            <ScrollArea className="flex-1">
-              {AGENT_ORDER.map((agent) => (
+            <ScrollArea className="flex-1 min-h-0">
+              {ALL_AGENTS.map((agent) => (
                 <TabsContent key={agent} value={agent} className="mt-0 p-0">
                   <ModelSlotPanel agent={agent} />
                 </TabsContent>
