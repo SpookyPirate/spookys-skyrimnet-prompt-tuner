@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-import { EDITED_PROMPTS_DIR, isPathAllowed } from "@/lib/files/paths";
+import { EDITED_PROMPTS_DIR, MO2_PROMPTS_SUBPATH, isPathAllowed } from "@/lib/files/paths";
 
 /**
  * POST /api/export/save-set
@@ -35,14 +35,30 @@ export async function POST(request: Request) {
       // Good, doesn't exist
     }
 
+    // Target always uses MO2 hierarchy: {set}/SKSE/Plugins/SkyrimNet/prompts/
+    const targetPrompts = path.join(targetPath, MO2_PROMPTS_SUBPATH);
+
     if (sourceSet) {
       const sourcePath = path.join(EDITED_PROMPTS_DIR, sourceSet);
       if (!isPathAllowed(sourcePath)) {
         return NextResponse.json({ error: "Source path not allowed" }, { status: 403 });
       }
-      await copyDirectory(sourcePath, targetPath);
+      // Look for prompts in MO2 hierarchy first, then legacy flat layout
+      const sourceMo2 = path.join(sourcePath, MO2_PROMPTS_SUBPATH);
+      const sourceLegacy = path.join(sourcePath, "prompts");
+      let sourcePrompts: string | null = null;
+      try { await fs.access(sourceMo2); sourcePrompts = sourceMo2; } catch {}
+      if (!sourcePrompts) {
+        try { await fs.access(sourceLegacy); sourcePrompts = sourceLegacy; } catch {}
+      }
+
+      if (sourcePrompts) {
+        await copyDirectory(sourcePrompts, targetPrompts);
+      } else {
+        await fs.mkdir(targetPrompts, { recursive: true });
+      }
     } else {
-      await fs.mkdir(targetPath, { recursive: true });
+      await fs.mkdir(targetPrompts, { recursive: true });
     }
 
     return NextResponse.json({ success: true, name: safeName, path: targetPath });

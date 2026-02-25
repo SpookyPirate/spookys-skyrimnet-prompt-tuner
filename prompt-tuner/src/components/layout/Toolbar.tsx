@@ -10,6 +10,7 @@ import {
   Download,
   Save,
   AudioLines,
+  FolderOpen,
 } from "lucide-react";
 import {
   Tooltip,
@@ -25,6 +26,9 @@ export function Toolbar() {
   const setSettingsOpen = useConfigStore((s) => s.setSettingsOpen);
   const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
+  const setLoadPromptSetDialogOpen = useAppStore((s) => s.setLoadPromptSetDialogOpen);
+  const setEnhanceSpeechDialogOpen = useAppStore((s) => s.setEnhanceSpeechDialogOpen);
+  const activePromptSet = useAppStore((s) => s.activePromptSet);
 
   return (
     <div className="flex h-10 items-center justify-between border-b bg-card px-2">
@@ -51,6 +55,17 @@ export function Toolbar() {
       <div className="flex items-center gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setLoadPromptSetDialogOpen(true)}>
+              <FolderOpen className="h-3.5 w-3.5" />
+              Load Prompt Set
+              <span className="text-green-500 font-normal">({activePromptSet})</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Switch to a different prompt set</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
             <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setSaveSetDialogOpen(true)}>
               <Save className="h-3.5 w-3.5" />
               Save Prompt Set
@@ -71,9 +86,9 @@ export function Toolbar() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setEnhanceSpeechDialogOpen(true)}>
               <AudioLines className="h-3.5 w-3.5" />
-              Generate Speech
+              Enhance Speech Style
             </Button>
           </TooltipTrigger>
           <TooltipContent>Generate enhanced speech style for selected character</TooltipContent>

@@ -15,6 +15,9 @@ export const EDITED_PROMPTS_DIR = path.join(PROJECT_ROOT, "edited-prompts");
 
 export const REFERENCE_DOCS_DIR = path.join(PROJECT_ROOT, "reference-docs");
 
+/** MO2-ready subpath: prompts live at {set}/SKSE/Plugins/SkyrimNet/prompts/ */
+export const MO2_PROMPTS_SUBPATH = path.join("SKSE", "Plugins", "SkyrimNet", "prompts");
+
 /**
  * Parse a character filename like "aela_the_huntress_697.prompt" into "Aela the Huntress"
  * The last segment after the final underscore is the ID (hex or "generic"), everything before is the name.

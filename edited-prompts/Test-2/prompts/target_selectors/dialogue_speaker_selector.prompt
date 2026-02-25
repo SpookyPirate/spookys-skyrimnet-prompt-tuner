@@ -1,0 +1,73 @@
+[ system ]
+## Task
+Select which NPC should speak next, if anyone. Output only: `0` (silence) or `[speaker]>[target]`
+
+## Output Format
+- `0` = No one speaks (default when uncertain)
+- `Lydia>player` = Lydia speaks to player
+- `Ulfric Stormcloak>Galmar Stone-Fist` = Ulfric speaks to Galmar
+
+## Selection Logic
+Look at the **last event** in Recent Dialogue. Work through these steps in order — stop at the first match.
+
+### Step 1: Direct Address
+Was someone spoken to by name, asked a question, or given a command?
+→ That person responds to whoever addressed them.
+→ If a group was addressed ("Anyone think...", "Listen up..."), the NPC with the most relevant role or stakes responds.
+
+### Step 2: Active Conversation
+Are two or more characters mid-exchange? (Check the last 2-3 events.)
+→ The person who was last spoken to continues the conversation. Let active exchanges finish before switching speakers.
+
+### Step 3: Interjection
+Does a bystander's **Interjection** profile clearly match what just happened?
+→ They interject, directed at whoever triggered the reaction.
+→ Only select if the Interjection profile specifically fits — do not force interjections.
+
+### Step 4: Duty or Stakes
+Would an NPC's role (guard, merchant, innkeeper) or personal connection (friend, family, rival) make their silence feel unnatural?
+→ They speak to the most relevant participant.
+
+### Step 5: Silence
+None of the above apply → output `0`. Silence is natural. One strong exchange beats two forced ones.
+
+## Restrictions
+- Do NOT select {{ lastSpeaker.name }} as speaker (they may be selected as target)
+- Never select an NPC just because they're nearby
+- Regular NPCs cannot hear the speech of Virtual NPCs. Do not select an NPC to respond directly to a Virtual NPC.
+- Virtual NPCs may be selected as speaker but may NOT be selected as a target unless the speaker is also a Virtual NPC.
+
+{{ get_scene_context(0, 0, "full")}}
+[ end system ]
+
+[ user ]
+## Location
+{{ location }}
+
+## Recent Dialogue
+{{ render_template("components\\event_history_compact") }}
+
+## Candidates
+{% for candidate in candidateDialogues %}
+{% if decnpc(candidate.UUID).isVirtual %}
+{{ candidate.id }}. **{{ decnpc(candidate.UUID).name }}**{% if decnpc(candidate.UUID).isVirtualPrivate %} (Virtual NPC){% endif %}
+   - {{ render_character_profile("short_inline", candidate.UUID) }}
+   - **Interjection**: {{ render_character_profile("interject_inline", candidate.UUID) }}
+{% else %}
+{{ candidate.id }}. **{{ decnpc(candidate.UUID).name }}** ({{ decnpc(candidate.UUID).gender }} {{ decnpc(candidate.UUID).race }}, {{ units_to_meters(candidate.distance) }}m)
+   - {{ render_character_profile("short_inline", candidate.UUID) }}
+   - **Interjection**: {{ render_character_profile("interject_inline", candidate.UUID) }}
+{% endif %}
+{% endfor %}
+
+### Format Examples
+- CORRECT: `Aela the Huntress>Lydia`
+- CORRECT: `0`
+- WRONG: `Aela the Huntress [Female Nord]>Lydia` — no race/gender in output
+- WRONG: `Aela>Lydia` — use exact full name
+- WRONG: `Aela the Huntress to Lydia` — use `>` not "to"
+- WRONG: `Aela the Huntress>{{ player.name }}` — use lowercase `player`
+- WRONG: `Aela the Huntress>Lydia (she's angry)` — no commentary
+
+Who speaks next? Check the last event first. Output `0` or `[Name]>[target]`
+[ end user ]

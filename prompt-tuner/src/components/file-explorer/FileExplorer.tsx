@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useFileStore } from "@/stores/fileStore";
+import { useAppStore } from "@/stores/appStore";
 import { FileTreeNode } from "./FileTreeNode";
-import { Search, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, Loader2, Archive } from "lucide-react";
 import type { FileNode } from "@/types/files";
 
 export function FileExplorer() {
@@ -106,7 +108,24 @@ export function FileExplorer() {
           ) : (
             // Normal tree view
             tree.map((node) => (
-              <FileTreeNode key={node.path} node={node} depth={0} />
+              <div key={node.path}>
+                <FileTreeNode node={node} depth={0} />
+                {node.name === "Original Prompts" && (
+                  <div className="px-2 py-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-full gap-1.5 text-[11px]"
+                      onClick={() =>
+                        useAppStore.getState().setUpdateOriginalsDialogOpen(true)
+                      }
+                    >
+                      <Archive className="h-3 w-3" />
+                      Update Prompts
+                    </Button>
+                  </div>
+                )}
+              </div>
             ))
           )}
         </div>

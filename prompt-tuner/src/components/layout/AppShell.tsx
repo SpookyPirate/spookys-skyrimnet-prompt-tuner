@@ -15,6 +15,9 @@ import { RightPanel } from "./RightPanel";
 import { SettingsDialog } from "@/components/config/SettingsDialog";
 import { ExportDialog } from "@/components/export/ExportDialog";
 import { SavePromptSetDialog } from "@/components/export/SavePromptSetDialog";
+import { LoadPromptSetDialog } from "@/components/export/LoadPromptSetDialog";
+import { EnhanceSpeechDialog } from "@/components/speech/EnhanceSpeechDialog";
+import { UpdateOriginalsDialog } from "@/components/file-explorer/UpdateOriginalsDialog";
 import { CommandPalette } from "./CommandPalette";
 import { usePanelRef, type PanelImperativeHandle } from "react-resizable-panels";
 
@@ -25,6 +28,14 @@ export function AppShell() {
   const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const saveSetDialogOpen = useAppStore((s) => s.saveSetDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
+  const loadPromptSetDialogOpen = useAppStore((s) => s.loadPromptSetDialogOpen);
+  const setLoadPromptSetDialogOpen = useAppStore((s) => s.setLoadPromptSetDialogOpen);
+  const enhanceSpeechDialogOpen = useAppStore((s) => s.enhanceSpeechDialogOpen);
+  const setEnhanceSpeechDialogOpen = useAppStore((s) => s.setEnhanceSpeechDialogOpen);
+  const updateOriginalsDialogOpen = useAppStore((s) => s.updateOriginalsDialogOpen);
+  const setUpdateOriginalsDialogOpen = useAppStore((s) => s.setUpdateOriginalsDialogOpen);
+  const activePromptSet = useAppStore((s) => s.activePromptSet);
+  const setActivePromptSet = useAppStore((s) => s.setActivePromptSet);
 
   const leftPanelRef = usePanelRef();
   const rightPanelRef = usePanelRef();
@@ -110,12 +121,25 @@ export function AppShell() {
       <ExportDialog
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
-        promptSetName="v1.0"
+        promptSetName={activePromptSet}
       />
       <SavePromptSetDialog
         open={saveSetDialogOpen}
         onOpenChange={setSaveSetDialogOpen}
-        currentSetName="v1.0"
+        currentSetName={activePromptSet}
+        onSaved={(name) => setActivePromptSet(name)}
+      />
+      <LoadPromptSetDialog
+        open={loadPromptSetDialogOpen}
+        onOpenChange={setLoadPromptSetDialogOpen}
+      />
+      <EnhanceSpeechDialog
+        open={enhanceSpeechDialogOpen}
+        onOpenChange={setEnhanceSpeechDialogOpen}
+      />
+      <UpdateOriginalsDialog
+        open={updateOriginalsDialogOpen}
+        onOpenChange={setUpdateOriginalsDialogOpen}
       />
       <CommandPalette />
     </div>

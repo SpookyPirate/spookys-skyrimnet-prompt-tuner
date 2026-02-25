@@ -4,6 +4,7 @@ import path from "path";
 import {
   ORIGINAL_PROMPTS_DIR,
   EDITED_PROMPTS_DIR,
+  MO2_PROMPTS_SUBPATH,
   isPathAllowed,
 } from "@/lib/files/paths";
 
@@ -26,20 +27,33 @@ export async function GET(request: Request) {
   }
 
   try {
-    const files = await collectFiles(setPath, setPath);
+    // Find prompts dir: MO2 hierarchy first, then legacy flat layout
+    const mo2Dir = path.join(setPath, MO2_PROMPTS_SUBPATH);
+    const legacyDir = path.join(setPath, "prompts");
+    let promptsDir: string;
+    try { await fs.access(mo2Dir); promptsDir = mo2Dir; } catch {
+      try { await fs.access(legacyDir); promptsDir = legacyDir; } catch {
+        return NextResponse.json({ files: [], setName });
+      }
+    }
+
+    const files = await collectFiles(promptsDir, promptsDir);
 
     // For each file, determine if it's modified (exists in originals) or new
     const manifest: {
-      path: string; // relative path within the set
-      skyrimPath: string; // path for SkyrimNet zip structure
+      path: string; // relative path within prompts dir
+      skyrimPath: string; // path for MO2-ready zip structure
       content: string;
       isNew: boolean;
     }[] = [];
 
+    const mo2Prefix = MO2_PROMPTS_SUBPATH.replace(/\\/g, "/");
+
     for (const file of files) {
       const content = await fs.readFile(file.fullPath, "utf-8");
 
-      // Check if there's an original version
+      // Compare against originals using prompts-relative path
+      // e.g. "submodules/system_head/0010_instructions.prompt"
       const originalPath = path.join(ORIGINAL_PROMPTS_DIR, file.relativePath);
       let isNew = true;
       try {
@@ -53,10 +67,8 @@ export async function GET(request: Request) {
         isNew = true; // New file
       }
 
-      // Build the SkyrimNet export path
-      // edited-prompts/v1.0/prompts/submodules/... → prompts/submodules/...
-      // edited-prompts/v1.0/characters/... → characters/...
-      const skyrimPath = file.relativePath;
+      // Build MO2-ready zip path: SKSE/Plugins/SkyrimNet/prompts/...
+      const skyrimPath = `${mo2Prefix}/${file.relativePath}`;
 
       manifest.push({
         path: file.relativePath,

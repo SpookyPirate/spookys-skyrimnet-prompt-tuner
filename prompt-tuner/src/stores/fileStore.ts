@@ -34,6 +34,7 @@ interface FileState {
   markFileSaved: (path: string) => void;
   setPromptSets: (sets: PromptSet[]) => void;
   setActivePromptSet: (id: string) => void;
+  closeAllFiles: () => void;
   setSearchQuery: (query: string) => void;
   setSearchResults: (results: FileNode[]) => void;
   setLoadingTree: (loading: boolean) => void;
@@ -116,6 +117,7 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   setPromptSets: (sets) => set({ promptSets: sets }),
   setActivePromptSet: (id) => set({ activePromptSetId: id }),
+  closeAllFiles: () => set({ openFiles: [], activeFilePath: null }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSearchResults: (results) => set({ searchResults: results }),
   setLoadingTree: (loading) => set({ isLoadingTree: loading }),

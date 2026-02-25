@@ -1,0 +1,21 @@
+{% if render_mode == "full" or render_mode == "thoughts" or render_mode == "transform" %}
+{% if is_follower(actorUUID) %}
+{% set tracked_quests = get_selected_quests() %}
+{% if length(tracked_quests) > 0 %}
+## {{ player.name }}'s Party's Active Quests
+(Quests remain available indefinitely unless explicitly stated otherwise. Do NOT create urgency, invent deadlines, or repeatedly remind about objectives.)
+{% for quest in tracked_quests %}
+{% if loop.index > 1 %}
+
+{% endif %}
+**{{ quest.name }}**
+{% for objective in quest.objectives %}
+- {{ objective.objectiveText }}{% if objective.isCompleted %} [DONE]{% endif %}
+{% endfor %}
+{% endfor %}
+{% else %}
+## {{ player.name }}'s Party's Active Quests
+No active quests currently tracked.
+{% endif %}
+{% endif %}
+{% endif %}
