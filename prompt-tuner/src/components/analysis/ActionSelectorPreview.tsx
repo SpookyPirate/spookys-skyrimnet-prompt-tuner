@@ -6,8 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Eye, ChevronDown, ChevronRight } from "lucide-react";
 
 export function ActionSelectorPreview() {
-  const useRealTemplate = useSimulationStore((s) => s.useRealActionTemplate);
-  const setUseRealTemplate = useSimulationStore((s) => s.setUseRealActionTemplate);
   const preview = useSimulationStore((s) => s.lastActionSelectorPreview);
   const [expanded, setExpanded] = useState(false);
 
@@ -19,16 +17,6 @@ export function ActionSelectorPreview() {
           Action Selector Preview
         </h3>
       </div>
-
-      <label className="flex items-center gap-2 mb-2">
-        <input
-          type="checkbox"
-          checked={useRealTemplate}
-          onChange={(e) => setUseRealTemplate(e.target.checked)}
-          className="h-3 w-3 accent-blue-500"
-        />
-        <span className="text-[10px]">Use Real Template</span>
-      </label>
 
       {preview ? (
         <div className="space-y-1.5">
@@ -71,9 +59,7 @@ export function ActionSelectorPreview() {
         </div>
       ) : (
         <div className="rounded-md border border-dashed p-2 text-center text-[10px] text-muted-foreground">
-          {useRealTemplate
-            ? "Send a message to see the rendered action selector"
-            : "Enable \"Use Real Template\" and send a message"}
+          Send a message to see the rendered action selector
         </div>
       )}
     </div>

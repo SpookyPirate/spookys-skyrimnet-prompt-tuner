@@ -45,8 +45,7 @@ interface SimulationState {
   lastAction: { name: string; params?: Record<string, string> } | null;
   // Last speaker prediction
   lastSpeakerPrediction: string;
-  // F2: Action selector preview
-  useRealActionTemplate: boolean;
+  // Action selector preview
   lastActionSelectorPreview: {
     renderedPrompt: string;
     messages: { role: string; content: string }[];
@@ -82,8 +81,6 @@ interface SimulationState {
   getEligibleActions: () => ActionDefinition[];
   setLastAction: (action: { name: string; params?: Record<string, string> } | null) => void;
   setLastSpeakerPrediction: (prediction: string) => void;
-  // F2
-  setUseRealActionTemplate: (value: boolean) => void;
   setLastActionSelectorPreview: (preview: SimulationState["lastActionSelectorPreview"]) => void;
   // F5 GameMaster
   setGmEnabled: (enabled: boolean) => void;
@@ -112,7 +109,6 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   actionRegistry: initActionRegistry(),
   lastAction: null,
   lastSpeakerPrediction: "",
-  useRealActionTemplate: false,
   lastActionSelectorPreview: null,
   gmEnabled: false,
   scenePlan: null,
@@ -195,8 +191,6 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   setLastSpeakerPrediction: (prediction) =>
     set({ lastSpeakerPrediction: prediction }),
-
-  setUseRealActionTemplate: (value) => set({ useRealActionTemplate: value }),
 
   setLastActionSelectorPreview: (preview) =>
     set({ lastActionSelectorPreview: preview }),

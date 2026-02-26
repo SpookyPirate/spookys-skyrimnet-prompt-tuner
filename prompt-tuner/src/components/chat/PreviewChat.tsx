@@ -25,7 +25,6 @@ export function PreviewChat() {
   const scene = useSimulationStore((s) => s.scene);
   const setLastAction = useSimulationStore((s) => s.setLastAction);
   const setLastSpeakerPrediction = useSimulationStore((s) => s.setLastSpeakerPrediction);
-  const useRealActionTemplate = useSimulationStore((s) => s.useRealActionTemplate);
   const setLastActionSelectorPreview = useSimulationStore((s) => s.setLastActionSelectorPreview);
   // F5: GameMaster
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
@@ -155,58 +154,23 @@ export function PreviewChat() {
           timestamp: Date.now(),
         });
 
-        // Step 3: Run action evaluation
+        // Step 3: Run action evaluation through the real native_action_selector.prompt
         const eligibleActions = getEligibleActions();
         if (eligibleActions.length > 0) {
           try {
-            if (useRealActionTemplate) {
-              // F2: Use real template via render API
-              await runRealActionSelector(
-                targetNpc,
-                playerMessage,
-                npcResponse,
-                eventHistory,
-                eligibleActions,
-                scene,
-                activePromptSet,
-                addLlmCall,
-                setLastAction,
-                setLastActionSelectorPreview,
-                addChatEntry
-              );
-            } else {
-              // Original hardcoded action eval
-              const actionResult = await runActionEvaluation(
-                targetNpc.displayName,
-                playerMessage,
-                npcResponse,
-                eventHistory,
-                eligibleActions.map((a) => ({
-                  name: a.name,
-                  description: a.description,
-                  parameterSchema: a.parameterSchema,
-                })),
-                scene
-              );
-              addLlmCall(actionResult.log);
-
-              const actionStr = actionResult.response.trim();
-              if (actionStr && !actionStr.includes("None")) {
-                const actionMatch = actionStr.match(/ACTION:\s*(\w+)/);
-                if (actionMatch) {
-                  setLastAction({ name: actionMatch[1] });
-                  addChatEntry({
-                    id: `${Date.now()}-action`,
-                    type: "system",
-                    content: `[Action: ${actionMatch[1]}]`,
-                    timestamp: Date.now(),
-                    action: { name: actionMatch[1] },
-                  });
-                }
-              } else {
-                setLastAction(null);
-              }
-            }
+            await runRealActionSelector(
+              targetNpc,
+              playerMessage,
+              npcResponse,
+              eventHistory,
+              eligibleActions,
+              scene,
+              activePromptSet,
+              addLlmCall,
+              setLastAction,
+              setLastActionSelectorPreview,
+              addChatEntry
+            );
           } catch (e) {
             console.error("Action eval failed:", e);
           }
@@ -260,7 +224,7 @@ export function PreviewChat() {
   }, [
     input, isProcessing, chatHistory, selectedNpcs, scene,
     addChatEntry, setProcessing, addLlmCall, setLastAction, setLastSpeakerPrediction,
-    getEligibleActions, useRealActionTemplate, activePromptSet, setLastActionSelectorPreview,
+    getEligibleActions, activePromptSet, setLastActionSelectorPreview,
     gmEnabled, gmAutoAdvance, gmContinuousMode, scenePlan, streamingText,
   ]);
 
@@ -529,29 +493,6 @@ async function runTargetSelection(
   ];
 
   const log = await sendLlmRequest({ messages, agent: "meta_eval" });
-  return { response: log.response, log };
-}
-
-async function runActionEvaluation(
-  npcName: string,
-  playerMessage: string,
-  npcResponse: string,
-  eventHistory: string,
-  actions: { name: string; description: string; parameterSchema?: string }[],
-  scene: { location: string }
-) {
-  const messages: ChatMessage[] = [
-    {
-      role: "system",
-      content: `Determine what game action should accompany ${npcName}'s dialogue. Return one line: ACTION: ActionName or ACTION: None\n\nEligible actions:\n${actions.map((a) => `- ${a.name}${a.parameterSchema ? ` PARAMS: ${a.parameterSchema}` : ""} — ${a.description}`).join("\n")}\n- None — No action fits`,
-    },
-    {
-      role: "user",
-      content: `Location: ${scene.location}\n\nPlayer: "${playerMessage}"\n${npcName}: "${npcResponse}"\n\nDoes ${npcName}'s response satisfy any action? Return ACTION: line only.`,
-    },
-  ];
-
-  const log = await sendLlmRequest({ messages, agent: "action_eval" });
   return { response: log.response, log };
 }
 
