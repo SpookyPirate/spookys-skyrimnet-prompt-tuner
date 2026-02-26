@@ -2,21 +2,12 @@
 
 import { useTriggerStore } from "@/stores/triggerStore";
 import { Badge } from "@/components/ui/badge";
-import { Target, Check, X, Ban } from "lucide-react";
+import { Check, X, Ban } from "lucide-react";
 
-export function TriggerMatchResults() {
+export function TriggerMatchResultsContent() {
   const results = useTriggerStore((s) => s.lastMatchResults);
 
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-2">
-        <Target className="h-3.5 w-3.5" />
-        <h3 className="text-xs font-semibold text-foreground">
-          Trigger Match Results
-        </h3>
-      </div>
-
-      {results.length > 0 ? (
+  return results.length > 0 ? (
         <div className="space-y-1.5">
           {results.map((result, i) => (
             <div key={i} className="rounded border p-1.5 text-[10px]">
@@ -87,11 +78,9 @@ export function TriggerMatchResults() {
             </div>
           ))}
         </div>
-      ) : (
-        <div className="rounded-md border border-dashed p-2 text-center text-[10px] text-muted-foreground">
-          Fire an event to see trigger matches
-        </div>
-      )}
+  ) : (
+    <div className="rounded-md border border-dashed p-2 text-center text-[10px] text-muted-foreground">
+      Fire an event to see trigger matches
     </div>
   );
 }

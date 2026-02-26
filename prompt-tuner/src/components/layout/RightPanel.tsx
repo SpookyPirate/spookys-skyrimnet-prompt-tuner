@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useSimulationStore } from "@/stores/simulationStore";
-import { ActionSelectorPreview } from "@/components/analysis/ActionSelectorPreview";
-import { TriggerMatchResults } from "@/components/triggers/TriggerMatchResults";
-import { ScenePlanDisplay } from "@/components/gamemaster/ScenePlanDisplay";
-import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity } from "lucide-react";
+import { ActionSelectorPreviewContent } from "@/components/analysis/ActionSelectorPreview";
+import { TriggerMatchResultsContent } from "@/components/triggers/TriggerMatchResults";
+import { ScenePlanDisplayContent } from "@/components/gamemaster/ScenePlanDisplay";
+import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater } from "lucide-react";
 import type { LlmCallLog } from "@/types/llm";
 
 export function RightPanel() {
@@ -45,7 +46,9 @@ export function RightPanel() {
 
           <Separator />
 
-          <ActionSelectorPreview />
+          <Section title="Action Selector Preview" icon={<Eye className="h-3.5 w-3.5" />}>
+            <ActionSelectorPreviewContent />
+          </Section>
 
           <Separator />
 
@@ -67,11 +70,15 @@ export function RightPanel() {
 
           <Separator />
 
-          <TriggerMatchResults />
+          <Section title="Trigger Match Results" icon={<Target className="h-3.5 w-3.5" />}>
+            <TriggerMatchResultsContent />
+          </Section>
 
           <Separator />
 
-          <ScenePlanDisplay />
+          <Section title="GameMaster Scene" icon={<Theater className="h-3.5 w-3.5 text-purple-400" />}>
+            <ScenePlanDisplayContent />
+          </Section>
 
           <Separator />
 
@@ -111,18 +118,29 @@ function Section({
   title,
   icon,
   children,
+  defaultCollapsed = false,
 }: {
   title: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
+  defaultCollapsed?: boolean;
 }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   return (
     <div>
-      <div className="flex items-center gap-1.5 mb-2">
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center gap-1.5 rounded px-1 py-1 text-left hover:bg-accent/50"
+      >
+        {collapsed ? (
+          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        )}
         {icon}
         <h3 className="text-xs font-semibold text-foreground">{title}</h3>
-      </div>
-      {children}
+      </button>
+      {!collapsed && <div className="mt-1.5 px-1">{children}</div>}
     </div>
   );
 }
@@ -144,65 +162,154 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LlmCallEntry({ log }: { log: LlmCallLog }) {
-  const [expanded, setExpanded] = useState(false);
-
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [text]);
   return (
-    <div className="rounded border text-[10px]">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-1.5 p-1.5 text-left hover:bg-accent/50"
+    <button
+      onClick={handleCopy}
+      className="p-0.5 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+      title="Copy to clipboard"
+    >
+      {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+    </button>
+  );
+}
+
+function TextModal({
+  title,
+  text,
+  onClose,
+}: {
+  title: string;
+  text: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="relative mx-4 flex max-h-[80vh] w-full max-w-3xl flex-col rounded-lg border bg-card shadow-lg"
+        onClick={(e) => e.stopPropagation()}
       >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0" />
-        )}
-        <Badge
-          variant={log.error ? "destructive" : "secondary"}
-          className="text-[9px] px-1 py-0"
-        >
-          {log.agent}
-        </Badge>
-        <span className="flex-1 truncate font-mono text-muted-foreground">
-          {log.model}
-        </span>
-        <span className="text-muted-foreground">
-          {log.latencyMs}ms
-        </span>
-      </button>
-      {expanded && (
-        <div className="border-t p-2 space-y-1.5">
-          <div>
-            <span className="font-semibold">Model:</span>{" "}
-            <span className="font-mono">{log.model}</span>
-          </div>
-          <div>
-            <span className="font-semibold">Tokens:</span>{" "}
-            {log.promptTokens} prompt + {log.completionTokens} completion ={" "}
-            {log.totalTokens}
-          </div>
-          {log.error && (
-            <div className="text-destructive">
-              <span className="font-semibold">Error:</span> {log.error}
-            </div>
-          )}
-          <div>
-            <span className="font-semibold">Messages ({log.messages.length}):</span>
-            <pre className="mt-1 max-h-40 overflow-auto rounded bg-background p-1.5 text-[9px]">
-              {log.messages
-                .map((m) => `[${m.role}] ${m.content.substring(0, 200)}${m.content.length > 200 ? "..." : ""}`)
-                .join("\n\n")}
-            </pre>
-          </div>
-          <div>
-            <span className="font-semibold">Response:</span>
-            <pre className="mt-1 max-h-32 overflow-auto rounded bg-background p-1.5 text-[9px]">
-              {log.response || "(empty)"}
-            </pre>
+        <div className="flex items-center justify-between border-b px-4 py-2">
+          <span className="text-sm font-semibold">{title}</span>
+          <div className="flex items-center gap-2">
+            <CopyButton text={text} />
+            <button onClick={onClose} className="p-0.5 rounded hover:bg-accent/50">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
-      )}
+        <ScrollArea className="flex-1 overflow-auto p-4">
+          <pre className="whitespace-pre-wrap break-words text-xs font-mono">{text}</pre>
+        </ScrollArea>
+      </div>
     </div>
+  );
+}
+
+function LlmCallEntry({ log }: { log: LlmCallLog }) {
+  const [expanded, setExpanded] = useState(false);
+  const [modalContent, setModalContent] = useState<{ title: string; text: string } | null>(null);
+
+  const messagesText = log.messages
+    .map((m) => `[${m.role}] ${m.content}`)
+    .join("\n\n");
+
+  return (
+    <>
+      <div className="rounded border text-[10px]">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex w-full items-center gap-1.5 p-1.5 text-left hover:bg-accent/50"
+        >
+          {expanded ? (
+            <ChevronDown className="h-3 w-3 shrink-0" />
+          ) : (
+            <ChevronRight className="h-3 w-3 shrink-0" />
+          )}
+          <Badge
+            variant={log.error ? "destructive" : "secondary"}
+            className="text-[9px] px-1 py-0"
+          >
+            {log.agent}
+          </Badge>
+          <span className="flex-1 truncate font-mono text-muted-foreground">
+            {log.model}
+          </span>
+          <span className="text-muted-foreground">
+            {log.latencyMs}ms
+          </span>
+        </button>
+        {expanded && (
+          <div className="border-t p-2 space-y-1.5">
+            <div>
+              <span className="font-semibold">Model:</span>{" "}
+              <span className="font-mono">{log.model}</span>
+            </div>
+            <div>
+              <span className="font-semibold">Tokens:</span>{" "}
+              {log.promptTokens} prompt + {log.completionTokens} completion ={" "}
+              {log.totalTokens}
+            </div>
+            {log.error && (
+              <div className="text-destructive">
+                <span className="font-semibold">Error:</span> {log.error}
+              </div>
+            )}
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">Messages ({log.messages.length}):</span>
+                <div className="flex items-center gap-1">
+                  <CopyButton text={messagesText} />
+                  <button
+                    onClick={() => setModalContent({ title: `Messages (${log.agent})`, text: messagesText })}
+                    className="p-0.5 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                    title="Expand"
+                  >
+                    <Maximize2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-background p-1.5 text-[9px]">
+                {log.messages
+                  .map((m) => `[${m.role}] ${m.content.substring(0, 300)}${m.content.length > 300 ? "..." : ""}`)
+                  .join("\n\n")}
+              </pre>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">Response:</span>
+                <div className="flex items-center gap-1">
+                  <CopyButton text={log.response || ""} />
+                  <button
+                    onClick={() => setModalContent({ title: `Response (${log.agent})`, text: log.response || "(empty)" })}
+                    className="p-0.5 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                    title="Expand"
+                  >
+                    <Maximize2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-background p-1.5 text-[9px]">
+                {log.response || "(empty)"}
+              </pre>
+            </div>
+          </div>
+        )}
+      </div>
+      {modalContent && (
+        <TextModal
+          title={modalContent.title}
+          text={modalContent.text}
+          onClose={() => setModalContent(null)}
+        />
+      )}
+    </>
   );
 }

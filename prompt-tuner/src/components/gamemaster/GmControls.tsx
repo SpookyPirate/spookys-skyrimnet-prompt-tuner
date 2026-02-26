@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { useConfigStore } from "@/stores/configStore";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,24 @@ export function GmControls() {
 
   // Initialize the GM loop hook (manages its own lifecycle via store subscriptions)
   useGmLoop();
+
+  // Live countdown timer — starts when GM enters cooldown
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (gmStatus !== "cooldown") {
+      setCountdown(0);
+      return;
+    }
+    setCountdown(gmCooldown);
+    const id = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [gmStatus, gmCooldown]);
 
   if (!gmEnabled) {
     return (
@@ -84,7 +103,7 @@ export function GmControls() {
         ) : (
           <span className={`text-[9px] ${statusInfo.color}`}>
             {statusInfo.label}
-            {gmStatus === "cooldown" && ` (${gmCooldown}s)`}
+            {gmStatus === "cooldown" && countdown > 0 && ` (${countdown}s)`}
           </span>
         )}
 

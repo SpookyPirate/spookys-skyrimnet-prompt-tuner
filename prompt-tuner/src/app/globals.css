@@ -124,3 +124,32 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Dark mode scrollbar styling */
+.dark * {
+  scrollbar-color: oklch(0.35 0.006 286) transparent;
+  scrollbar-width: thin;
+}
+
+/* Webkit scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(0.35 0.006 286);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.45 0.006 286);
+}
+
+.dark ::-webkit-scrollbar-corner {
+  background: transparent;
+}

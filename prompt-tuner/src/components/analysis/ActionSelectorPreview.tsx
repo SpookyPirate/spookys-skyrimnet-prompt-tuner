@@ -3,22 +3,13 @@
 import { useState } from "react";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { Badge } from "@/components/ui/badge";
-import { Eye, ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
-export function ActionSelectorPreview() {
+export function ActionSelectorPreviewContent() {
   const preview = useSimulationStore((s) => s.lastActionSelectorPreview);
   const [expanded, setExpanded] = useState(false);
 
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-2">
-        <Eye className="h-3.5 w-3.5" />
-        <h3 className="text-xs font-semibold text-foreground">
-          Action Selector Preview
-        </h3>
-      </div>
-
-      {preview ? (
+  return preview ? (
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-muted-foreground">Parsed Action:</span>
@@ -57,11 +48,9 @@ export function ActionSelectorPreview() {
             </div>
           )}
         </div>
-      ) : (
-        <div className="rounded-md border border-dashed p-2 text-center text-[10px] text-muted-foreground">
-          Send a message to see the rendered action selector
-        </div>
-      )}
+  ) : (
+    <div className="rounded-md border border-dashed p-2 text-center text-[10px] text-muted-foreground">
+      Send a message to see the rendered action selector
     </div>
   );
 }

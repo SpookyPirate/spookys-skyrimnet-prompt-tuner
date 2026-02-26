@@ -2,25 +2,15 @@
 
 import { useSimulationStore } from "@/stores/simulationStore";
 import { Badge } from "@/components/ui/badge";
-import { Theater } from "lucide-react";
 
-export function ScenePlanDisplay() {
+export function ScenePlanDisplayContent() {
   const scenePlan = useSimulationStore((s) => s.scenePlan);
   const gmActionLog = useSimulationStore((s) => s.gmActionLog);
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
 
   if (!gmEnabled) return null;
 
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-2">
-        <Theater className="h-3.5 w-3.5 text-purple-400" />
-        <h3 className="text-xs font-semibold text-foreground">
-          GameMaster Scene
-        </h3>
-      </div>
-
-      {scenePlan ? (
+  return scenePlan ? (
         <div className="space-y-2">
           {/* Scene info */}
           <div className="rounded border p-1.5 text-[10px]">
@@ -121,11 +111,9 @@ export function ScenePlanDisplay() {
             </div>
           )}
         </div>
-      ) : (
-        <div className="rounded-md border border-dashed border-purple-500/20 p-2 text-center text-[10px] text-muted-foreground">
-          Click &quot;Plan Scene&quot; in the chat controls to start
-        </div>
-      )}
+  ) : (
+    <div className="rounded-md border border-dashed border-purple-500/20 p-2 text-center text-[10px] text-muted-foreground">
+      Enable GameMaster to see scene data
     </div>
   );
 }

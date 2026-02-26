@@ -13,6 +13,29 @@ import type { ChatMessage } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
 
 /**
+ * Standard GM eligible actions matching real SkyrimNet's GameMaster.
+ * These populate the template's "Available Actions" section and
+ * enable the is_action_enabled() checks for each action block.
+ */
+const GM_ELIGIBLE_ACTIONS = [
+  {
+    name: "StartConversation",
+    description: "Start a new conversation between two characters",
+    parameterSchema: '{"speaker": "NPC Name", "target": "NPC or Player Name", "topic": "brief topic direction (2-6 words)"}',
+  },
+  {
+    name: "ContinueConversation",
+    description: "Continue an ongoing conversation",
+    parameterSchema: '{"speaker": "NPC Name", "target": "NPC or Player Name", "topic": "brief topic direction (2-6 words)"}',
+  },
+  {
+    name: "Narrate",
+    description: "Add environmental narration or describe scene changes",
+    parameterSchema: '{"text": "narration text"}',
+  },
+];
+
+/**
  * Autonomous GM loop hook matching real SkyrimNet behavior.
  *
  * Normal mode (F3):  120s cooldown, no scene plan, action selector only.
@@ -123,7 +146,11 @@ export function useGmLoop() {
     const activePromptSet = app.activePromptSet;
     const gameEvents = triggerState.eventHistory;
 
-    if (parsed.action === "Narrate" && parsed.params.text) {
+    if (parsed.action === "Narrate") {
+      if (!parsed.params.text) {
+        console.warn("[GM] Narrate action has no text, skipping");
+        return tickChatHistory;
+      }
       const narrationEntry: ChatEntry = {
         id: `${Date.now()}-gm-narration`,
         type: "narration",
@@ -143,7 +170,10 @@ export function useGmLoop() {
       const speaker = selectedNpcs.find(
         (n) => n.displayName.toLowerCase() === parsed.params.speaker?.toLowerCase()
       );
-      if (!speaker) return tickChatHistory;
+      if (!speaker) {
+        console.warn(`[GM] Speaker "${parsed.params.speaker}" not found in scene NPCs:`, selectedNpcs.map(n => n.displayName));
+        return tickChatHistory;
+      }
 
       // Render NPC dialogue through pipeline
       let npcMessages: ChatMessage[];
@@ -173,6 +203,10 @@ export function useGmLoop() {
 
       const npcLog = await sendLlmRequest({ messages: npcMessages, agent: "default" });
       addLlmCall(npcLog);
+
+      if (npcLog.error) {
+        console.warn(`[GM] NPC dialogue LLM error for ${speaker.displayName}:`, npcLog.error);
+      }
 
       if (npcLog.response) {
         const npcEntry: ChatEntry = {
@@ -204,31 +238,30 @@ export function useGmLoop() {
     if (tickActiveRef.current) return;
     tickActiveRef.current = true;
 
-    const store = useSimulationStore.getState();
-    const config = useConfigStore.getState();
-    const app = useAppStore.getState();
-    const triggerState = useTriggerStore.getState();
-
-    const {
-      gmEnabled, gmContinuousMode, scenePlan,
-      selectedNpcs, scene, playerConfig, chatHistory,
-      addLlmCall, addGmAction, advanceBeat, setGmStatus,
-    } = store;
-
-    if (!gmEnabled || !config.globalApiKey || selectedNpcs.length === 0) {
-      tickActiveRef.current = false;
-      return;
-    }
-
-    const activePromptSet = app.activePromptSet;
-    const gameEvents = triggerState.eventHistory;
-    const maxRounds = gmContinuousMode ? 3 : 1;
-
-    setGmStatus("running");
-
-    let tickChatHistory = [...chatHistory];
-
     try {
+      const store = useSimulationStore.getState();
+      const config = useConfigStore.getState();
+      const app = useAppStore.getState();
+      const triggerState = useTriggerStore.getState();
+
+      const {
+        gmEnabled, gmContinuousMode,
+        selectedNpcs, scene, playerConfig, chatHistory,
+        addLlmCall, addGmAction, advanceBeat, setGmStatus,
+      } = store;
+
+      if (!gmEnabled || !config.globalApiKey || selectedNpcs.length === 0) {
+        return;
+      }
+
+      const activePromptSet = app.activePromptSet;
+      const gameEvents = triggerState.eventHistory;
+      const maxRounds = gmContinuousMode ? 3 : 1;
+
+      setGmStatus("running");
+
+      let tickChatHistory = [...chatHistory];
+
       for (let round = 0; round < maxRounds; round++) {
         // In continuous mode, check if beats remain
         if (gmContinuousMode) {
@@ -237,6 +270,7 @@ export function useGmLoop() {
           const currentBeat = currentPlan.beats[currentPlan.currentBeatIndex];
           if (!currentBeat) {
             // All beats complete — exit continuous mode
+            console.log("[GM] All beats complete, exiting continuous mode");
             useSimulationStore.getState().setGmContinuousMode(false);
             useSimulationStore.getState().setGmCooldown(120);
             break;
@@ -262,6 +296,7 @@ export function useGmLoop() {
               scenePlan: scenePlanForTemplate,
               isContinuousMode: gmContinuousMode,
               gameEvents,
+              eligibleActions: GM_ELIGIBLE_ACTIONS,
               promptSetBase: activePromptSet || undefined,
               player: playerConfig,
             }),
@@ -270,19 +305,30 @@ export function useGmLoop() {
           if (renderData.messages && renderData.messages.length > 0) {
             gmMessages = renderData.messages;
           } else {
+            console.warn("[GM] Action selector render returned no messages:", renderData.error || "empty");
             break;
           }
-        } catch {
+        } catch (renderErr) {
+          console.error("[GM] Action selector render failed:", renderErr);
           break;
         }
 
         const gmLog = await sendLlmRequest({ messages: gmMessages, agent: "game_master" });
         addLlmCall(gmLog);
 
-        if (!gmLog.response) break;
+        if (gmLog.error) {
+          console.warn("[GM] LLM call returned error:", gmLog.error);
+          break;
+        }
+        if (!gmLog.response) {
+          console.warn("[GM] LLM call returned empty response");
+          break;
+        }
 
         const parsed = parseGmAction(gmLog.response);
         const beatIndex = currentPlan?.currentBeatIndex;
+
+        console.log(`[GM] Action: ${parsed.action}`, parsed.params);
 
         addGmAction({
           action: parsed.action,
@@ -290,7 +336,7 @@ export function useGmLoop() {
           beatIndex: beatIndex ?? 0,
         });
 
-        // Normal mode: "None" = skip this tick, loop continues
+        // Normal mode: "None" = skip this tick, loop continues next interval
         if (parsed.action === "None") break;
 
         // Execute the action
@@ -301,16 +347,22 @@ export function useGmLoop() {
           advanceBeat();
         }
       }
-    } catch (e) {
-      console.error("GM loop tick error:", e);
-    } finally {
-      tickActiveRef.current = false;
+
       const stillEnabled = useSimulationStore.getState().gmEnabled;
       if (stillEnabled) {
         setGmStatus("cooldown");
       } else {
         setGmStatus("idle");
       }
+    } catch (e) {
+      console.error("[GM] Tick error:", e);
+      // Still set status so the UI doesn't get stuck
+      try {
+        const s = useSimulationStore.getState();
+        s.setGmStatus(s.gmEnabled ? "cooldown" : "idle");
+      } catch { /* ignore */ }
+    } finally {
+      tickActiveRef.current = false;
     }
   }, [executeAction, clearLoop]);
 

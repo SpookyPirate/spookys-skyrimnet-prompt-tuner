@@ -15,6 +15,21 @@ const VALID_ACTIONS: GmActionType[] = [
 ];
 
 /**
+ * Map common LLM-invented or alternate action names to valid actions.
+ * LLMs may output these when the template doesn't list valid actions,
+ * or they may come from older prompt versions.
+ */
+const ACTION_ALIASES: Record<string, GmActionType> = {
+  gamemaster_dialogue: "StartConversation",
+  gm_dialogue: "StartConversation",
+  start_conversation: "StartConversation",
+  continue_conversation: "ContinueConversation",
+  narrate: "Narrate",
+  narration: "Narrate",
+  none: "None",
+};
+
+/**
  * Parse a GameMaster action from an LLM response.
  *
  * Real SkyrimNet format (from gamemaster_action_selector.prompt):
@@ -35,8 +50,15 @@ export function parseGmAction(response: string): ParsedGmAction {
     return { action: "None", params: {} };
   }
 
-  const actionName = actionLine[1] as GmActionType;
-  if (!VALID_ACTIONS.includes(actionName)) {
+  // Normalize: check exact match first, then aliases, then case-insensitive
+  let actionName: GmActionType;
+  const rawAction = actionLine[1];
+  if (VALID_ACTIONS.includes(rawAction as GmActionType)) {
+    actionName = rawAction as GmActionType;
+  } else if (ACTION_ALIASES[rawAction.toLowerCase()]) {
+    actionName = ACTION_ALIASES[rawAction.toLowerCase()];
+  } else {
+    console.warn(`[GM Parser] Unknown action "${rawAction}", treating as None`);
     return { action: "None", params: {} };
   }
 
@@ -55,7 +77,9 @@ export function parseGmAction(response: string): ParsedGmAction {
       if (parsed.speaker) params.speaker = String(parsed.speaker);
       if (parsed.target) params.target = String(parsed.target);
       if (parsed.topic) params.topic = String(parsed.topic);
+      if (parsed.dialogue) params.topic = String(parsed.dialogue); // alias: "dialogue" → topic
       if (parsed.text) params.text = String(parsed.text);
+      if (parsed.narration) params.text = String(parsed.narration); // alias: "narration" → text
       return { action: actionName, params };
     } catch {
       // JSON parse failed, fall through to legacy parsing

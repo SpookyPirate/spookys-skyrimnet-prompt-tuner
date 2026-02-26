@@ -7,7 +7,7 @@ import type { InjaValue } from "@/lib/inja/renderer";
 
 /**
  * Render the gamemaster_action_selector.prompt template.
- * POST body: { npcs, scene, chatHistory?, eventHistory?, scenePlan?, isContinuousMode?, promptSetBase?, player? }
+ * POST body: { npcs, scene, chatHistory?, eventHistory?, scenePlan?, isContinuousMode?, eligibleActions?, promptSetBase?, player? }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       scenePlan,
       isContinuousMode,
       gameEvents = [],
+      eligibleActions = [],
       promptSetBase,
       player,
     } = body;
@@ -52,6 +53,11 @@ export async function POST(request: NextRequest) {
       scene: scene || { location: "Whiterun", weather: "Clear", timeOfDay: "Afternoon", worldPrompt: "", scenePrompt: "" },
       selectedNpcs,
       chatHistory,
+      eligibleActions: eligibleActions.map((a: { name: string; description: string; parameterSchema?: string }) => ({
+        name: a.name,
+        description: a.description,
+        parameterSchema: a.parameterSchema || "",
+      })),
       scenePlan: scenePlan || null,
       isContinuousMode: !!isContinuousMode,
       gameEvents,

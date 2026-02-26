@@ -72,6 +72,9 @@ function buildContextVariables(simState: SimulationState): Record<string, InjaVa
     time_desc: simState.timeDesc,
     currentWeather: simState.currentWeather,
     is_indoors: simState.isIndoors,
+    sceneContext: simState.sceneContext,
+    locationObject: simState.locationObject,
+    location_object: simState.locationObject,
     scene: {
       short_lived_events: simState.shortLivedEvents,
     } as unknown as InjaValue,
@@ -151,7 +154,9 @@ function buildDecoratorFunctions(
       return `NPC(${uuid})`;
     },
 
-    get_location: () => {
+    get_location: (..._args: InjaValue[]) => {
+      // In real SkyrimNet, returns the location of a specific actor by UUID.
+      // In simulation, all actors share the same location.
       return simState.location;
     },
 
@@ -184,19 +189,58 @@ function buildDecoratorFunctions(
     // ===== Scene & Context =====
 
     get_scene_context: async (...args: InjaValue[]) => {
-      // Try to render the real scene_context template
+      // Real signature: get_scene_context(sourceUUID, targetUUID, variant?)
+      // e.g. get_scene_context(npc.UUID, responseTarget.UUID, "full")
       try {
-        const variant = args[0] ? `_${args[0]}` : "";
-        const templatePath = `components/context/scene_context${variant}.prompt`;
-        const source = await fileLoader.readFile(templatePath);
+        const sourceUUID = args[0] || null;
+        const targetUUID = (args[1] && args[1] !== 0 && args[1] !== "0") ? args[1] : null;
+        const variant = typeof args[2] === "string" ? args[2]
+          : typeof args[0] === "string" && ["full", "target_selection"].includes(String(args[0])) ? String(args[0])
+          : "";
+
+        // Resolve source/target actors for template context
+        const sourceEntity = sourceUUID ? resolveActor(sourceUUID, simState) : null;
+        const targetEntity = targetUUID ? resolveActor(targetUUID, simState) : null;
+
+        // Load the content template (provides block definitions)
+        const contentSource = await fileLoader.readFile("components/context/scene_context.prompt");
+        const blocks = extractBlocks(contentSource);
+
+        // Load the layout template if a variant is specified
+        let layoutSource: string;
+        if (variant) {
+          try {
+            layoutSource = await fileLoader.readFile(`components/context/scene_context_${variant}.prompt`);
+          } catch {
+            // Variant not found — render the content template directly
+            layoutSource = contentSource;
+          }
+        } else {
+          layoutSource = contentSource;
+        }
+
+        const innerVars: Record<string, InjaValue> = {
+          ...buildContextVariables(simState),
+          sourceEntity: (sourceEntity || null) as unknown as InjaValue,
+          targetEntity: (targetEntity || null) as unknown as InjaValue,
+        };
         const innerCtx: RenderContext = {
-          variables: buildContextVariables(simState),
-          blocks: {},
+          variables: innerVars,
+          blocks,
           functions: buildDecoratorFunctions(simState, fileLoader),
         };
-        return await render(source, innerCtx);
+        return await render(layoutSource, innerCtx);
       } catch {
-        return simState.sceneContext || "";
+        // Fallback: return structured scene context with key info
+        const parts: string[] = [];
+        parts.push(`## Current Location\nThe scene is taking place in **${simState.location}**`);
+        parts.push(`## Current Time\n**Time**: ${simState.gameTime}\n- ${simState.timeDesc}`);
+        const weatherName = simState.currentWeather?.name || "Clear";
+        parts.push(`## Current Weather\n**Weather**: ${weatherName}`);
+        if (simState.sceneContext) {
+          parts.push(`## Scene\n${simState.sceneContext}`);
+        }
+        return parts.join("\n\n");
       }
     },
 
@@ -419,10 +463,10 @@ function buildDecoratorFunctions(
 
     // ===== Scene descriptions =====
 
-    has_current_scene_description: () => false,
-    get_current_scene_description: () => "",
-    has_current_location_description: () => false,
-    get_current_location_description: () => "",
+    has_current_scene_description: () => !!simState.sceneContext,
+    get_current_scene_description: () => simState.sceneContext || "",
+    has_current_location_description: () => !!simState.locationObject?.description,
+    get_current_location_description: () => String(simState.locationObject?.description || ""),
     is_scene_newer_than_location: () => true,
 
     // ===== Short-lived events =====
