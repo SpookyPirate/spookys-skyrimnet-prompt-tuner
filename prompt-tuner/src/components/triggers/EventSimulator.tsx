@@ -6,6 +6,12 @@ import { useAppStore } from "@/stores/appStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Zap, Trash2 } from "lucide-react";
 import {
   TriggerEventType,
@@ -70,9 +76,18 @@ export function EventSimulator() {
         <h3 className="text-xs font-semibold text-foreground">
           Event Simulator
         </h3>
-        <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0">
-          {triggers.length} triggers
-        </Badge>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 cursor-help">
+                {triggers.length} Custom Triggers
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-56 text-center">
+              Add trigger YAML files to your active prompt set&apos;s config/triggers/ folder, or use Tools &gt; Create Custom Trigger in the toolbar.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="space-y-1.5">

@@ -46,7 +46,7 @@ export function CreateYamlDialog() {
 
     setSaving(true);
     try {
-      const subdir = yamlType === "action" ? "custom_actions" : "triggers";
+      const subdir = yamlType === "action" ? "config/actions" : "config/triggers";
       const fileName = name.trim().replace(/\s+/g, "_").toLowerCase();
       const filePath = `edited-prompts/${activePromptSet}/${subdir}/${fileName}.yaml`;
 
@@ -93,7 +93,7 @@ export function CreateYamlDialog() {
             />
             <span className="text-[9px] text-muted-foreground">
               Will be saved to edited-prompts/{activePromptSet}/
-              {yamlType === "action" ? "custom_actions" : "triggers"}/
+              {yamlType === "action" ? "config/actions" : "config/triggers"}/
               {name.trim().replace(/\s+/g, "_").toLowerCase() || "..."}.yaml
             </span>
           </div>

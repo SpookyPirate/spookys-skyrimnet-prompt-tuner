@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const triggers: TriggerYaml[] = [];
 
     // Check edited triggers first
-    const editedTriggersDir = path.join(EDITED_PROMPTS_DIR, promptSet, "triggers");
+    const editedTriggersDir = path.join(EDITED_PROMPTS_DIR, promptSet, "config", "triggers");
     try {
       const files = await fs.readdir(editedTriggersDir);
       for (const file of files) {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check original triggers
-    const originalTriggersDir = path.join(ORIGINAL_PROMPTS_DIR, "triggers");
+    const originalTriggersDir = path.join(ORIGINAL_PROMPTS_DIR, "config", "triggers");
     try {
       const files = await fs.readdir(originalTriggersDir);
       for (const file of files) {

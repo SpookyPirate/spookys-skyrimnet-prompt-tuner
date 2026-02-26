@@ -107,6 +107,19 @@ export async function POST(request: Request) {
       mergedDir = extractedOriginalsDir;
     }
 
+    // 4b. Extract config/ (actions + triggers) if present in archive
+    if (prefixes.config) {
+      const configTmpDir = path.join(tmpDir, "config");
+      await fs.mkdir(configTmpDir, { recursive: true });
+      await extractSubtree(normalized, ext, prefixes.config, configTmpDir);
+      const extractedConfigDir = await findExtractedDir(configTmpDir, "config");
+      if (extractedConfigDir) {
+        const destConfigDir = path.join(mergedDir, "config");
+        await fs.mkdir(destConfigDir, { recursive: true });
+        await mergeDirectories(extractedConfigDir, destConfigDir);
+      }
+    }
+
     // 5. Count files to verify extraction worked
     const extractedFiles = await countFiles(mergedDir);
     if (extractedFiles === 0) {
@@ -125,6 +138,7 @@ export async function POST(request: Request) {
       filesExtracted: extractedFiles,
       source: path.basename(normalized),
       hasTemplates: !!prefixes.prompts,
+      hasConfig: !!prefixes.config,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
@@ -140,6 +154,8 @@ interface ArchivePrefixes {
   prompts: string | null;
   /** Path prefix to original_prompts/ (characters + setting), e.g. "SKSE/Plugins/SkyrimNet/original_prompts/" */
   originalPrompts: string | null;
+  /** Path prefix to config/ (actions + triggers), e.g. "SKSE/Plugins/SkyrimNet/config/" */
+  config: string | null;
 }
 
 /**
@@ -174,7 +190,7 @@ async function findPromptsPrefixes(
     }
   }
 
-  const result: ArchivePrefixes = { prompts: null, originalPrompts: null };
+  const result: ArchivePrefixes = { prompts: null, originalPrompts: null, config: null };
   const lines = output.split("\n");
 
   for (const line of lines) {
@@ -202,8 +218,18 @@ async function findPromptsPrefixes(
       }
     }
 
-    // Early exit if both found
-    if (result.prompts && result.originalPrompts) break;
+    // Find config/ prefix (look for actions/ or triggers/ subdir as landmark)
+    if (!result.config) {
+      const match = line.match(/([\w/\\.-]*config[/\\](?:actions|triggers)[/\\])/);
+      if (match) {
+        const full = match[1].replace(/\\/g, "/");
+        const idx = full.indexOf("config/");
+        result.config = full.substring(0, idx + "config/".length);
+      }
+    }
+
+    // Early exit if all found
+    if (result.prompts && result.originalPrompts && result.config) break;
   }
 
   return result;

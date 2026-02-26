@@ -11,9 +11,9 @@ import {
   Save,
   AudioLines,
   FolderOpen,
-  FilePlus2,
   Swords,
   Zap,
+  Wrench,
 } from "lucide-react";
 import {
   Tooltip,
@@ -94,36 +94,30 @@ export function Toolbar() {
           <TooltipContent>Export modified files as zip</TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setEnhanceSpeechDialogOpen(true)}>
-              <AudioLines className="h-3.5 w-3.5" />
-              Enhance Speech Style
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Generate enhanced speech style for selected character</TooltipContent>
-        </Tooltip>
-
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
-                  <FilePlus2 className="h-3.5 w-3.5" />
-                  New Config
+                  <Wrench className="h-3.5 w-3.5" />
+                  Tools
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>Create custom action or trigger YAML</TooltipContent>
+            <TooltipContent>Prompt tools and YAML config creators</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setEnhanceSpeechDialogOpen(true)} className="text-xs gap-2">
+              <AudioLines className="h-3.5 w-3.5" />
+              Enhance Speech Style
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setCreateYamlDialogOpen(true, "action")} className="text-xs gap-2">
               <Swords className="h-3.5 w-3.5" />
-              Custom Action
+              Create Custom Action
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setCreateYamlDialogOpen(true, "trigger")} className="text-xs gap-2">
               <Zap className="h-3.5 w-3.5" />
-              Trigger
+              Create Custom Trigger
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

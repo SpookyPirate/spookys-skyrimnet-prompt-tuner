@@ -3,7 +3,7 @@ import type { NpcConfig, SceneConfig, ChatEntry } from "@/types/simulation";
 import type { ActionDefinition } from "@/types/actions";
 import type { LlmCallLog } from "@/types/llm";
 import type { ScenePlan, GmActionEntry } from "@/types/gamemaster";
-import { BUILTIN_ACTIONS, COMMUNITY_ACTIONS } from "@/lib/actions/registry";
+import { BUILTIN_ACTIONS, DEFAULT_CUSTOM_ACTIONS } from "@/lib/actions/registry";
 
 const ACTIONS_STORAGE_KEY = "skyrimnet-actions";
 
@@ -26,7 +26,7 @@ function persistActions(actions: ActionDefinition[]) {
 function initActionRegistry(): ActionDefinition[] {
   const persisted = loadPersistedActions();
   if (persisted.length > 0) return persisted;
-  return [...BUILTIN_ACTIONS, ...COMMUNITY_ACTIONS];
+  return [...BUILTIN_ACTIONS, ...DEFAULT_CUSTOM_ACTIONS];
 }
 
 interface SimulationState {
@@ -78,6 +78,7 @@ interface SimulationState {
   toggleAction: (id: string) => void;
   addCustomAction: (action: ActionDefinition) => void;
   removeCustomAction: (id: string) => void;
+  updateCustomAction: (id: string, updates: Partial<Pick<ActionDefinition, "name" | "description" | "parameterSchema">>) => void;
   getEligibleActions: () => ActionDefinition[];
   setLastAction: (action: { name: string; params?: Record<string, string> } | null) => void;
   setLastSpeakerPrediction: (prediction: string) => void;
@@ -179,6 +180,15 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   removeCustomAction: (id) =>
     set((s) => {
       const updated = s.actionRegistry.filter((a) => a.id !== id);
+      persistActions(updated);
+      return { actionRegistry: updated };
+    }),
+
+  updateCustomAction: (id, updates) =>
+    set((s) => {
+      const updated = s.actionRegistry.map((a) =>
+        a.id === id && a.category === "custom" ? { ...a, ...updates } : a
+      );
       persistActions(updated);
       return { actionRegistry: updated };
     }),

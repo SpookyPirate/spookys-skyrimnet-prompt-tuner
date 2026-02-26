@@ -1,4 +1,4 @@
-export type ActionCategory = "builtin" | "community" | "custom";
+export type ActionCategory = "builtin" | "custom";
 
 export interface ActionDefinition {
   id: string;

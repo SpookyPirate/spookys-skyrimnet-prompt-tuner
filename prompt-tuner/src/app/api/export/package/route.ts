@@ -5,6 +5,7 @@ import {
   ORIGINAL_PROMPTS_DIR,
   EDITED_PROMPTS_DIR,
   MO2_PROMPTS_SUBPATH,
+  MO2_CONFIG_SUBPATH,
   isPathAllowed,
 } from "@/lib/files/paths";
 
@@ -76,6 +77,25 @@ export async function GET(request: Request) {
         content,
         isNew,
       });
+    }
+
+    // Also collect config files (actions & triggers YAMLs)
+    const configDir = path.join(setPath, "config");
+    const mo2ConfigPrefix = MO2_CONFIG_SUBPATH.replace(/\\/g, "/");
+    try {
+      const configFiles = await collectFiles(configDir, configDir);
+      for (const file of configFiles) {
+        const content = await fs.readFile(file.fullPath, "utf-8");
+        const skyrimPath = `${mo2ConfigPrefix}/${file.relativePath}`;
+        manifest.push({
+          path: `config/${file.relativePath}`,
+          skyrimPath,
+          content,
+          isNew: true,
+        });
+      }
+    } catch {
+      // No config directory, that's fine
     }
 
     return NextResponse.json({ files: manifest, setName });
