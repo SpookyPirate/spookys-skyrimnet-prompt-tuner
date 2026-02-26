@@ -50,9 +50,7 @@ export function LoadPromptSetDialog({
       useFileStore.getState().closeAllFiles();
 
       // Refresh file tree
-      const res = await fetch("/api/files/tree");
-      const data = await res.json();
-      useFileStore.getState().setTree(data.tree);
+      await useFileStore.getState().refreshTree();
 
       toast.success(`Prompt set "${name}" loaded`);
       onOpenChange(false);

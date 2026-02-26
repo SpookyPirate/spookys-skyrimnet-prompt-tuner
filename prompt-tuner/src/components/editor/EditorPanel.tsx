@@ -94,6 +94,7 @@ export function EditorPanel() {
 
       if (res.ok) {
         markFileSaved(activeFile.path);
+        useFileStore.getState().refreshTree();
         toast.success("File saved");
       } else {
         const data = await res.json();

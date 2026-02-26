@@ -131,9 +131,7 @@ export function UpdateOriginalsDialog({
       setPhase("done");
 
       // Refresh file tree
-      const treeRes = await fetch("/api/files/tree");
-      const treeData = await treeRes.json();
-      useFileStore.getState().setTree(treeData.tree);
+      await useFileStore.getState().refreshTree();
 
       toast.success(
         `Original prompts updated (${data.filesExtracted} files from ${data.source})`

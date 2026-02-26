@@ -8,6 +8,7 @@ import { useAppStore } from "@/stores/appStore";
 import { FileTreeNode } from "./FileTreeNode";
 import { Button } from "@/components/ui/button";
 import { Search, Loader2, Archive } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import type { FileNode } from "@/types/files";
 
 export function FileExplorer() {
@@ -107,15 +108,20 @@ export function FileExplorer() {
             )
           ) : (
             // Normal tree view
-            tree.map((node) => (
+            tree.map((node, index) => (
               <div key={node.path}>
+                {index === 0 && (
+                  <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                    SkyrimNet
+                  </div>
+                )}
                 <FileTreeNode node={node} depth={0} />
                 {node.name === "Original Prompts" && (
-                  <div className="px-2 py-1">
+                  <div className="px-2 pt-3 pb-1.5">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-6 w-full gap-1.5 text-[11px]"
+                      className="mx-auto flex h-6 w-fit gap-1.5 px-3 text-[11px]"
                       onClick={() =>
                         useAppStore.getState().setUpdateOriginalsDialogOpen(true)
                       }
@@ -123,6 +129,10 @@ export function FileExplorer() {
                       <Archive className="h-3 w-3" />
                       Update Prompts
                     </Button>
+                    <Separator className="mt-3" />
+                    <div className="mt-2 px-1 text-xs font-medium text-muted-foreground">
+                      Custom Prompt Sets
+                    </div>
                   </div>
                 )}
               </div>

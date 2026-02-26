@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAppStore } from "@/stores/appStore";
+import { useFileStore } from "@/stores/fileStore";
 import { sendLlmRequest } from "@/lib/llm/client";
 import { SPEECH_STYLE_SYSTEM_PROMPT } from "@/lib/speech/prompt";
 import {
@@ -134,6 +135,7 @@ export function EnhanceSpeechDialog({
 
       if (!writeRes.ok) throw new Error("Failed to save enhanced bio");
 
+      await useFileStore.getState().refreshTree();
       setPhase("done");
       toast.success(
         `Enhanced speech style for ${selected.displayName} saved`

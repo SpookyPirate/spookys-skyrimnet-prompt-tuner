@@ -39,6 +39,7 @@ interface FileState {
   setSearchResults: (results: FileNode[]) => void;
   setLoadingTree: (loading: boolean) => void;
   setLoadingFile: (loading: boolean) => void;
+  refreshTree: () => Promise<void>;
 }
 
 export const useFileStore = create<FileState>((set, get) => ({
@@ -122,4 +123,14 @@ export const useFileStore = create<FileState>((set, get) => ({
   setSearchResults: (results) => set({ searchResults: results }),
   setLoadingTree: (loading) => set({ isLoadingTree: loading }),
   setLoadingFile: (loading) => set({ isLoadingFile: loading }),
+
+  refreshTree: async () => {
+    try {
+      const res = await fetch("/api/files/tree");
+      const data = await res.json();
+      set({ tree: data.tree });
+    } catch (err) {
+      console.error("Failed to refresh file tree:", err);
+    }
+  },
 }));
