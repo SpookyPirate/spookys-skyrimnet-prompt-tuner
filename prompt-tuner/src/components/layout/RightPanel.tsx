@@ -16,6 +16,7 @@ export function RightPanel() {
   const lastAction = useSimulationStore((s) => s.lastAction);
   const lastSpeakerPrediction = useSimulationStore((s) => s.lastSpeakerPrediction);
   const llmCallLog = useSimulationStore((s) => s.llmCallLog);
+  const gmEnabled = useSimulationStore((s) => s.gmEnabled);
 
   const totalTokens = llmCallLog.reduce((sum, l) => sum + l.totalTokens, 0);
   const totalLatency = llmCallLog.reduce((sum, l) => sum + l.latencyMs, 0);
@@ -74,11 +75,15 @@ export function RightPanel() {
             <TriggerMatchResultsContent />
           </Section>
 
-          <Separator />
+          {gmEnabled && (
+            <>
+              <Separator />
 
-          <Section title="GameMaster Scene" icon={<Theater className="h-3.5 w-3.5 text-purple-400" />}>
-            <ScenePlanDisplayContent />
-          </Section>
+              <Section title="GameMaster Scene" icon={<Theater className="h-3.5 w-3.5 text-purple-400" />}>
+                <ScenePlanDisplayContent />
+              </Section>
+            </>
+          )}
 
           <Separator />
 
