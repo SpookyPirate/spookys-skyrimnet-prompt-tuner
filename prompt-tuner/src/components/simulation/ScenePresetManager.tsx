@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useScenePresetStore } from "@/stores/scenePresetStore";
 import { useSimulationStore } from "@/stores/simulationStore";
 import type { ScenePreset } from "@/types/simulation";
-import { Save, Trash2 } from "lucide-react";
+import { Copy, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 function applyPresetToSimulation(preset: ScenePreset) {
@@ -83,6 +83,20 @@ export function ScenePresetManager() {
     toast.success(`Scene preset "${preset.name}" loaded`);
   };
 
+  const handleDuplicate = () => {
+    const preset = getPreset(activePresetId);
+    if (!preset) return;
+    const newPreset = addPreset(
+      `${preset.name} (Copy)`,
+      preset.scene,
+      preset.npcs.map((n) => ({ ...n })),
+      actionRegistry,
+      preset.player,
+    );
+    applyPresetToSimulation(newPreset);
+    toast.success(`Duplicated as "${newPreset.name}"`);
+  };
+
   const handleDelete = () => {
     if (presets.length <= 1) {
       toast.error("Cannot delete the last preset");
@@ -115,6 +129,15 @@ export function ScenePresetManager() {
             </option>
           ))}
         </select>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0"
+          onClick={handleDuplicate}
+          title="Duplicate preset"
+        >
+          <Copy className="h-3 w-3" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"

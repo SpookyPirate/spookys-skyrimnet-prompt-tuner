@@ -8,6 +8,7 @@ import { useConfigStore } from "@/stores/configStore";
 import type { SkyrimNetAgentType, ModelSlot } from "@/types/config";
 import { SKYRIMNET_AGENTS } from "@/types/config";
 import {
+  Copy,
   Save,
   Download,
   Trash2,
@@ -66,6 +67,18 @@ export function ProfileManager() {
     toast.success("Profile copied to clipboard as markdown");
   };
 
+  const handleDuplicate = () => {
+    const profile = getProfile(activeProfileId);
+    if (!profile) return;
+    const newProfile = addProfile(
+      `${profile.name} (Copy)`,
+      profile.globalApiKey,
+      profile.slots,
+    );
+    applyProfile(newProfile.globalApiKey, newProfile.slots);
+    toast.success(`Duplicated as "${newProfile.name}"`);
+  };
+
   const handleDelete = () => {
     if (profiles.length <= 1) {
       toast.error("Cannot delete the last profile");
@@ -108,6 +121,16 @@ export function ProfileManager() {
           title="Copy as markdown"
         >
           <Download className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={handleDuplicate}
+          disabled={!activeProfileId}
+          title="Duplicate profile"
+        >
+          <Copy className="h-3.5 w-3.5" />
         </Button>
         <Button
           variant="ghost"

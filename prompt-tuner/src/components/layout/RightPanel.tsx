@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { ActionSelectorPreviewContent } from "@/components/analysis/ActionSelectorPreview";
+import { SessionAnalysisDialog } from "@/components/analysis/SessionAnalysisDialog";
 import { TriggerMatchResultsContent } from "@/components/triggers/TriggerMatchResults";
 import { ScenePlanDisplayContent } from "@/components/gamemaster/ScenePlanDisplay";
 import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater } from "lucide-react";
@@ -17,6 +18,8 @@ export function RightPanel() {
   const lastSpeakerPrediction = useSimulationStore((s) => s.lastSpeakerPrediction);
   const llmCallLog = useSimulationStore((s) => s.llmCallLog);
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
+
+  const [analysisOpen, setAnalysisOpen] = useState(false);
 
   const totalTokens = llmCallLog.reduce((sum, l) => sum + l.totalTokens, 0);
   const totalLatency = llmCallLog.reduce((sum, l) => sum + l.latencyMs, 0);
@@ -113,8 +116,26 @@ export function RightPanel() {
               <Placeholder text="No token data yet" />
             )}
           </Section>
+
+          <Separator />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5 text-xs"
+            disabled={llmCallLog.length === 0}
+            onClick={() => setAnalysisOpen(true)}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Analyze Session
+          </Button>
         </div>
       </ScrollArea>
+
+      <SessionAnalysisDialog
+        open={analysisOpen}
+        onOpenChange={setAnalysisOpen}
+      />
     </div>
   );
 }

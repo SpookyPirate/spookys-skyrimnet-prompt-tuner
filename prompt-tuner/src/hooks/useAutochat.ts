@@ -109,9 +109,8 @@ export function useAutochat() {
 
       const autochatLog = await sendLlmRequest({
         messages: autochatMessages,
-        agent: "autochat",
+        agent: "tuner",
       });
-      addLlmCall(autochatLog);
 
       if (autochatLog.error || !autochatLog.response) {
         console.warn("[Autochat] LLM error:", autochatLog.error || "empty response");
