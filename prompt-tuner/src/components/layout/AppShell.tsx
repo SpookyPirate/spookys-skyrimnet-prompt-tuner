@@ -18,6 +18,7 @@ import { SavePromptSetDialog } from "@/components/export/SavePromptSetDialog";
 import { LoadPromptSetDialog } from "@/components/export/LoadPromptSetDialog";
 import { EnhanceSpeechDialog } from "@/components/speech/EnhanceSpeechDialog";
 import { UpdateOriginalsDialog } from "@/components/file-explorer/UpdateOriginalsDialog";
+import { CreateYamlDialog } from "@/components/actions/CreateYamlDialog";
 import { CommandPalette } from "./CommandPalette";
 import { usePanelRef, type PanelImperativeHandle } from "react-resizable-panels";
 
@@ -141,6 +142,7 @@ export function AppShell() {
         open={updateOriginalsDialogOpen}
         onOpenChange={setUpdateOriginalsDialogOpen}
       />
+      <CreateYamlDialog />
       <CommandPalette />
     </div>
   );

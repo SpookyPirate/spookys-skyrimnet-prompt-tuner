@@ -28,6 +28,8 @@ export interface ChatEntry {
   content: string;
   timestamp: number;
   action?: { name: string; params?: Record<string, string> };
+  gmBeatIndex?: number;
+  gmAction?: string;
 }
 
 export interface DemoAction {

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { FileText, Loader2, GitCompare, Code, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { YamlValidationBadge } from "./YamlValidationBadge";
 
 export function EditorPanel() {
   const openFiles = useFileStore((s) => s.openFiles);
@@ -219,6 +220,9 @@ export function EditorPanel() {
 
             <div className="flex-1" />
 
+            {activeFile.name.endsWith(".yaml") || activeFile.name.endsWith(".yml") ? (
+              <YamlValidationBadge content={activeFile.content} filePath={activeFile.path} />
+            ) : null}
             <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-mono">
               ~{tokenEstimate.toLocaleString()} tokens
             </Badge>

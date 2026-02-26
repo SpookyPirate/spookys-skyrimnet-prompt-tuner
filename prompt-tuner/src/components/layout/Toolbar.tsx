@@ -11,12 +11,21 @@ import {
   Save,
   AudioLines,
   FolderOpen,
+  FilePlus2,
+  Swords,
+  Zap,
 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Toolbar() {
   const toggleLeftPanel = useAppStore((s) => s.toggleLeftPanel);
@@ -28,6 +37,7 @@ export function Toolbar() {
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
   const setLoadPromptSetDialogOpen = useAppStore((s) => s.setLoadPromptSetDialogOpen);
   const setEnhanceSpeechDialogOpen = useAppStore((s) => s.setEnhanceSpeechDialogOpen);
+  const setCreateYamlDialogOpen = useAppStore((s) => s.setCreateYamlDialogOpen);
   const activePromptSet = useAppStore((s) => s.activePromptSet);
 
   return (
@@ -93,6 +103,30 @@ export function Toolbar() {
           </TooltipTrigger>
           <TooltipContent>Generate enhanced speech style for selected character</TooltipContent>
         </Tooltip>
+
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
+                  <FilePlus2 className="h-3.5 w-3.5" />
+                  New Config
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Create custom action or trigger YAML</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setCreateYamlDialogOpen(true, "action")} className="text-xs gap-2">
+              <Swords className="h-3.5 w-3.5" />
+              Custom Action
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setCreateYamlDialogOpen(true, "trigger")} className="text-xs gap-2">
+              <Zap className="h-3.5 w-3.5" />
+              Trigger
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="mx-1 h-4 w-px bg-border" />
 

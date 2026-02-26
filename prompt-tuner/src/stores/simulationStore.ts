@@ -1,6 +1,33 @@
 import { create } from "zustand";
-import type { NpcConfig, SceneConfig, ChatEntry, DemoAction } from "@/types/simulation";
+import type { NpcConfig, SceneConfig, ChatEntry } from "@/types/simulation";
+import type { ActionDefinition } from "@/types/actions";
 import type { LlmCallLog } from "@/types/llm";
+import type { ScenePlan, GmActionEntry } from "@/types/gamemaster";
+import { BUILTIN_ACTIONS, COMMUNITY_ACTIONS } from "@/lib/actions/registry";
+
+const ACTIONS_STORAGE_KEY = "skyrimnet-actions";
+
+function loadPersistedActions(): ActionDefinition[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(ACTIONS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as ActionDefinition[];
+  } catch {}
+  return [];
+}
+
+function persistActions(actions: ActionDefinition[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(ACTIONS_STORAGE_KEY, JSON.stringify(actions));
+  } catch {}
+}
+
+function initActionRegistry(): ActionDefinition[] {
+  const persisted = loadPersistedActions();
+  if (persisted.length > 0) return persisted;
+  return [...BUILTIN_ACTIONS, ...COMMUNITY_ACTIONS];
+}
 
 interface SimulationState {
   // NPCs
@@ -12,36 +39,65 @@ interface SimulationState {
   isProcessing: boolean;
   // LLM call trace
   llmCallLog: LlmCallLog[];
-  // Demo actions
-  demoActions: DemoAction[];
+  // Action registry (replaces demoActions)
+  actionRegistry: ActionDefinition[];
   // Last action triggered
   lastAction: { name: string; params?: Record<string, string> } | null;
   // Last speaker prediction
   lastSpeakerPrediction: string;
+  // F2: Action selector preview
+  useRealActionTemplate: boolean;
+  lastActionSelectorPreview: {
+    renderedPrompt: string;
+    messages: { role: string; content: string }[];
+    rawResponse: string;
+    parsedAction: string;
+  } | null;
+  // F5: GameMaster
+  gmEnabled: boolean;
+  scenePlan: ScenePlan | null;
+  isPlanning: boolean;
+  isDirecting: boolean;
+  gmAutoAdvance: boolean;
+  gmContinuousMode: boolean;
+  gmActionLog: GmActionEntry[];
 
-  // Actions
+  // NPC actions
   addNpc: (npc: NpcConfig) => void;
   removeNpc: (uuid: string) => void;
   updateNpcDistance: (uuid: string, distance: number) => void;
+  // Scene
   setScene: (scene: Partial<SceneConfig>) => void;
+  // Chat
   addChatEntry: (entry: ChatEntry) => void;
   clearChat: () => void;
   setProcessing: (processing: boolean) => void;
+  // LLM
   addLlmCall: (log: LlmCallLog) => void;
   clearLlmLog: () => void;
-  setDemoActions: (actions: DemoAction[]) => void;
+  // Actions
+  toggleAction: (id: string) => void;
+  addCustomAction: (action: ActionDefinition) => void;
+  removeCustomAction: (id: string) => void;
+  getEligibleActions: () => ActionDefinition[];
   setLastAction: (action: { name: string; params?: Record<string, string> } | null) => void;
   setLastSpeakerPrediction: (prediction: string) => void;
+  // F2
+  setUseRealActionTemplate: (value: boolean) => void;
+  setLastActionSelectorPreview: (preview: SimulationState["lastActionSelectorPreview"]) => void;
+  // F5 GameMaster
+  setGmEnabled: (enabled: boolean) => void;
+  setScenePlan: (plan: ScenePlan | null) => void;
+  setIsPlanning: (planning: boolean) => void;
+  setIsDirecting: (directing: boolean) => void;
+  setGmAutoAdvance: (auto: boolean) => void;
+  setGmContinuousMode: (continuous: boolean) => void;
+  addGmAction: (action: GmActionEntry) => void;
+  advanceBeat: () => void;
+  clearScenePlan: () => void;
 }
 
-const DEFAULT_DEMO_ACTIONS: DemoAction[] = [
-  { name: "OpenTrade", description: "Opens barter menu" },
-  { name: "AccompanyTarget", description: "NPC follows the player" },
-  { name: "DismissTarget", description: "NPC stops following the player" },
-  { name: "Gesture", description: "NPC performs an animation", parameterSchema: '{"anim": "applaud|laugh|wave|bow|shrug"}' },
-];
-
-export const useSimulationStore = create<SimulationState>((set) => ({
+export const useSimulationStore = create<SimulationState>((set, get) => ({
   selectedNpcs: [],
   scene: {
     location: "Whiterun",
@@ -53,9 +109,18 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   chatHistory: [],
   isProcessing: false,
   llmCallLog: [],
-  demoActions: DEFAULT_DEMO_ACTIONS,
+  actionRegistry: initActionRegistry(),
   lastAction: null,
   lastSpeakerPrediction: "",
+  useRealActionTemplate: false,
+  lastActionSelectorPreview: null,
+  gmEnabled: false,
+  scenePlan: null,
+  isPlanning: false,
+  isDirecting: false,
+  gmAutoAdvance: true,
+  gmContinuousMode: false,
+  gmActionLog: [],
 
   addNpc: (npc) =>
     set((s) => ({
@@ -83,7 +148,14 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     set((s) => ({ chatHistory: [...s.chatHistory, entry] })),
 
   clearChat: () =>
-    set({ chatHistory: [], llmCallLog: [], lastAction: null, lastSpeakerPrediction: "" }),
+    set({
+      chatHistory: [],
+      llmCallLog: [],
+      lastAction: null,
+      lastSpeakerPrediction: "",
+      lastActionSelectorPreview: null,
+      gmActionLog: [],
+    }),
 
   setProcessing: (processing) => set({ isProcessing: processing }),
 
@@ -92,10 +164,68 @@ export const useSimulationStore = create<SimulationState>((set) => ({
 
   clearLlmLog: () => set({ llmCallLog: [] }),
 
-  setDemoActions: (actions) => set({ demoActions: actions }),
+  toggleAction: (id) =>
+    set((s) => {
+      const updated = s.actionRegistry.map((a) =>
+        a.id === id ? { ...a, enabled: !a.enabled } : a
+      );
+      persistActions(updated);
+      return { actionRegistry: updated };
+    }),
+
+  addCustomAction: (action) =>
+    set((s) => {
+      const updated = [...s.actionRegistry, action];
+      persistActions(updated);
+      return { actionRegistry: updated };
+    }),
+
+  removeCustomAction: (id) =>
+    set((s) => {
+      const updated = s.actionRegistry.filter((a) => a.id !== id);
+      persistActions(updated);
+      return { actionRegistry: updated };
+    }),
+
+  getEligibleActions: () => {
+    return get().actionRegistry.filter((a) => a.enabled);
+  },
 
   setLastAction: (action) => set({ lastAction: action }),
 
   setLastSpeakerPrediction: (prediction) =>
     set({ lastSpeakerPrediction: prediction }),
+
+  setUseRealActionTemplate: (value) => set({ useRealActionTemplate: value }),
+
+  setLastActionSelectorPreview: (preview) =>
+    set({ lastActionSelectorPreview: preview }),
+
+  setGmEnabled: (enabled) => set({ gmEnabled: enabled }),
+
+  setScenePlan: (plan) => set({ scenePlan: plan }),
+
+  setIsPlanning: (planning) => set({ isPlanning: planning }),
+
+  setIsDirecting: (directing) => set({ isDirecting: directing }),
+
+  setGmAutoAdvance: (auto) => set({ gmAutoAdvance: auto }),
+
+  setGmContinuousMode: (continuous) => set({ gmContinuousMode: continuous }),
+
+  addGmAction: (action) =>
+    set((s) => ({ gmActionLog: [...s.gmActionLog, action] })),
+
+  advanceBeat: () =>
+    set((s) => {
+      if (!s.scenePlan) return {};
+      const next = s.scenePlan.currentBeatIndex + 1;
+      if (next >= s.scenePlan.beats.length) return {};
+      return {
+        scenePlan: { ...s.scenePlan, currentBeatIndex: next },
+      };
+    }),
+
+  clearScenePlan: () =>
+    set({ scenePlan: null, gmActionLog: [], isPlanning: false, isDirecting: false }),
 }));

@@ -32,6 +32,8 @@ interface AppState {
   enhanceSpeechDialogOpen: boolean;
   updateOriginalsDialogOpen: boolean;
   activePromptSet: string;
+  createYamlDialogOpen: boolean;
+  createYamlType: "action" | "trigger";
 
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
@@ -42,6 +44,7 @@ interface AppState {
   setEnhanceSpeechDialogOpen: (open: boolean) => void;
   setUpdateOriginalsDialogOpen: (open: boolean) => void;
   setActivePromptSet: (name: string) => void;
+  setCreateYamlDialogOpen: (open: boolean, type?: "action" | "trigger") => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -54,6 +57,8 @@ export const useAppStore = create<AppState>((set) => ({
   enhanceSpeechDialogOpen: false,
   updateOriginalsDialogOpen: false,
   activePromptSet: loadPersistedState().activePromptSet,
+  createYamlDialogOpen: false,
+  createYamlType: "action" as const,
 
   toggleLeftPanel: () =>
     set((state) => ({ leftPanelOpen: !state.leftPanelOpen })),
@@ -69,4 +74,6 @@ export const useAppStore = create<AppState>((set) => ({
     persistState({ activePromptSet: name });
     set({ activePromptSet: name });
   },
+  setCreateYamlDialogOpen: (open, type) =>
+    set({ createYamlDialogOpen: open, ...(type ? { createYamlType: type } : {}) }),
 }));

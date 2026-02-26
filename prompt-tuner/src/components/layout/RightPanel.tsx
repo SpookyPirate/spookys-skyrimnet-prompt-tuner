@@ -4,8 +4,10 @@ import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useSimulationStore } from "@/stores/simulationStore";
+import { ActionSelectorPreview } from "@/components/analysis/ActionSelectorPreview";
+import { TriggerMatchResults } from "@/components/triggers/TriggerMatchResults";
+import { ScenePlanDisplay } from "@/components/gamemaster/ScenePlanDisplay";
 import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity } from "lucide-react";
 import type { LlmCallLog } from "@/types/llm";
 
@@ -43,6 +45,10 @@ export function RightPanel() {
 
           <Separator />
 
+          <ActionSelectorPreview />
+
+          <Separator />
+
           <Section title="Speaker Prediction" icon={<Users className="h-3.5 w-3.5" />}>
             {lastSpeakerPrediction ? (
               <div className="text-xs font-mono">
@@ -58,6 +64,14 @@ export function RightPanel() {
               <Placeholder text="No prediction yet" />
             )}
           </Section>
+
+          <Separator />
+
+          <TriggerMatchResults />
+
+          <Separator />
+
+          <ScenePlanDisplay />
 
           <Separator />
 

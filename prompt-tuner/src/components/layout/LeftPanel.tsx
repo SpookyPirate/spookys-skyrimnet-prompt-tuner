@@ -3,6 +3,8 @@
 import { FileExplorer } from "@/components/file-explorer/FileExplorer";
 import { NpcSelector } from "@/components/npc/NpcSelector";
 import { SceneSetup } from "@/components/world/SceneSetup";
+import { ActionManager } from "@/components/actions/ActionManager";
+import { EventSimulator } from "@/components/triggers/EventSimulator";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/appStore";
@@ -23,6 +25,10 @@ export function LeftPanel() {
             <NpcSelector />
             <Separator />
             <SceneSetup />
+            <Separator />
+            <ActionManager />
+            <Separator />
+            <EventSimulator />
           </div>
         </ScrollArea>
       </div>

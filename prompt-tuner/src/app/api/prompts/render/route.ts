@@ -12,7 +12,7 @@ import type { InjaValue } from "@/lib/inja/renderer";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { templatePath, simulationState, promptSetBase } = body;
+    const { templatePath, simulationState, promptSetBase, eligibleActions } = body;
 
     if (!templatePath) {
       return NextResponse.json(
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       recentEvents: "",
       relevantMemories: "",
       nearbyNpcs: [],
-      eligibleActions: [],
+      eligibleActions: eligibleActions || [],
       dialogueRequest: "",
       dialogueResponse: "",
       lastSpeaker: { name: "" },

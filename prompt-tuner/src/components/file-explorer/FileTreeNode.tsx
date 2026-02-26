@@ -11,6 +11,7 @@ import {
   Folder,
   Users,
   Lock,
+  FileCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +119,8 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
   const children = node.isLoaded ? node.children : lazyChildren;
   const isCharactersDir = node.name === "characters" && node.type === "directory";
 
+  const isYamlFile = node.type === "file" && (node.name.endsWith(".yaml") || node.name.endsWith(".yml"));
+
   const icon =
     node.type === "directory" ? (
       isCharactersDir ? (
@@ -127,6 +130,8 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
       ) : (
         <Folder className="h-4 w-4 shrink-0 text-blue-400" />
       )
+    ) : isYamlFile ? (
+      <FileCog className="h-4 w-4 shrink-0 text-orange-400" />
     ) : (
       <File className="h-4 w-4 shrink-0 text-muted-foreground" />
     );

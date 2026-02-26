@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { useConfigStore } from "@/stores/configStore";
+import { useAppStore } from "@/stores/appStore";
 import { sendLlmRequest } from "@/lib/llm/client";
+import { parseGmAction } from "@/lib/gamemaster/action-parser";
 import type { ChatMessage } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
+import { GmControls } from "@/components/gamemaster/GmControls";
 import { Send, Loader2, Trash2, Square } from "lucide-react";
 
 export function PreviewChat() {
@@ -20,9 +23,20 @@ export function PreviewChat() {
   const addLlmCall = useSimulationStore((s) => s.addLlmCall);
   const selectedNpcs = useSimulationStore((s) => s.selectedNpcs);
   const scene = useSimulationStore((s) => s.scene);
-  const demoActions = useSimulationStore((s) => s.demoActions);
   const setLastAction = useSimulationStore((s) => s.setLastAction);
   const setLastSpeakerPrediction = useSimulationStore((s) => s.setLastSpeakerPrediction);
+  const useRealActionTemplate = useSimulationStore((s) => s.useRealActionTemplate);
+  const setLastActionSelectorPreview = useSimulationStore((s) => s.setLastActionSelectorPreview);
+  // F5: GameMaster
+  const gmEnabled = useSimulationStore((s) => s.gmEnabled);
+  const scenePlan = useSimulationStore((s) => s.scenePlan);
+  const gmAutoAdvance = useSimulationStore((s) => s.gmAutoAdvance);
+  const gmContinuousMode = useSimulationStore((s) => s.gmContinuousMode);
+  const advanceBeat = useSimulationStore((s) => s.advanceBeat);
+  const addGmAction = useSimulationStore((s) => s.addGmAction);
+  const setIsDirecting = useSimulationStore((s) => s.setIsDirecting);
+
+  const activePromptSet = useAppStore((s) => s.activePromptSet);
   const globalApiKey = useConfigStore((s) => s.globalApiKey);
 
   const [input, setInput] = useState("");
@@ -36,6 +50,8 @@ export function PreviewChat() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [chatHistory, streamingText]);
+
+  const getEligibleActions = useSimulationStore((s) => s.getEligibleActions);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isProcessing) return;
@@ -140,33 +156,56 @@ export function PreviewChat() {
         });
 
         // Step 3: Run action evaluation
-        if (demoActions.length > 0) {
+        const eligibleActions = getEligibleActions();
+        if (eligibleActions.length > 0) {
           try {
-            const actionResult = await runActionEvaluation(
-              targetNpc.displayName,
-              playerMessage,
-              npcResponse,
-              eventHistory,
-              demoActions,
-              scene
-            );
-            addLlmCall(actionResult.log);
-
-            const actionStr = actionResult.response.trim();
-            if (actionStr && !actionStr.includes("None")) {
-              const actionMatch = actionStr.match(/ACTION:\s*(\w+)/);
-              if (actionMatch) {
-                setLastAction({ name: actionMatch[1] });
-                addChatEntry({
-                  id: `${Date.now()}-action`,
-                  type: "system",
-                  content: `[Action: ${actionMatch[1]}]`,
-                  timestamp: Date.now(),
-                  action: { name: actionMatch[1] },
-                });
-              }
+            if (useRealActionTemplate) {
+              // F2: Use real template via render API
+              await runRealActionSelector(
+                targetNpc,
+                playerMessage,
+                npcResponse,
+                eventHistory,
+                eligibleActions,
+                scene,
+                activePromptSet,
+                addLlmCall,
+                setLastAction,
+                setLastActionSelectorPreview,
+                addChatEntry
+              );
             } else {
-              setLastAction(null);
+              // Original hardcoded action eval
+              const actionResult = await runActionEvaluation(
+                targetNpc.displayName,
+                playerMessage,
+                npcResponse,
+                eventHistory,
+                eligibleActions.map((a) => ({
+                  name: a.name,
+                  description: a.description,
+                  parameterSchema: a.parameterSchema,
+                })),
+                scene
+              );
+              addLlmCall(actionResult.log);
+
+              const actionStr = actionResult.response.trim();
+              if (actionStr && !actionStr.includes("None")) {
+                const actionMatch = actionStr.match(/ACTION:\s*(\w+)/);
+                if (actionMatch) {
+                  setLastAction({ name: actionMatch[1] });
+                  addChatEntry({
+                    id: `${Date.now()}-action`,
+                    type: "system",
+                    content: `[Action: ${actionMatch[1]}]`,
+                    timestamp: Date.now(),
+                    action: { name: actionMatch[1] },
+                  });
+                }
+              } else {
+                setLastAction(null);
+              }
             }
           } catch (e) {
             console.error("Action eval failed:", e);
@@ -187,6 +226,15 @@ export function PreviewChat() {
           } catch (e) {
             console.error("Speaker prediction failed:", e);
           }
+        }
+
+        // Step 5: GameMaster auto-advance
+        if (gmEnabled && gmAutoAdvance && scenePlan) {
+          await runGmCycle(
+            targetNpc,
+            eventHistory + `\n${targetNpc.displayName}: ${npcResponse}`,
+            gmContinuousMode ? 3 : 1
+          );
         }
       } else if (dialogueLog.error) {
         addChatEntry({
@@ -210,9 +258,116 @@ export function PreviewChat() {
       abortRef.current = null;
     }
   }, [
-    input, isProcessing, chatHistory, selectedNpcs, scene, demoActions,
+    input, isProcessing, chatHistory, selectedNpcs, scene,
     addChatEntry, setProcessing, addLlmCall, setLastAction, setLastSpeakerPrediction,
+    getEligibleActions, useRealActionTemplate, activePromptSet, setLastActionSelectorPreview,
+    gmEnabled, gmAutoAdvance, gmContinuousMode, scenePlan, streamingText,
   ]);
+
+  // F5: GameMaster cycle
+  const runGmCycle = useCallback(
+    async (
+      lastNpc: { displayName: string; gender: string; race: string },
+      eventHistory: string,
+      maxRounds: number
+    ) => {
+      setIsDirecting(true);
+      try {
+        for (let round = 0; round < maxRounds; round++) {
+          const currentBeat = scenePlan?.beats[scenePlan.currentBeatIndex];
+          if (!currentBeat) break;
+
+          // Ask GM what to do
+          const gmMessages: ChatMessage[] = [
+            {
+              role: "system",
+              content: `You are a Skyrim GameMaster directing a scene. Current beat: "${currentBeat.description}" (${currentBeat.type}).
+Characters: ${selectedNpcs.map((n) => n.displayName).join(", ")}
+Location: ${scene.location}
+
+Choose an action. Output one line:
+ACTION: StartConversation(speaker="Name", target="Name", topic="topic")
+ACTION: ContinueConversation(speaker="Name", topic="topic")
+ACTION: Narrate(text="narrative text")
+ACTION: None`,
+            },
+            {
+              role: "user",
+              content: `Recent events:\n${eventHistory}\n\nWhat should happen next in this beat?`,
+            },
+          ];
+
+          const gmLog = await sendLlmRequest({ messages: gmMessages, agent: "game_master" });
+          addLlmCall(gmLog);
+
+          if (!gmLog.response) break;
+
+          const parsed = parseGmAction(gmLog.response);
+          addGmAction({
+            action: parsed.action,
+            params: parsed.params,
+            beatIndex: scenePlan?.currentBeatIndex ?? 0,
+          });
+
+          if (parsed.action === "None") break;
+
+          if (parsed.action === "Narrate" && parsed.params.text) {
+            addChatEntry({
+              id: `${Date.now()}-narration`,
+              type: "narration",
+              content: parsed.params.text,
+              timestamp: Date.now(),
+              gmBeatIndex: scenePlan?.currentBeatIndex,
+              gmAction: "Narrate",
+            });
+          } else if (
+            (parsed.action === "StartConversation" || parsed.action === "ContinueConversation") &&
+            parsed.params.speaker
+          ) {
+            // Generate NPC dialogue for this GM-directed beat
+            const speaker = selectedNpcs.find(
+              (n) => n.displayName.toLowerCase() === parsed.params.speaker?.toLowerCase()
+            );
+            if (speaker) {
+              const npcMessages: ChatMessage[] = [
+                {
+                  role: "system",
+                  content: `You are ${speaker.displayName}, a ${speaker.gender} ${speaker.race} in Skyrim. Location: ${scene.location}. ${parsed.params.topic ? `Topic: ${parsed.params.topic}` : ""}. Respond in character. Keep it to 1-2 sentences.`,
+                },
+                {
+                  role: "user",
+                  content: `${parsed.params.target ? `Speaking to ${parsed.params.target}: ` : ""}${parsed.params.topic || "Continue the scene."}`,
+                },
+              ];
+              const npcLog = await sendLlmRequest({ messages: npcMessages, agent: "default" });
+              addLlmCall(npcLog);
+
+              if (npcLog.response) {
+                addChatEntry({
+                  id: `${Date.now()}-gm-npc`,
+                  type: "npc",
+                  speaker: speaker.displayName,
+                  target: parsed.params.target,
+                  content: npcLog.response,
+                  timestamp: Date.now(),
+                  gmBeatIndex: scenePlan?.currentBeatIndex,
+                  gmAction: parsed.action,
+                });
+              }
+            }
+          }
+
+          // Advance beat after each GM round
+          advanceBeat();
+        }
+      } catch (e) {
+        console.error("GM cycle error:", e);
+      } finally {
+        setIsDirecting(false);
+      }
+    },
+    [scenePlan, selectedNpcs, scene, addLlmCall, addChatEntry, addGmAction, advanceBeat, setIsDirecting]
+  );
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
@@ -257,6 +412,9 @@ export function PreviewChat() {
           )}
         </div>
       </ScrollArea>
+
+      {/* GameMaster controls */}
+      <GmControls />
 
       {/* Input area */}
       <div className="border-t p-2">
@@ -307,10 +465,22 @@ export function PreviewChat() {
 function ChatBubble({ entry }: { entry: ChatEntry }) {
   const isPlayer = entry.type === "player";
   const isSystem = entry.type === "system";
+  const isNarration = entry.type === "narration";
 
   if (isSystem) {
     return (
       <div className="text-center text-[10px] text-muted-foreground py-0.5">
+        {entry.content}
+      </div>
+    );
+  }
+
+  if (isNarration) {
+    return (
+      <div className="text-center text-[10px] italic text-purple-400/80 py-1 px-4">
+        {entry.gmAction && (
+          <span className="text-[8px] text-purple-500/50 block mb-0.5">[GM: {entry.gmAction}]</span>
+        )}
         {entry.content}
       </div>
     );
@@ -328,6 +498,9 @@ function ChatBubble({ entry }: { entry: ChatEntry }) {
         {!isPlayer && entry.speaker && (
           <div className="font-semibold text-[10px] text-blue-400 mb-0.5">
             {entry.speaker}
+            {entry.gmAction && (
+              <span className="text-[8px] text-purple-400/70 ml-1">[GM]</span>
+            )}
           </div>
         )}
         <div className="whitespace-pre-wrap">{entry.content}</div>
@@ -380,6 +553,97 @@ async function runActionEvaluation(
 
   const log = await sendLlmRequest({ messages, agent: "action_eval" });
   return { response: log.response, log };
+}
+
+async function runRealActionSelector(
+  targetNpc: { displayName: string; uuid: string },
+  playerMessage: string,
+  npcResponse: string,
+  eventHistory: string,
+  eligibleActions: { name: string; description: string; parameterSchema?: string }[],
+  scene: { location: string; scenePrompt: string },
+  activePromptSet: string,
+  addLlmCall: (log: import("@/types/llm").LlmCallLog) => void,
+  setLastAction: (action: { name: string; params?: Record<string, string> } | null) => void,
+  setLastActionSelectorPreview: (preview: {
+    renderedPrompt: string;
+    messages: { role: string; content: string }[];
+    rawResponse: string;
+    parsedAction: string;
+  } | null) => void,
+  addChatEntry: (entry: ChatEntry) => void
+) {
+  // Render the real template
+  const renderRes = await fetch("/api/prompts/render-action-selector", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      npcName: targetNpc.displayName,
+      npcUUID: targetNpc.uuid,
+      playerMessage,
+      npcResponse,
+      eligibleActions: eligibleActions.map((a) => ({
+        name: a.name,
+        description: a.description,
+        parameterSchema: a.parameterSchema,
+      })),
+      eventHistory,
+      scene,
+      promptSetBase: undefined,
+    }),
+  });
+
+  const renderData = await renderRes.json();
+
+  if (renderData.error) {
+    // Fallback info
+    setLastActionSelectorPreview({
+      renderedPrompt: `Error: ${renderData.error}`,
+      messages: [],
+      rawResponse: "",
+      parsedAction: "",
+    });
+    return;
+  }
+
+  // Use rendered messages for LLM call
+  const messages = renderData.messages || [];
+  if (messages.length === 0) {
+    setLastActionSelectorPreview({
+      renderedPrompt: renderData.renderedText || "(empty)",
+      messages: [],
+      rawResponse: "",
+      parsedAction: "Template produced no messages",
+    });
+    return;
+  }
+
+  const log = await sendLlmRequest({ messages, agent: "action_eval" });
+  addLlmCall(log);
+
+  const rawResponse = log.response || "";
+  const actionMatch = rawResponse.match(/ACTION:\s*(\w+)/);
+  const parsedAction = actionMatch ? actionMatch[1] : "None";
+
+  setLastActionSelectorPreview({
+    renderedPrompt: renderData.renderedText || "",
+    messages,
+    rawResponse,
+    parsedAction,
+  });
+
+  if (parsedAction && parsedAction !== "None") {
+    setLastAction({ name: parsedAction });
+    addChatEntry({
+      id: `${Date.now()}-action`,
+      type: "system",
+      content: `[Action: ${parsedAction}]`,
+      timestamp: Date.now(),
+      action: { name: parsedAction },
+    });
+  } else {
+    setLastAction(null);
+  }
 }
 
 async function runSpeakerPrediction(
