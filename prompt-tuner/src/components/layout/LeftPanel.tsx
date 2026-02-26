@@ -6,6 +6,7 @@ import { NpcSelector } from "@/components/npc/NpcSelector";
 import { SceneSetup } from "@/components/world/SceneSetup";
 import { ActionManager } from "@/components/actions/ActionManager";
 import { EventSimulator } from "@/components/triggers/EventSimulator";
+import { AutochatControls } from "@/components/autochat/AutochatControls";
 import { PlayerSetup } from "@/components/simulation/PlayerSetup";
 import { ScenePresetManager } from "@/components/simulation/ScenePresetManager";
 import { Separator } from "@/components/ui/separator";
@@ -21,6 +22,7 @@ import { useAppStore } from "@/stores/appStore";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { useTriggerStore } from "@/stores/triggerStore";
 import {
+  Bot,
   ChevronDown,
   ChevronRight,
   Crown,
@@ -39,6 +41,7 @@ export function LeftPanel() {
     scene: false,
     actions: false,
     events: false,
+    autochat: false,
   });
 
   const toggle = (key: string) =>
@@ -115,6 +118,19 @@ export function LeftPanel() {
               badge={<TriggersBadge />}
             >
               <EventSimulator />
+            </CollapsibleSection>
+
+            <Separator />
+
+            <CollapsibleSection
+              id="autochat"
+              title="Autochat"
+              icon={<Bot className="h-3.5 w-3.5" />}
+              collapsed={collapsed.autochat}
+              onToggle={() => toggle("autochat")}
+              badge={<AutochatBadge />}
+            >
+              <AutochatControls />
             </CollapsibleSection>
           </div>
         </ScrollArea>
@@ -196,5 +212,18 @@ function TriggersBadge() {
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+function AutochatBadge() {
+  const enabled = useSimulationStore((s) => s.autochatEnabled);
+  if (!enabled) return null;
+  return (
+    <Badge
+      variant="outline"
+      className="text-[9px] px-1.5 py-0 border-emerald-500/30 text-emerald-400"
+    >
+      Active
+    </Badge>
   );
 }

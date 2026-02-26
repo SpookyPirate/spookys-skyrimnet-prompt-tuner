@@ -153,3 +153,13 @@
 .dark ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Dark mode number input spinner arrows */
+.dark input[type="number"] {
+  color-scheme: dark;
+}
+
+/* Dark mode select dropdown arrows */
+.dark select {
+  color-scheme: dark;
+}

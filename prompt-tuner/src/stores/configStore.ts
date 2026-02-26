@@ -22,6 +22,7 @@ const ALL_AGENTS: AgentType[] = [
   "meta_eval",
   "diary",
   "tuner",
+  "autochat",
 ];
 
 function createDefaultSlots(): Record<AgentType, ModelSlot> {

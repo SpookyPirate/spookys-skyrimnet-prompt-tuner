@@ -6,9 +6,10 @@ export type AgentType =
   | "action_eval"
   | "meta_eval"
   | "diary"
-  | "tuner";
+  | "tuner"
+  | "autochat";
 
-export type SkyrimNetAgentType = Exclude<AgentType, "tuner">;
+export type SkyrimNetAgentType = Exclude<AgentType, "tuner" | "autochat">;
 
 export const SKYRIMNET_AGENTS: SkyrimNetAgentType[] = [
   "default",
@@ -29,6 +30,7 @@ export const AGENT_LABELS: Record<AgentType, string> = {
   meta_eval: "Meta Eval",
   diary: "Diary",
   tuner: "Tuner",
+  autochat: "Autochat",
 };
 
 export const AGENT_DESCRIPTIONS: Record<AgentType, string> = {
@@ -40,6 +42,7 @@ export const AGENT_DESCRIPTIONS: Record<AgentType, string> = {
   meta_eval: "Target selection and speaker prediction",
   diary: "Diary entry generation",
   tuner: "AI tuner agent for prompt editing assistance",
+  autochat: "Autonomous player character dialogue generation",
 };
 
 export interface ApiSettings {
@@ -108,6 +111,7 @@ export const DEFAULT_MODEL_NAMES: Record<AgentType, string> = {
   meta_eval: "google/gemini-2.5-flash",
   diary: "google/gemini-2.5-flash",
   tuner: "anthropic/claude-sonnet-4",
+  autochat: "google/gemini-2.5-flash",
 };
 
 export interface SettingsProfile {

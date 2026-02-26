@@ -89,6 +89,11 @@ interface SimulationState {
   gmCooldown: number;
   gmContinuousMode: boolean;
   gmActionLog: GmActionEntry[];
+  // Autochat
+  autochatEnabled: boolean;
+  autochatDuration: number;  // minutes, 0 = infinite
+  autochatStartedAt: number | null;  // timestamp ms
+  autochatStatus: "idle" | "running" | "cooldown";
 
   // Player
   setPlayerConfig: (config: Partial<PlayerConfig>) => void;
@@ -127,6 +132,11 @@ interface SimulationState {
   addGmAction: (action: GmActionEntry) => void;
   advanceBeat: () => void;
   clearScenePlan: () => void;
+  // Autochat
+  setAutochatEnabled: (enabled: boolean) => void;
+  setAutochatDuration: (minutes: number) => void;
+  setAutochatStartedAt: (timestamp: number | null) => void;
+  setAutochatStatus: (status: "idle" | "running" | "cooldown") => void;
 }
 
 export const useSimulationStore = create<SimulationState>((set, get) => ({
@@ -156,6 +166,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   gmCooldown: 120,
   gmContinuousMode: false,
   gmActionLog: [],
+  autochatEnabled: false,
+  autochatDuration: 5,
+  autochatStartedAt: null,
+  autochatStatus: "idle",
 
   setPlayerConfig: (config) => {
     set((s) => ({ playerConfig: { ...s.playerConfig, ...config } }));
@@ -303,4 +317,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   clearScenePlan: () =>
     set({ scenePlan: null, gmActionLog: [], isPlanning: false, gmStatus: "idle" }),
+
+  setAutochatEnabled: (enabled) => set({ autochatEnabled: enabled }),
+  setAutochatDuration: (minutes) => set({ autochatDuration: minutes }),
+  setAutochatStartedAt: (timestamp) => set({ autochatStartedAt: timestamp }),
+  setAutochatStatus: (status) => set({ autochatStatus: status }),
 }));
