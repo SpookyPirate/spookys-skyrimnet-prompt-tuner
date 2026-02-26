@@ -12,7 +12,6 @@ import {
   Plus,
   Trash2,
   Pencil,
-  Swords,
 } from "lucide-react";
 import type { ActionCategory, ActionDefinition } from "@/types/actions";
 
@@ -94,18 +93,7 @@ export function ActionManager() {
   const enabled = actionRegistry.filter((a) => a.enabled).length;
 
   return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-2">
-        <Swords className="h-3.5 w-3.5" />
-        <h3 className="text-xs font-semibold text-foreground">
-          Eligible Actions
-        </h3>
-        <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0">
-          {enabled}/{actionRegistry.length}
-        </Badge>
-      </div>
-
-      <div className="space-y-1">
+    <div className="space-y-1">
         {categories.map(({ key, label }) => {
           const actions = actionRegistry.filter((a) => a.category === key);
           if (actions.length === 0 && key !== "custom") return null;
@@ -297,7 +285,6 @@ export function ActionManager() {
             </div>
           );
         })}
-      </div>
     </div>
   );
 }

@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useTriggerStore } from "@/stores/triggerStore";
 import { useAppStore } from "@/stores/appStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Zap, Trash2 } from "lucide-react";
 import {
   TriggerEventType,
   EVENT_FIELD_SCHEMAS,
+  type EventFieldSchema,
   type SimulatedEvent,
 } from "@/types/yaml-configs";
 
@@ -24,7 +19,6 @@ export function EventSimulator() {
   const loadTriggers = useTriggerStore((s) => s.loadTriggers);
   const eventHistory = useTriggerStore((s) => s.eventHistory);
   const clearEventHistory = useTriggerStore((s) => s.clearEventHistory);
-  const triggers = useTriggerStore((s) => s.triggers);
   const activePromptSet = useAppStore((s) => s.activePromptSet);
 
   const [eventType, setEventType] = useState<TriggerEventType>(
@@ -70,27 +64,7 @@ export function EventSimulator() {
   const schema = EVENT_FIELD_SCHEMAS[eventType];
 
   return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-2">
-        <Zap className="h-3.5 w-3.5" />
-        <h3 className="text-xs font-semibold text-foreground">
-          Event Simulator
-        </h3>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 cursor-help">
-                {triggers.length} Custom Triggers
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-56 text-center">
-              Add trigger YAML files to your active prompt set&apos;s config/triggers/ folder, or use Tools &gt; Create Custom Trigger in the toolbar.
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-
-      <div className="space-y-1.5">
+    <div className="space-y-1.5">
         <select
           value={eventType}
           onChange={(e) => setEventType(e.target.value as TriggerEventType)}
@@ -109,13 +83,12 @@ export function EventSimulator() {
               {field.name}{" "}
               <span className="opacity-60">({field.description})</span>
             </label>
-            <Input
-              placeholder={field.example}
+            <SuggestInput
+              field={field}
               value={fields[field.name] || ""}
-              onChange={(e) =>
-                setFields((prev) => ({ ...prev, [field.name]: e.target.value }))
+              onChange={(val) =>
+                setFields((prev) => ({ ...prev, [field.name]: val }))
               }
-              className="h-6 text-[10px]"
             />
           </div>
         ))}
@@ -169,7 +142,119 @@ export function EventSimulator() {
             </div>
           </div>
         )}
-      </div>
+    </div>
+  );
+}
+
+function SuggestInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: EventFieldSchema;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [focusIdx, setFocusIdx] = useState(-1);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const suggestions = field.suggestions || [];
+  const filtered = value
+    ? suggestions.filter((s) => s.toLowerCase().includes(value.toLowerCase()))
+    : suggestions;
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (focusIdx >= 0 && listRef.current) {
+      const items = listRef.current.children;
+      if (items[focusIdx]) {
+        (items[focusIdx] as HTMLElement).scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [focusIdx]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open || filtered.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusIdx((prev) => (prev + 1) % filtered.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusIdx((prev) => (prev <= 0 ? filtered.length - 1 : prev - 1));
+    } else if (e.key === "Enter" && focusIdx >= 0 && focusIdx < filtered.length) {
+      e.preventDefault();
+      onChange(filtered[focusIdx]);
+      setOpen(false);
+      setFocusIdx(-1);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setFocusIdx(-1);
+    }
+  };
+
+  if (suggestions.length === 0) {
+    return (
+      <Input
+        placeholder={field.example}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-6 text-[10px]"
+      />
+    );
+  }
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <Input
+        placeholder={field.example}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+          setFocusIdx(-1);
+        }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={handleKeyDown}
+        className="h-6 text-[10px]"
+      />
+      {open && filtered.length > 0 && (
+        <div
+          ref={listRef}
+          className="absolute z-50 mt-0.5 max-h-36 w-full overflow-auto rounded border bg-popover shadow-md"
+        >
+          {filtered.map((suggestion, idx) => (
+            <button
+              key={suggestion}
+              type="button"
+              className={`w-full px-2 py-1 text-left text-[10px] hover:bg-accent/50 ${
+                idx === focusIdx ? "bg-accent" : ""
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(suggestion);
+                setOpen(false);
+                setFocusIdx(-1);
+              }}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

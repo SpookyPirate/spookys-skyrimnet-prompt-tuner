@@ -319,7 +319,14 @@ function getBuiltinFunction(
       return (args) => stringify(args[0]);
 
     case "exists":
-      return (args) => args[0] !== undefined && args[0] !== null;
+      return (args, ctx) => {
+        // exists("varname") should look up the variable name in context
+        if (typeof args[0] === "string") {
+          return resolveVariable(args[0], ctx) !== undefined;
+        }
+        // exists(value) checks if the value itself is defined
+        return args[0] !== undefined && args[0] !== null;
+      };
 
     case "existsIn":
       return (args) => {
@@ -353,6 +360,40 @@ function getBuiltinFunction(
         if (typeof arr === "string" && arr.length > 0)
           return arr[arr.length - 1];
         return undefined;
+      };
+
+    case "append":
+      return (args) => {
+        const arr = args[0];
+        const val = args[1];
+        if (Array.isArray(arr)) {
+          return [...arr, val];
+        }
+        return [val];
+      };
+
+    case "short_time":
+      return (args) => {
+        // Extracts time from game time string like "Sundas, 3:00 PM, 17th of Last Seed, 4E 201"
+        const str = stringify(args[0]);
+        const match = str.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+        return match ? match[1] : str;
+      };
+
+    case "capitalize":
+      return (args) => {
+        const s = stringify(args[0]);
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      };
+
+    case "has_key":
+      return (args) => {
+        const obj = args[0];
+        const key = stringify(args[1]);
+        if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+          return key in (obj as Record<string, InjaValue>);
+        }
+        return false;
       };
 
     case "range":

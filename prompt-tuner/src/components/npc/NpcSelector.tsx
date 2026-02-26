@@ -61,11 +61,6 @@ export function NpcSelector() {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1.5">
-        <User className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-semibold">NPCs in Scene</span>
-      </div>
-
       {/* Search bar */}
       <div className="relative">
         <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />

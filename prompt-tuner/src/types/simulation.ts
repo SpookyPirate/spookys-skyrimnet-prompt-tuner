@@ -1,5 +1,14 @@
 import type { InjaValue } from "@/lib/inja/renderer";
 
+export interface PlayerConfig {
+  name: string;
+  gender: string;
+  race: string;
+  level: number;
+  isInCombat: boolean;
+  bio: string;
+}
+
 export interface NpcConfig {
   uuid: string;
   name: string;
@@ -36,4 +45,15 @@ export interface DemoAction {
   name: string;
   description: string;
   parameterSchema?: string;
+}
+
+export interface ScenePreset {
+  id: string;
+  name: string;
+  createdAt: string;
+  scene: SceneConfig;
+  npcs: NpcConfig[];
+  /** Map of action ID → enabled state */
+  actionStates?: Record<string, boolean>;
+  player?: PlayerConfig;
 }

@@ -1,89 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
-import { assemblePrompt, type FileLoader, type SimulationState } from "@/lib/pipeline/assembler";
+import { assemblePrompt } from "@/lib/pipeline/assembler";
 import { ORIGINAL_PROMPTS_DIR } from "@/lib/files/paths";
+import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
+import { createFileLoader, readTemplate } from "@/lib/pipeline/file-loader-factory";
 import type { InjaValue } from "@/lib/inja/renderer";
 
 /**
  * Render the gamemaster_action_selector.prompt template.
- * POST body: { npcs, scene, eventHistory, scenePlan, isContinuousMode, promptSetBase? }
+ * POST body: { npcs, scene, chatHistory?, eventHistory?, scenePlan?, isContinuousMode?, promptSetBase?, player? }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { npcs, scene, eventHistory, scenePlan, isContinuousMode, promptSetBase } = body;
+    const {
+      npcs = [],
+      scene,
+      chatHistory = [],
+      eventHistory,
+      scenePlan,
+      isContinuousMode,
+      gameEvents = [],
+      promptSetBase,
+      player,
+    } = body;
 
     const baseDir = promptSetBase || ORIGINAL_PROMPTS_DIR;
+    const fileLoader = createFileLoader(baseDir);
 
-    const templateName = "gamemaster_action_selector.prompt";
     let templateSource: string;
     try {
-      templateSource = await fs.readFile(path.join(baseDir, templateName), "utf-8");
+      templateSource = await readTemplate(baseDir, "gamemaster_action_selector.prompt");
     } catch {
-      try {
-        templateSource = await fs.readFile(path.join(ORIGINAL_PROMPTS_DIR, templateName), "utf-8");
-      } catch {
-        return NextResponse.json(
-          { error: `Template not found: ${templateName}` },
-          { status: 404 }
-        );
-      }
+      return NextResponse.json(
+        { error: "Template not found: gamemaster_action_selector.prompt" },
+        { status: 404 }
+      );
     }
 
-    const fileLoader: FileLoader = {
-      readFile: async (filePath: string) => {
-        try {
-          return await fs.readFile(path.join(baseDir, filePath), "utf-8");
-        } catch {
-          return await fs.readFile(path.join(ORIGINAL_PROMPTS_DIR, filePath), "utf-8");
-        }
-      },
-      listDir: async (dirPath: string) => {
-        const results: string[] = [];
-        try {
-          const files = await fs.readdir(path.join(baseDir, dirPath));
-          results.push(...files);
-        } catch {}
-        try {
-          const files = await fs.readdir(path.join(ORIGINAL_PROMPTS_DIR, dirPath));
-          for (const f of files) if (!results.includes(f)) results.push(f);
-        } catch {}
-        return results;
-      },
-    };
-
-    const nearbyNpcs = (npcs || []).map((n: Record<string, string>) => ({
-      name: n.name || n.displayName,
-      UUID: n.uuid || "unknown",
-      gender: n.gender || "Unknown",
-      race: n.race || "Unknown",
+    const selectedNpcs = npcs.map((n: Record<string, string | number>) => ({
+      uuid: n.uuid || "unknown",
+      name: String(n.name || n.displayName || "NPC"),
+      displayName: String(n.displayName || n.name || "NPC"),
+      gender: String(n.gender || "Unknown"),
+      race: String(n.race || "Unknown"),
+      distance: Number(n.distance || 200),
+      filePath: "",
     }));
 
-    const simState: SimulationState = {
-      npc: nearbyNpcs[0] || { name: "NPC", UUID: "npc_001", gender: "Unknown", race: "Unknown" },
-      player: { name: "Player", UUID: "player_001", gender: "Male", race: "Nord" },
-      location: scene?.location || "Whiterun",
-      sceneContext: [
-        scene?.scenePrompt || "",
-        scenePlan ? `Scene Plan: ${JSON.stringify(scenePlan)}` : "",
-        isContinuousMode ? "Mode: Continuous (keep directing scene beats)" : "",
-      ].filter(Boolean).join("\n"),
-      recentEvents: eventHistory || "",
-      relevantMemories: "",
-      nearbyNpcs: nearbyNpcs as InjaValue[],
-      eligibleActions: [],
-      dialogueRequest: "",
-      dialogueResponse: "",
-      lastSpeaker: { name: "" },
-      candidateDialogues: [],
-      renderMode: "full",
-      structuredJsonActions: false,
-      customVariables: {
-        scene_plan: scenePlan ? JSON.stringify(scenePlan) : "",
-        is_continuous_mode: !!isContinuousMode,
-      },
-    };
+    const simState = buildFullSimulationState({
+      player,
+      scene: scene || { location: "Whiterun", weather: "Clear", timeOfDay: "Afternoon", worldPrompt: "", scenePrompt: "" },
+      selectedNpcs,
+      chatHistory,
+      scenePlan: scenePlan || null,
+      isContinuousMode: !!isContinuousMode,
+      gameEvents,
+      customVariables: eventHistory
+        ? { event_history_string: eventHistory } as Record<string, InjaValue>
+        : {},
+    });
 
     const result = await assemblePrompt(templateSource, simState, fileLoader);
 
