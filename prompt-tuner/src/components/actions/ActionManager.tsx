@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePersistedSet } from "@/hooks/usePersistedState";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,7 @@ export function ActionManager() {
   const removeCustomAction = useSimulationStore((s) => s.removeCustomAction);
   const updateCustomAction = useSimulationStore((s) => s.updateCustomAction);
 
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(["builtin"])
-  );
+  const [expandedCategories, setExpandedCategories] = usePersistedSet("action-manager-expanded", ["builtin"]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");

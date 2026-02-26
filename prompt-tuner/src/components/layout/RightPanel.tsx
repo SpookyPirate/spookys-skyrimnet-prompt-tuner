@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -125,7 +125,20 @@ function Section({
   children: React.ReactNode;
   defaultCollapsed?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const storageKey = `right-panel-${title.toLowerCase().replace(/\s+/g, "-")}`;
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return defaultCollapsed;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored !== null ? JSON.parse(stored) : defaultCollapsed;
+    } catch {
+      return defaultCollapsed;
+    }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(collapsed)); } catch { /* ignore */ }
+  }, [storageKey, collapsed]);
   return (
     <div>
       <button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { FileExplorer } from "@/components/file-explorer/FileExplorer";
 import { NpcSelector } from "@/components/npc/NpcSelector";
 import { SceneSetup } from "@/components/world/SceneSetup";
@@ -33,7 +33,7 @@ import {
 export function LeftPanel() {
   const activeTab = useAppStore((s) => s.activeTab);
 
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+  const [collapsed, setCollapsed] = usePersistedState<Record<string, boolean>>("left-panel-collapsed", {
     player: false,
     npcs: false,
     scene: false,
