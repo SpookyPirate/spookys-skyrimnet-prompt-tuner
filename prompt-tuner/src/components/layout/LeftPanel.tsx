@@ -20,7 +20,7 @@ export function LeftPanel() {
             Simulation Setup
           </span>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="p-3 space-y-3">
             <NpcSelector />
             <Separator />

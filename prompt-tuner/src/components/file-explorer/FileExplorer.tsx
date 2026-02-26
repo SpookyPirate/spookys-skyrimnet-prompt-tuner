@@ -83,7 +83,7 @@ export function FileExplorer() {
           )}
         </div>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-hidden">
         <div className="px-1 pb-4">
           {isLoadingTree ? (
             <div className="flex items-center justify-center py-8">

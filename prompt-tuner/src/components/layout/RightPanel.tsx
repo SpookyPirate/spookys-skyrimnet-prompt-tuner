@@ -24,7 +24,7 @@ export function RightPanel() {
       <div className="flex h-8 items-center border-b px-3">
         <span className="text-xs font-medium text-muted-foreground">Analysis</span>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-hidden">
         <div className="p-3 space-y-4">
           <Section title="Action Triggers" icon={<Zap className="h-3.5 w-3.5" />}>
             {lastAction ? (
