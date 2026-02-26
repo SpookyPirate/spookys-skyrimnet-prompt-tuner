@@ -85,8 +85,8 @@ interface SimulationState {
   gmEnabled: boolean;
   scenePlan: ScenePlan | null;
   isPlanning: boolean;
-  isDirecting: boolean;
-  gmAutoAdvance: boolean;
+  gmStatus: "idle" | "planning" | "running" | "cooldown";
+  gmCooldown: number;
   gmContinuousMode: boolean;
   gmActionLog: GmActionEntry[];
 
@@ -121,8 +121,8 @@ interface SimulationState {
   setGmEnabled: (enabled: boolean) => void;
   setScenePlan: (plan: ScenePlan | null) => void;
   setIsPlanning: (planning: boolean) => void;
-  setIsDirecting: (directing: boolean) => void;
-  setGmAutoAdvance: (auto: boolean) => void;
+  setGmStatus: (status: "idle" | "planning" | "running" | "cooldown") => void;
+  setGmCooldown: (seconds: number) => void;
   setGmContinuousMode: (continuous: boolean) => void;
   addGmAction: (action: GmActionEntry) => void;
   advanceBeat: () => void;
@@ -152,8 +152,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   gmEnabled: false,
   scenePlan: null,
   isPlanning: false,
-  isDirecting: false,
-  gmAutoAdvance: true,
+  gmStatus: "idle",
+  gmCooldown: 120,
   gmContinuousMode: false,
   gmActionLog: [],
 
@@ -282,9 +282,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   setIsPlanning: (planning) => set({ isPlanning: planning }),
 
-  setIsDirecting: (directing) => set({ isDirecting: directing }),
+  setGmStatus: (status) => set({ gmStatus: status }),
 
-  setGmAutoAdvance: (auto) => set({ gmAutoAdvance: auto }),
+  setGmCooldown: (seconds) => set({ gmCooldown: seconds }),
 
   setGmContinuousMode: (continuous) => set({ gmContinuousMode: continuous }),
 
@@ -302,5 +302,5 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     }),
 
   clearScenePlan: () =>
-    set({ scenePlan: null, gmActionLog: [], isPlanning: false, isDirecting: false }),
+    set({ scenePlan: null, gmActionLog: [], isPlanning: false, gmStatus: "idle" }),
 }));

@@ -9,7 +9,6 @@ import { useConfigStore } from "@/stores/configStore";
 import { useAppStore } from "@/stores/appStore";
 import { useTriggerStore } from "@/stores/triggerStore";
 import { sendLlmRequest } from "@/lib/llm/client";
-import { parseGmAction } from "@/lib/gamemaster/action-parser";
 import type { ChatMessage } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
 import { GmControls } from "@/components/gamemaster/GmControls";
@@ -32,15 +31,6 @@ export function PreviewChat() {
   const setLastDialoguePreview = useSimulationStore((s) => s.setLastDialoguePreview);
   const setLastTargetSelectorPreview = useSimulationStore((s) => s.setLastTargetSelectorPreview);
   const setLastSpeakerSelectorPreview = useSimulationStore((s) => s.setLastSpeakerSelectorPreview);
-  // F5: GameMaster
-  const gmEnabled = useSimulationStore((s) => s.gmEnabled);
-  const scenePlan = useSimulationStore((s) => s.scenePlan);
-  const gmAutoAdvance = useSimulationStore((s) => s.gmAutoAdvance);
-  const gmContinuousMode = useSimulationStore((s) => s.gmContinuousMode);
-  const advanceBeat = useSimulationStore((s) => s.advanceBeat);
-  const addGmAction = useSimulationStore((s) => s.addGmAction);
-  const setIsDirecting = useSimulationStore((s) => s.setIsDirecting);
-
   const activePromptSet = useAppStore((s) => s.activePromptSet);
   const globalApiKey = useConfigStore((s) => s.globalApiKey);
   const gameEvents = useTriggerStore((s) => s.eventHistory);
@@ -262,20 +252,6 @@ export function PreviewChat() {
           }
         }
 
-        // Step 5: GameMaster auto-advance through pipeline
-        if (gmEnabled && gmAutoAdvance && scenePlan) {
-          await runGmCycle(
-            targetNpc,
-            [...fullChatHistory, {
-              id: `${Date.now()}-npc-gm`,
-              type: "npc" as const,
-              speaker: targetNpc.displayName,
-              content: npcResponse,
-              timestamp: Date.now(),
-            }],
-            gmContinuousMode ? 3 : 1
-          );
-        }
       } else if (dialogueLog.error) {
         addChatEntry({
           id: `${Date.now()}-error`,
@@ -302,173 +278,8 @@ export function PreviewChat() {
     addChatEntry, setProcessing, addLlmCall, setLastAction, setLastSpeakerPrediction,
     getEligibleActions, activePromptSet, setLastActionSelectorPreview,
     setLastDialoguePreview, setLastTargetSelectorPreview, setLastSpeakerSelectorPreview,
-    gmEnabled, gmAutoAdvance, gmContinuousMode, scenePlan, streamingText, gameEvents,
+    streamingText, gameEvents,
   ]);
-
-  // F5: GameMaster cycle — wired through pipeline routes
-  const runGmCycle = useCallback(
-    async (
-      lastNpc: { displayName: string; gender: string; race: string },
-      fullChatHistory: ChatEntry[],
-      maxRounds: number
-    ) => {
-      setIsDirecting(true);
-      try {
-        for (let round = 0; round < maxRounds; round++) {
-          const currentBeat = scenePlan?.beats[scenePlan.currentBeatIndex];
-          if (!currentBeat) break;
-
-          // Try rendering GM action selector through pipeline
-          let gmMessages: ChatMessage[];
-          try {
-            const renderRes = await fetch("/api/prompts/render-gm-action-selector", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                npcs: selectedNpcs,
-                scene,
-                chatHistory: fullChatHistory,
-                scenePlan,
-                isContinuousMode: gmContinuousMode,
-                gameEvents,
-                promptSetBase: activePromptSet || undefined,
-                player: playerConfig,
-              }),
-            });
-            const renderData = await renderRes.json();
-            if (renderData.messages && renderData.messages.length > 0) {
-              gmMessages = renderData.messages;
-            } else {
-              throw new Error(renderData.error || "Empty render");
-            }
-          } catch (err) {
-            // Fallback to hardcoded GM prompt
-            toast.warning("GM action selector pipeline failed", {
-              description: `Could not render gamemaster_action_selector.prompt — using simplified fallback. ${err instanceof Error ? err.message : ""}`,
-            });
-            gmMessages = [
-              {
-                role: "system",
-                content: `You are a Skyrim GameMaster directing a scene. Current beat: "${currentBeat.description}" (${currentBeat.type}).
-Characters: ${selectedNpcs.map((n) => n.displayName).join(", ")}
-Location: ${scene.location}
-
-Choose an action. Output one line:
-ACTION: StartConversation(speaker="Name", target="Name", topic="topic")
-ACTION: ContinueConversation(speaker="Name", topic="topic")
-ACTION: Narrate(text="narrative text")
-ACTION: None`,
-              },
-              {
-                role: "user",
-                content: `Recent events:\n${fullChatHistory.map((e) => e.type === "player" ? `${e.speaker || "Player"}: ${e.content}` : e.type === "npc" ? `${e.speaker}: ${e.content}` : e.content).join("\n")}\n\nWhat should happen next in this beat?`,
-              },
-            ];
-          }
-
-          const gmLog = await sendLlmRequest({ messages: gmMessages, agent: "game_master" });
-          addLlmCall(gmLog);
-
-          if (!gmLog.response) break;
-
-          const parsed = parseGmAction(gmLog.response);
-          addGmAction({
-            action: parsed.action,
-            params: parsed.params,
-            beatIndex: scenePlan?.currentBeatIndex ?? 0,
-          });
-
-          if (parsed.action === "None") break;
-
-          if (parsed.action === "Narrate" && parsed.params.text) {
-            const narrationEntry: ChatEntry = {
-              id: `${Date.now()}-narration`,
-              type: "narration",
-              content: parsed.params.text,
-              timestamp: Date.now(),
-              gmBeatIndex: scenePlan?.currentBeatIndex,
-              gmAction: "Narrate",
-            };
-            addChatEntry(narrationEntry);
-            fullChatHistory = [...fullChatHistory, narrationEntry];
-          } else if (
-            (parsed.action === "StartConversation" || parsed.action === "ContinueConversation") &&
-            parsed.params.speaker
-          ) {
-            const speaker = selectedNpcs.find(
-              (n) => n.displayName.toLowerCase() === parsed.params.speaker?.toLowerCase()
-            );
-            if (speaker) {
-              // Try to render NPC dialogue through pipeline for GM-directed speech
-              let npcMessages: ChatMessage[];
-              try {
-                const renderRes = await fetch("/api/prompts/render-dialogue", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    npc: speaker,
-                    player: playerConfig,
-                    scene,
-                    selectedNpcs,
-                    chatHistory: fullChatHistory,
-                    gameEvents,
-                    promptSetBase: activePromptSet || undefined,
-                  }),
-                });
-                const renderData = await renderRes.json();
-                if (renderData.messages && renderData.messages.length > 0) {
-                  npcMessages = renderData.messages;
-                } else {
-                  throw new Error("Empty render");
-                }
-              } catch (err) {
-                toast.warning("GM dialogue pipeline failed", {
-                  description: `Could not render dialogue_response.prompt for ${speaker.displayName} — using simplified fallback. ${err instanceof Error ? err.message : ""}`,
-                });
-                npcMessages = [
-                  {
-                    role: "system",
-                    content: `You are ${speaker.displayName}, a ${speaker.gender} ${speaker.race} in Skyrim. Location: ${scene.location}. ${parsed.params.topic ? `Topic: ${parsed.params.topic}` : ""}. Respond in character. Keep it to 1-2 sentences.`,
-                  },
-                  {
-                    role: "user",
-                    content: `${parsed.params.target ? `Speaking to ${parsed.params.target}: ` : ""}${parsed.params.topic || "Continue the scene."}`,
-                  },
-                ];
-              }
-
-              const npcLog = await sendLlmRequest({ messages: npcMessages, agent: "default" });
-              addLlmCall(npcLog);
-
-              if (npcLog.response) {
-                const npcEntry: ChatEntry = {
-                  id: `${Date.now()}-gm-npc`,
-                  type: "npc",
-                  speaker: speaker.displayName,
-                  target: parsed.params.target,
-                  content: npcLog.response,
-                  timestamp: Date.now(),
-                  gmBeatIndex: scenePlan?.currentBeatIndex,
-                  gmAction: parsed.action,
-                };
-                addChatEntry(npcEntry);
-                fullChatHistory = [...fullChatHistory, npcEntry];
-              }
-            }
-          }
-
-          // Advance beat after each GM round
-          advanceBeat();
-        }
-      } catch (e) {
-        console.error("GM cycle error:", e);
-      } finally {
-        setIsDirecting(false);
-      }
-    },
-    [scenePlan, selectedNpcs, scene, playerConfig, activePromptSet, gmContinuousMode,
-     addLlmCall, addChatEntry, addGmAction, advanceBeat, setIsDirecting, gameEvents]
-  );
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();

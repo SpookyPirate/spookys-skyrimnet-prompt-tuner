@@ -1,108 +1,41 @@
 "use client";
 
-import { useCallback } from "react";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { useConfigStore } from "@/stores/configStore";
-import { useAppStore } from "@/stores/appStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { sendLlmRequest } from "@/lib/llm/client";
+import { useGmLoop } from "@/hooks/useGmLoop";
 import {
   Theater,
-  Play,
   SkipForward,
   RotateCcw,
+  Timer,
   Loader2,
 } from "lucide-react";
-import type { SceneBeat, ScenePlan } from "@/types/gamemaster";
+
+const GM_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  idle: { label: "Idle", color: "text-muted-foreground" },
+  planning: { label: "Planning...", color: "text-yellow-400" },
+  running: { label: "Running", color: "text-green-400" },
+  cooldown: { label: "Cooldown", color: "text-blue-400" },
+};
 
 export function GmControls() {
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
   const setGmEnabled = useSimulationStore((s) => s.setGmEnabled);
   const scenePlan = useSimulationStore((s) => s.scenePlan);
   const isPlanning = useSimulationStore((s) => s.isPlanning);
-  const setIsPlanning = useSimulationStore((s) => s.setIsPlanning);
-  const setScenePlan = useSimulationStore((s) => s.setScenePlan);
-  const gmAutoAdvance = useSimulationStore((s) => s.gmAutoAdvance);
-  const setGmAutoAdvance = useSimulationStore((s) => s.setGmAutoAdvance);
+  const gmStatus = useSimulationStore((s) => s.gmStatus);
+  const gmCooldown = useSimulationStore((s) => s.gmCooldown);
+  const setGmCooldown = useSimulationStore((s) => s.setGmCooldown);
   const gmContinuousMode = useSimulationStore((s) => s.gmContinuousMode);
   const setGmContinuousMode = useSimulationStore((s) => s.setGmContinuousMode);
   const advanceBeat = useSimulationStore((s) => s.advanceBeat);
   const clearScenePlan = useSimulationStore((s) => s.clearScenePlan);
-  const selectedNpcs = useSimulationStore((s) => s.selectedNpcs);
-  const scene = useSimulationStore((s) => s.scene);
-  const addLlmCall = useSimulationStore((s) => s.addLlmCall);
   const globalApiKey = useConfigStore((s) => s.globalApiKey);
-  const activePromptSet = useAppStore((s) => s.activePromptSet);
 
-  const handlePlanScene = useCallback(async () => {
-    if (!globalApiKey) return;
-    setIsPlanning(true);
-
-    try {
-      const npcNames = selectedNpcs.map((n) => n.displayName).join(", ");
-      const messages = [
-        {
-          role: "system" as const,
-          content: `You are a Skyrim GameMaster scene planner. Plan a dramatic scene with clear beats.
-Output JSON only (no markdown fences):
-{
-  "summary": "one sentence scene summary",
-  "tone": "dramatic|humorous|tense|mysterious|somber",
-  "tension": "low|medium|high",
-  "beats": [
-    {
-      "order": 1,
-      "type": "dialogue|narration|action|transition",
-      "description": "what happens",
-      "primaryCharacters": ["Name1"],
-      "purpose": "why this beat matters"
-    }
-  ]
-}`,
-        },
-        {
-          role: "user" as const,
-          content: `Location: ${scene.location}\nNPCs: ${npcNames || "None specified"}\nScene context: ${scene.scenePrompt || "General Skyrim scene"}\n\nPlan a scene with 3-6 beats.`,
-        },
-      ];
-
-      const log = await sendLlmRequest({ messages, agent: "game_master" });
-      addLlmCall(log);
-
-      if (log.response) {
-        try {
-          // Strip markdown fences if present
-          const jsonStr = log.response.replace(/```json?\n?/g, "").replace(/```\n?/g, "").trim();
-          const parsed = JSON.parse(jsonStr);
-          const plan: ScenePlan = {
-            summary: parsed.summary || "Scene plan",
-            tone: parsed.tone || "dramatic",
-            tension: parsed.tension || "medium",
-            beats: (parsed.beats || []).map((b: Partial<SceneBeat>, i: number) => ({
-              order: b.order || i + 1,
-              type: b.type || "dialogue",
-              description: b.description || "",
-              primaryCharacters: b.primaryCharacters || [],
-              purpose: b.purpose || "",
-            })),
-            currentBeatIndex: 0,
-            upcomingBeats: [],
-          };
-          plan.upcomingBeats = plan.beats.slice(1).map((b) => b.description);
-          setScenePlan(plan);
-        } catch {
-          console.error("Failed to parse scene plan:", log.response);
-        }
-      }
-    } catch (e) {
-      console.error("Scene planning failed:", e);
-    } finally {
-      setIsPlanning(false);
-    }
-  }, [
-    globalApiKey, selectedNpcs, scene, setIsPlanning, setScenePlan, addLlmCall, activePromptSet,
-  ]);
+  // Initialize the GM loop hook (manages its own lifecycle via store subscriptions)
+  useGmLoop();
 
   if (!gmEnabled) {
     return (
@@ -113,6 +46,7 @@ Output JSON only (no markdown fences):
             checked={gmEnabled}
             onChange={(e) => setGmEnabled(e.target.checked)}
             className="h-3 w-3 accent-purple-500"
+            disabled={!globalApiKey}
           />
           <Theater className="h-3.5 w-3.5 text-purple-400" />
           <span className="text-[10px] text-muted-foreground">
@@ -123,8 +57,11 @@ Output JSON only (no markdown fences):
     );
   }
 
+  const statusInfo = GM_STATUS_LABELS[gmStatus] || GM_STATUS_LABELS.idle;
+
   return (
     <div className="border-t px-2 py-1.5 space-y-1.5 bg-purple-500/5">
+      {/* Header: GM toggle + status */}
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2">
           <input
@@ -139,6 +76,18 @@ Output JSON only (no markdown fences):
           </span>
         </label>
 
+        {isPlanning ? (
+          <span className="flex items-center gap-1 text-[9px] text-yellow-400">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Planning...
+          </span>
+        ) : (
+          <span className={`text-[9px] ${statusInfo.color}`}>
+            {statusInfo.label}
+            {gmStatus === "cooldown" && ` (${gmCooldown}s)`}
+          </span>
+        )}
+
         {scenePlan && (
           <Badge
             variant="outline"
@@ -149,68 +98,63 @@ Output JSON only (no markdown fences):
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-5 text-[9px] gap-1 border-purple-500/30"
-          onClick={handlePlanScene}
-          disabled={isPlanning}
-        >
-          {isPlanning ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Play className="h-3 w-3" />
-          )}
-          Plan Scene
-        </Button>
-
-        {scenePlan && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-5 text-[9px] gap-1 border-purple-500/30"
-              onClick={advanceBeat}
-              disabled={scenePlan.currentBeatIndex >= scenePlan.beats.length - 1}
-            >
-              <SkipForward className="h-3 w-3" />
-              Next Beat
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-5 text-[9px] gap-1"
-              onClick={clearScenePlan}
-            >
-              <RotateCcw className="h-3 w-3" />
-              Reset
-            </Button>
-          </>
-        )}
-      </div>
-
-      <div className="flex gap-3">
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={gmAutoAdvance}
-            onChange={(e) => setGmAutoAdvance(e.target.checked)}
-            className="h-2.5 w-2.5 accent-purple-500"
-          />
-          <span className="text-[9px] text-muted-foreground">Auto-advance</span>
-        </label>
+      {/* Controls row: Continuous toggle + cooldown + beat controls */}
+      <div className="flex items-center gap-3">
+        {/* Continuous mode (F10 equivalent) */}
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
             checked={gmContinuousMode}
             onChange={(e) => setGmContinuousMode(e.target.checked)}
+            disabled={isPlanning}
             className="h-2.5 w-2.5 accent-purple-500"
           />
           <span className="text-[9px] text-muted-foreground">Continuous</span>
         </label>
+
+        {/* Cooldown slider */}
+        <div className="flex items-center gap-1">
+          <Timer className="h-3 w-3 text-muted-foreground" />
+          <input
+            type="range"
+            min={gmContinuousMode ? 3 : 30}
+            max={gmContinuousMode ? 30 : 300}
+            step={gmContinuousMode ? 1 : 10}
+            value={gmCooldown}
+            onChange={(e) => setGmCooldown(Number(e.target.value))}
+            className="h-1 w-14 accent-purple-500"
+          />
+          <span className="text-[9px] text-muted-foreground w-8 text-right">
+            {gmCooldown}s
+          </span>
+        </div>
+
+        {/* Beat controls (only in continuous mode with plan) */}
+        {scenePlan && (
+          <div className="flex gap-1 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-5 text-[9px] gap-0.5 border-purple-500/30 px-1.5"
+              onClick={advanceBeat}
+              disabled={scenePlan.currentBeatIndex >= scenePlan.beats.length - 1}
+            >
+              <SkipForward className="h-2.5 w-2.5" />
+              Beat
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-5 text-[9px] gap-0.5 px-1.5"
+              onClick={clearScenePlan}
+            >
+              <RotateCcw className="h-2.5 w-2.5" />
+            </Button>
+          </div>
+        )}
       </div>
 
+      {/* Current beat display (continuous mode only) */}
       {scenePlan && scenePlan.beats[scenePlan.currentBeatIndex] && (
         <div className="rounded border border-purple-500/20 bg-purple-500/5 p-1.5">
           <div className="text-[9px] text-purple-400 font-semibold mb-0.5">

@@ -68,6 +68,17 @@ export function parseCharacterName(filename: string): {
 }
 
 /**
+ * Resolve a prompt set name (e.g. "v1.0") to the absolute path of its prompts directory.
+ * If the value is already an absolute path, returns it as-is.
+ * If falsy, returns ORIGINAL_PROMPTS_DIR.
+ */
+export function resolvePromptSetBase(nameOrPath: string | undefined | null): string {
+  if (!nameOrPath) return ORIGINAL_PROMPTS_DIR;
+  if (path.isAbsolute(nameOrPath)) return nameOrPath;
+  return path.join(EDITED_PROMPTS_DIR, nameOrPath, "prompts");
+}
+
+/**
  * Ensure a path is within the allowed project directories
  */
 export function isPathAllowed(filePath: string): boolean {

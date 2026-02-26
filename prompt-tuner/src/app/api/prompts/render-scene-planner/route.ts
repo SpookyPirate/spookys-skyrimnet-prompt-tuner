@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assemblePrompt } from "@/lib/pipeline/assembler";
-import { ORIGINAL_PROMPTS_DIR } from "@/lib/files/paths";
+import { resolvePromptSetBase } from "@/lib/files/paths";
 import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
 import { createFileLoader, readTemplate } from "@/lib/pipeline/file-loader-factory";
 
 /**
  * Render the gamemaster_scene_planner.prompt template.
- * POST body: { npcs, scene, chatHistory?, eventHistory?, promptSetBase?, player? }
+ * POST body: { npcs, scene, chatHistory?, eventHistory?, gameEvents?, promptSetBase?, player? }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { npcs = [], scene, chatHistory = [], eventHistory, promptSetBase, player } = body;
+    const { npcs = [], scene, chatHistory = [], eventHistory, gameEvents = [], promptSetBase, player } = body;
 
-    const baseDir = promptSetBase || ORIGINAL_PROMPTS_DIR;
+    const baseDir = resolvePromptSetBase(promptSetBase);
     const fileLoader = createFileLoader(baseDir);
 
     let templateSource: string;
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       scene: scene || { location: "Whiterun", weather: "Clear", timeOfDay: "Afternoon", worldPrompt: "", scenePrompt: "" },
       selectedNpcs,
       chatHistory,
+      gameEvents,
       customVariables: eventHistory ? { event_history_string: eventHistory } : {},
     });
 
