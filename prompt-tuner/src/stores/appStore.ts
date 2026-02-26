@@ -3,22 +3,26 @@ import { create } from "zustand";
 const STORAGE_KEY = "skyrimnet-app";
 const DEFAULT_PROMPT_SET = "v1.0";
 
-function loadPersistedState(): { activePromptSet: string } {
-  if (typeof window === "undefined") return { activePromptSet: DEFAULT_PROMPT_SET };
+function loadPersistedState(): { activePromptSet: string; activeTab: "editor" | "tuner" | "preview" } {
+  if (typeof window === "undefined") return { activePromptSet: DEFAULT_PROMPT_SET, activeTab: "editor" };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { activePromptSet: parsed.activePromptSet ?? DEFAULT_PROMPT_SET };
+      const tab = parsed.activeTab;
+      return {
+        activePromptSet: parsed.activePromptSet ?? DEFAULT_PROMPT_SET,
+        activeTab: tab === "editor" || tab === "tuner" || tab === "preview" ? tab : "editor",
+      };
     }
   } catch {}
-  return { activePromptSet: DEFAULT_PROMPT_SET };
+  return { activePromptSet: DEFAULT_PROMPT_SET, activeTab: "editor" };
 }
 
-function persistState(state: { activePromptSet: string }) {
+function persistState(state: { activePromptSet: string; activeTab: string }) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ activePromptSet: state.activePromptSet }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ activePromptSet: state.activePromptSet, activeTab: state.activeTab }));
   } catch {}
 }
 
@@ -47,16 +51,18 @@ interface AppState {
   setCreateYamlDialogOpen: (open: boolean, type?: "action" | "trigger") => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+const _persisted = loadPersistedState();
+
+export const useAppStore = create<AppState>((set, get) => ({
   leftPanelOpen: true,
   rightPanelOpen: true,
-  activeTab: "editor",
+  activeTab: _persisted.activeTab,
   exportDialogOpen: false,
   saveSetDialogOpen: false,
   loadPromptSetDialogOpen: false,
   enhanceSpeechDialogOpen: false,
   updateOriginalsDialogOpen: false,
-  activePromptSet: loadPersistedState().activePromptSet,
+  activePromptSet: _persisted.activePromptSet,
   createYamlDialogOpen: false,
   createYamlType: "action" as const,
 
@@ -64,15 +70,18 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({ leftPanelOpen: !state.leftPanelOpen })),
   toggleRightPanel: () =>
     set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
-  setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveTab: (tab) => {
+    set({ activeTab: tab });
+    persistState({ activePromptSet: get().activePromptSet, activeTab: tab });
+  },
   setExportDialogOpen: (open) => set({ exportDialogOpen: open }),
   setSaveSetDialogOpen: (open) => set({ saveSetDialogOpen: open }),
   setLoadPromptSetDialogOpen: (open) => set({ loadPromptSetDialogOpen: open }),
   setEnhanceSpeechDialogOpen: (open) => set({ enhanceSpeechDialogOpen: open }),
   setUpdateOriginalsDialogOpen: (open) => set({ updateOriginalsDialogOpen: open }),
   setActivePromptSet: (name) => {
-    persistState({ activePromptSet: name });
     set({ activePromptSet: name });
+    persistState({ activePromptSet: name, activeTab: get().activeTab });
   },
   setCreateYamlDialogOpen: (open, type) =>
     set({ createYamlDialogOpen: open, ...(type ? { createYamlType: type } : {}) }),

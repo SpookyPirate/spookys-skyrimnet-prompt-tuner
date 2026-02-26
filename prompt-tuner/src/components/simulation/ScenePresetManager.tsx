@@ -1,16 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useScenePresetStore } from "@/stores/scenePresetStore";
 import { useSimulationStore } from "@/stores/simulationStore";
+import type { ScenePreset } from "@/types/simulation";
 import { Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+
+function applyPresetToSimulation(preset: ScenePreset) {
+  const simStore = useSimulationStore.getState();
+  simStore.setScene(preset.scene);
+  simStore.selectedNpcs.forEach((n) => simStore.removeNpc(n.uuid));
+  preset.npcs.forEach((n) => simStore.addNpc(n));
+  if (preset.actionStates) {
+    for (const action of simStore.actionRegistry) {
+      const savedState = preset.actionStates[action.id];
+      if (savedState !== undefined && savedState !== action.enabled) {
+        simStore.toggleAction(action.id);
+      }
+    }
+  }
+  if (preset.player) {
+    simStore.setPlayerConfig(preset.player);
+  }
+}
 
 export function ScenePresetManager() {
   const [showSave, setShowSave] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const initialApplied = useRef(false);
 
   const presets = useScenePresetStore((s) => s.presets);
   const activePresetId = useScenePresetStore((s) => s.activePresetId);
@@ -33,6 +53,15 @@ export function ScenePresetManager() {
     load();
   }, [load]);
 
+  // Auto-apply active preset on initial load (restores scene after refresh)
+  useEffect(() => {
+    if (initialApplied.current || presets.length === 0 || !activePresetId) return;
+    const preset = getPreset(activePresetId);
+    if (!preset) return;
+    applyPresetToSimulation(preset);
+    initialApplied.current = true;
+  }, [presets, activePresetId, getPreset]);
+
   const handleSave = () => {
     const name = saveName.trim();
     if (!name) {
@@ -50,31 +79,7 @@ export function ScenePresetManager() {
     const preset = getPreset(id);
     if (!preset) return;
     setActivePresetId(id);
-
-    // Apply scene config
-    setScene(preset.scene);
-
-    // Apply NPCs — clear existing and add preset NPCs
-    const simStore = useSimulationStore.getState();
-    simStore.selectedNpcs.forEach((n) => simStore.removeNpc(n.uuid));
-    preset.npcs.forEach((n) => simStore.addNpc(n));
-
-    // Apply action toggle states
-    if (preset.actionStates) {
-      const currentActions = simStore.actionRegistry;
-      for (const action of currentActions) {
-        const savedState = preset.actionStates[action.id];
-        if (savedState !== undefined && savedState !== action.enabled) {
-          simStore.toggleAction(action.id);
-        }
-      }
-    }
-
-    // Apply player config
-    if (preset.player) {
-      simStore.setPlayerConfig(preset.player);
-    }
-
+    applyPresetToSimulation(preset);
     toast.success(`Scene preset "${preset.name}" loaded`);
   };
 
@@ -91,21 +96,7 @@ export function ScenePresetManager() {
     const newState = useScenePresetStore.getState();
     const newPreset = newState.getPreset(newState.activePresetId);
     if (newPreset) {
-      setScene(newPreset.scene);
-      const simStore = useSimulationStore.getState();
-      simStore.selectedNpcs.forEach((n) => simStore.removeNpc(n.uuid));
-      newPreset.npcs.forEach((n) => simStore.addNpc(n));
-      if (newPreset.actionStates) {
-        for (const action of simStore.actionRegistry) {
-          const savedState = newPreset.actionStates[action.id];
-          if (savedState !== undefined && savedState !== action.enabled) {
-            simStore.toggleAction(action.id);
-          }
-        }
-      }
-      if (newPreset.player) {
-        simStore.setPlayerConfig(newPreset.player);
-      }
+      applyPresetToSimulation(newPreset);
     }
     toast.success(`Scene preset "${preset.name}" deleted`);
   };
