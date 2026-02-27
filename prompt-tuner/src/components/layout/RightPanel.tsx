@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { ActionSelectorPreviewContent } from "@/components/analysis/ActionSelectorPreview";
 import { SessionAnalysisDialog } from "@/components/analysis/SessionAnalysisDialog";
+import { AgentTestDialog } from "@/components/analysis/AgentTestDialog";
 import { TriggerMatchResultsContent } from "@/components/triggers/TriggerMatchResults";
 import { ScenePlanDisplayContent } from "@/components/gamemaster/ScenePlanDisplay";
-import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater } from "lucide-react";
+import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater, Brain, BookOpen, UserCog } from "lucide-react";
 import type { LlmCallLog } from "@/types/llm";
 
 export function RightPanel() {
@@ -18,8 +19,15 @@ export function RightPanel() {
   const lastSpeakerPrediction = useSimulationStore((s) => s.lastSpeakerPrediction);
   const llmCallLog = useSimulationStore((s) => s.llmCallLog);
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
+  const selectedNpcs = useSimulationStore((s) => s.selectedNpcs);
+  const chatHistory = useSimulationStore((s) => s.chatHistory);
 
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [memoryGenOpen, setMemoryGenOpen] = useState(false);
+  const [diaryOpen, setDiaryOpen] = useState(false);
+  const [bioUpdateOpen, setBioUpdateOpen] = useState(false);
+
+  const agentTestDisabled = selectedNpcs.length === 0 || chatHistory.length === 0;
 
   const totalTokens = llmCallLog.reduce((sum, l) => sum + l.totalTokens, 0);
   const totalLatency = llmCallLog.reduce((sum, l) => sum + l.latencyMs, 0);
@@ -129,12 +137,74 @@ export function RightPanel() {
             <BarChart3 className="h-3.5 w-3.5" />
             Analyze Session
           </Button>
+
+          <Separator />
+
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
+              Agent Tests
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-xs"
+              disabled={agentTestDisabled}
+              onClick={() => setMemoryGenOpen(true)}
+            >
+              <Brain className="h-3.5 w-3.5" />
+              Generate Memories
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-xs"
+              disabled={agentTestDisabled}
+              onClick={() => setDiaryOpen(true)}
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Generate Diaries
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-xs"
+              disabled={agentTestDisabled}
+              onClick={() => setBioUpdateOpen(true)}
+            >
+              <UserCog className="h-3.5 w-3.5" />
+              Update Bios
+            </Button>
+          </div>
         </div>
       </ScrollArea>
 
       <SessionAnalysisDialog
         open={analysisOpen}
         onOpenChange={setAnalysisOpen}
+      />
+      <AgentTestDialog
+        title="Generate Memories"
+        agent="memory_gen"
+        renderEndpoint="/api/prompts/render-memory-gen"
+        icon={<Brain className="h-4 w-4" />}
+        open={memoryGenOpen}
+        onOpenChange={setMemoryGenOpen}
+      />
+      <AgentTestDialog
+        title="Generate Diaries"
+        agent="diary"
+        renderEndpoint="/api/prompts/render-diary"
+        icon={<BookOpen className="h-4 w-4" />}
+        open={diaryOpen}
+        onOpenChange={setDiaryOpen}
+      />
+      <AgentTestDialog
+        title="Update Bios"
+        agent="profile_gen"
+        renderEndpoint="/api/prompts/render-bio-update"
+        icon={<UserCog className="h-4 w-4" />}
+        open={bioUpdateOpen}
+        onOpenChange={setBioUpdateOpen}
       />
     </div>
   );
