@@ -307,56 +307,58 @@ export function CustomScenarioDialog({
 
           {/* Right: form */}
           <ScrollArea className="flex-1 border rounded-md">
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold">
+                <span className="text-sm font-semibold">
                   {editingId ? "Edit Scenario" : "New Scenario"}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 gap-1 text-[10px]"
+                  className="h-7 gap-1.5 text-xs"
                   onClick={handleCopyFromDefault}
                 >
-                  <Copy className="h-3 w-3" />
+                  <Copy className="h-3.5 w-3.5" />
                   Copy from Default
                 </Button>
               </div>
 
-              {/* Name / Description */}
-              <div className="space-y-1">
-                <Label className="text-xs">Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  placeholder="Scenario name"
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Description</Label>
-                <Input
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value }))
-                  }
-                  placeholder="Brief description"
-                  className="h-8 text-xs"
-                />
+              {/* Name / Description — two-column */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Name</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                    placeholder="Scenario name"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Description</Label>
+                  <Input
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value }))
+                    }
+                    placeholder="Brief description"
+                    className="h-8 text-sm"
+                  />
+                </div>
               </div>
 
               <Separator />
 
-              {/* Player */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
+              {/* Player — labeled grid */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Player
                 </span>
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <Label className="text-[10px]">Name</Label>
+                <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 6rem 6rem 4.5rem" }}>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Name</Label>
                     <Input
                       value={form.player.name}
                       onChange={(e) =>
@@ -365,11 +367,11 @@ export function CustomScenarioDialog({
                           player: { ...f.player, name: e.target.value },
                         }))
                       }
-                      className="h-7 text-xs"
+                      className="h-8 text-sm"
                     />
                   </div>
-                  <div>
-                    <Label className="text-[10px]">Gender</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Gender</Label>
                     <Input
                       value={form.player.gender}
                       onChange={(e) =>
@@ -378,11 +380,11 @@ export function CustomScenarioDialog({
                           player: { ...f.player, gender: e.target.value },
                         }))
                       }
-                      className="h-7 text-xs"
+                      className="h-8 text-sm"
                     />
                   </div>
-                  <div>
-                    <Label className="text-[10px]">Race</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Race</Label>
                     <Input
                       value={form.player.race}
                       onChange={(e) =>
@@ -391,11 +393,11 @@ export function CustomScenarioDialog({
                           player: { ...f.player, race: e.target.value },
                         }))
                       }
-                      className="h-7 text-xs"
+                      className="h-8 text-sm"
                     />
                   </div>
-                  <div>
-                    <Label className="text-[10px]">Level</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Level</Label>
                     <Input
                       type="number"
                       value={form.player.level}
@@ -408,7 +410,7 @@ export function CustomScenarioDialog({
                           },
                         }))
                       }
-                      className="h-7 text-xs"
+                      className="h-8 text-sm"
                     />
                   </div>
                 </div>
@@ -417,13 +419,13 @@ export function CustomScenarioDialog({
               <Separator />
 
               {/* Scene */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Scene
                 </span>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label className="text-[10px]">Location</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Location</Label>
                     <Input
                       value={form.scene.location}
                       onChange={(e) =>
@@ -432,11 +434,11 @@ export function CustomScenarioDialog({
                           scene: { ...f.scene, location: e.target.value },
                         }))
                       }
-                      className="h-7 text-xs"
+                      className="h-8 text-sm"
                     />
                   </div>
-                  <div>
-                    <Label className="text-[10px]">Weather</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Weather</Label>
                     <Input
                       value={form.scene.weather}
                       onChange={(e) =>
@@ -445,11 +447,11 @@ export function CustomScenarioDialog({
                           scene: { ...f.scene, weather: e.target.value },
                         }))
                       }
-                      className="h-7 text-xs"
+                      className="h-8 text-sm"
                     />
                   </div>
-                  <div>
-                    <Label className="text-[10px]">Time of Day</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Time of Day</Label>
                     <Input
                       value={form.scene.timeOfDay}
                       onChange={(e) =>
@@ -458,12 +460,12 @@ export function CustomScenarioDialog({
                           scene: { ...f.scene, timeOfDay: e.target.value },
                         }))
                       }
-                      className="h-7 text-xs"
+                      className="h-8 text-sm"
                     />
                   </div>
                 </div>
-                <div>
-                  <Label className="text-[10px]">Scene Prompt</Label>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Scene Prompt</Label>
                   <textarea
                     value={form.scene.scenePrompt}
                     onChange={(e) =>
@@ -473,11 +475,11 @@ export function CustomScenarioDialog({
                       }))
                     }
                     rows={2}
-                    className="w-full rounded border bg-background px-2 py-1 text-xs resize-none"
+                    className="w-full rounded-md border bg-background px-3 py-1.5 text-sm resize-none"
                   />
                 </div>
-                <div>
-                  <Label className="text-[10px]">World Prompt</Label>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">World Prompt</Label>
                   <textarea
                     value={form.scene.worldPrompt}
                     onChange={(e) =>
@@ -487,39 +489,48 @@ export function CustomScenarioDialog({
                       }))
                     }
                     rows={2}
-                    className="w-full rounded border bg-background px-2 py-1 text-xs resize-none"
+                    className="w-full rounded-md border bg-background px-3 py-1.5 text-sm resize-none"
                   />
                 </div>
               </div>
 
               <Separator />
 
-              {/* NPCs */}
+              {/* NPCs — grid with column headers */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     NPCs ({form.npcs.length})
                   </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 gap-1 text-[10px] px-1.5"
+                    className="h-7 gap-1.5 text-xs px-2"
                     onClick={handleAddNpc}
                   >
-                    <Plus className="h-3 w-3" />
-                    Add
+                    <Plus className="h-3.5 w-3.5" />
+                    Add NPC
                   </Button>
                 </div>
+                {form.npcs.length > 0 && (
+                  <div className="grid gap-x-3 text-[10px] text-muted-foreground px-1" style={{ gridTemplateColumns: "1fr 5.5rem 6.5rem 4rem 1.5rem" }}>
+                    <span>Display Name</span>
+                    <span>Gender</span>
+                    <span>Race</span>
+                    <span>Distance</span>
+                    <span />
+                  </div>
+                )}
                 {form.npcs.map((npc, i) => (
-                  <div key={i} className="space-y-1 rounded border border-border/40 p-2">
-                    <div className="flex items-center gap-2">
+                  <div key={i} className="rounded-md border border-border/50 p-2.5 space-y-2">
+                    <div className="grid gap-x-3 items-center" style={{ gridTemplateColumns: "1fr 5.5rem 6.5rem 4rem 1.5rem" }}>
                       <Input
                         value={npc.displayName}
                         onChange={(e) =>
                           handleUpdateNpc(i, "displayName", e.target.value)
                         }
                         placeholder="Display Name"
-                        className="h-7 text-xs flex-1"
+                        className="h-8 text-sm"
                       />
                       <Input
                         value={npc.gender}
@@ -527,7 +538,7 @@ export function CustomScenarioDialog({
                           handleUpdateNpc(i, "gender", e.target.value)
                         }
                         placeholder="Gender"
-                        className="h-7 text-xs w-20"
+                        className="h-8 text-sm"
                       />
                       <Input
                         value={npc.race}
@@ -535,7 +546,7 @@ export function CustomScenarioDialog({
                           handleUpdateNpc(i, "race", e.target.value)
                         }
                         placeholder="Race"
-                        className="h-7 text-xs w-24"
+                        className="h-8 text-sm"
                       />
                       <Input
                         type="number"
@@ -548,23 +559,23 @@ export function CustomScenarioDialog({
                           )
                         }
                         placeholder="Dist"
-                        className="h-7 text-xs w-16"
+                        className="h-8 text-sm"
                       />
                       <button
                         onClick={() => handleRemoveNpc(i)}
-                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive shrink-0"
+                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive justify-self-center"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="grid gap-x-3 items-center" style={{ gridTemplateColumns: "1fr 1fr" }}>
                       <Input
                         value={npc.uuid}
                         onChange={(e) =>
                           handleUpdateNpc(i, "uuid", e.target.value)
                         }
                         placeholder="UUID (e.g. hulda_66E)"
-                        className="h-6 text-[10px] flex-1 text-muted-foreground"
+                        className="h-7 text-xs text-muted-foreground"
                       />
                       <Input
                         value={npc.name}
@@ -572,7 +583,7 @@ export function CustomScenarioDialog({
                           handleUpdateNpc(i, "name", e.target.value)
                         }
                         placeholder="Internal name"
-                        className="h-6 text-[10px] w-40 text-muted-foreground"
+                        className="h-7 text-xs text-muted-foreground"
                       />
                     </div>
                   </div>
@@ -585,23 +596,23 @@ export function CustomScenarioDialog({
               {isDialogue ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Dialogue Turns ({(form.turns ?? []).length})
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 gap-1 text-[10px] px-1.5"
+                      className="h-7 gap-1.5 text-xs px-2"
                       onClick={handleAddTurn}
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-3.5 w-3.5" />
                       Add Turn
                     </Button>
                   </div>
                   {(form.turns ?? []).map((turn, i) => (
-                    <div key={turn.id} className="space-y-1.5 rounded border border-border/50 p-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-muted-foreground w-6 shrink-0">
+                    <div key={turn.id} className="rounded-md border border-border/50 p-2.5 space-y-2">
+                      <div className="grid gap-x-3 items-center" style={{ gridTemplateColumns: "1.5rem 5rem 1fr 1fr 10rem 1.5rem" }}>
+                        <span className="text-xs font-semibold text-muted-foreground text-center">
                           {i + 1}
                         </span>
                         <select
@@ -609,35 +620,41 @@ export function CustomScenarioDialog({
                           onChange={(e) =>
                             handleUpdateTurn(i, "inputType", e.target.value)
                           }
-                          className="h-7 rounded border bg-background px-1.5 text-xs w-[4.5rem] shrink-0"
+                          className="h-8 rounded-md border bg-background px-2 text-sm"
                         >
                           <option value="player">Player</option>
                           <option value="npc">NPC</option>
                         </select>
-                        <Input
-                          value={turn.inputSpeaker}
-                          onChange={(e) =>
-                            handleUpdateTurn(i, "inputSpeaker", e.target.value)
-                          }
-                          placeholder="Speaker"
-                          className="h-7 text-xs flex-1 min-w-0"
-                        />
-                        <Input
-                          value={turn.inputTarget}
-                          onChange={(e) =>
-                            handleUpdateTurn(i, "inputTarget", e.target.value)
-                          }
-                          placeholder="Target"
-                          className="h-7 text-xs flex-1 min-w-0"
-                        />
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Responds:</Label>
+                        <div className="space-y-0.5">
+                          <Label className="text-[9px] text-muted-foreground">Speaker</Label>
+                          <Input
+                            value={turn.inputSpeaker}
+                            onChange={(e) =>
+                              handleUpdateTurn(i, "inputSpeaker", e.target.value)
+                            }
+                            placeholder="Speaker"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label className="text-[9px] text-muted-foreground">Target</Label>
+                          <Input
+                            value={turn.inputTarget}
+                            onChange={(e) =>
+                              handleUpdateTurn(i, "inputTarget", e.target.value)
+                            }
+                            placeholder="Target"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label className="text-[9px] text-muted-foreground">Responding NPC</Label>
                           <select
                             value={turn.respondingNpcIndex}
                             onChange={(e) =>
                               handleUpdateTurn(i, "respondingNpcIndex", parseInt(e.target.value) || 0)
                             }
-                            className="h-7 rounded border bg-background px-1.5 text-xs w-32"
+                            className="h-8 w-full rounded-md border bg-background px-2 text-sm"
                           >
                             {form.npcs.map((npc, ni) => (
                               <option key={ni} value={ni}>
@@ -648,7 +665,7 @@ export function CustomScenarioDialog({
                         </div>
                         <button
                           onClick={() => handleRemoveTurn(i)}
-                          className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive shrink-0"
+                          className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive justify-self-center"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -660,7 +677,7 @@ export function CustomScenarioDialog({
                         }
                         placeholder="Dialogue content..."
                         rows={2}
-                        className="w-full rounded border bg-background px-2 py-1 text-xs resize-none"
+                        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm resize-none"
                       />
                     </div>
                   ))}
@@ -668,31 +685,39 @@ export function CustomScenarioDialog({
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Chat History ({form.chatHistory.length})
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 gap-1 text-[10px] px-1.5"
+                      className="h-7 gap-1.5 text-xs px-2"
                       onClick={handleAddChat}
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-3.5 w-3.5" />
                       Add
                     </Button>
                   </div>
+                  {form.chatHistory.length > 0 && (
+                    <div className="grid gap-x-3 text-[10px] text-muted-foreground px-1" style={{ gridTemplateColumns: "5.5rem 8rem 1fr 1.5rem" }}>
+                      <span>Type</span>
+                      <span>Speaker</span>
+                      <span>Content</span>
+                      <span />
+                    </div>
+                  )}
                   {form.chatHistory.map((entry, i) => (
-                    <div key={i} className="flex items-start gap-2">
+                    <div key={i} className="grid gap-x-3 items-center" style={{ gridTemplateColumns: "5.5rem 8rem 1fr 1.5rem" }}>
                       <select
                         value={entry.type}
                         onChange={(e) =>
                           handleUpdateChat(i, "type", e.target.value)
                         }
-                        className="h-7 rounded border bg-background px-1.5 text-xs w-20 shrink-0"
+                        className="h-8 rounded-md border bg-background px-2 text-sm"
                       >
                         <option value="player">Player</option>
                         <option value="npc">NPC</option>
-                        <option value="narration">Narr.</option>
+                        <option value="narration">Narration</option>
                       </select>
                       <Input
                         value={entry.speaker}
@@ -700,7 +725,7 @@ export function CustomScenarioDialog({
                           handleUpdateChat(i, "speaker", e.target.value)
                         }
                         placeholder="Speaker"
-                        className="h-7 text-xs w-28 shrink-0"
+                        className="h-8 text-sm"
                       />
                       <Input
                         value={entry.content}
@@ -708,11 +733,11 @@ export function CustomScenarioDialog({
                           handleUpdateChat(i, "content", e.target.value)
                         }
                         placeholder="Content"
-                        className="h-7 text-xs flex-1"
+                        className="h-8 text-sm"
                       />
                       <button
                         onClick={() => handleRemoveChat(i)}
-                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive shrink-0 mt-0.5"
+                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive justify-self-center"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -729,13 +754,13 @@ export function CustomScenarioDialog({
                 needsScenePlan) && (
                 <>
                   <Separator />
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground">
+                  <div className="space-y-3">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Category-Specific Fields
                     </span>
                     {needsPlayerMessage && (
-                      <div>
-                        <Label className="text-[10px]">Player Message</Label>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Player Message</Label>
                         <Input
                           value={form.playerMessage || ""}
                           onChange={(e) =>
@@ -744,13 +769,13 @@ export function CustomScenarioDialog({
                               playerMessage: e.target.value,
                             }))
                           }
-                          className="h-7 text-xs"
+                          className="h-8 text-sm"
                         />
                       </div>
                     )}
                     {needsNpcName && (
-                      <div>
-                        <Label className="text-[10px]">NPC Name</Label>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">NPC Name</Label>
                         <Input
                           value={form.npcName || ""}
                           onChange={(e) =>
@@ -759,13 +784,13 @@ export function CustomScenarioDialog({
                               npcName: e.target.value,
                             }))
                           }
-                          className="h-7 text-xs"
+                          className="h-8 text-sm"
                         />
                       </div>
                     )}
                     {needsNpcResponse && (
-                      <div>
-                        <Label className="text-[10px]">NPC Response</Label>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">NPC Response</Label>
                         <Input
                           value={form.npcResponse || ""}
                           onChange={(e) =>
@@ -774,13 +799,13 @@ export function CustomScenarioDialog({
                               npcResponse: e.target.value,
                             }))
                           }
-                          className="h-7 text-xs"
+                          className="h-8 text-sm"
                         />
                       </div>
                     )}
                     {needsLastSpeaker && (
-                      <div>
-                        <Label className="text-[10px]">Last Speaker</Label>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Last Speaker</Label>
                         <Input
                           value={form.lastSpeaker || ""}
                           onChange={(e) =>
@@ -789,13 +814,13 @@ export function CustomScenarioDialog({
                               lastSpeaker: e.target.value,
                             }))
                           }
-                          className="h-7 text-xs"
+                          className="h-8 text-sm"
                         />
                       </div>
                     )}
                     {needsScenePlan && (
-                      <div>
-                        <Label className="text-[10px]">Scene Plan (JSON)</Label>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Scene Plan (JSON)</Label>
                         <textarea
                           value={form.scenePlan || ""}
                           onChange={(e) =>
@@ -805,7 +830,7 @@ export function CustomScenarioDialog({
                             }))
                           }
                           rows={4}
-                          className="w-full rounded border bg-background px-2 py-1 text-xs font-mono resize-none"
+                          className="w-full rounded-md border bg-background px-3 py-1.5 text-sm font-mono resize-none"
                         />
                       </div>
                     )}
