@@ -26,6 +26,13 @@ import type {
 } from "@/types/benchmark";
 import { Plus, Trash2, Copy } from "lucide-react";
 
+const GENDERS = ["Male", "Female"];
+const SKYRIM_RACES = ["Nord", "Imperial", "Breton", "Redguard", "Dunmer", "Altmer", "Bosmer", "Orsimer", "Khajiit", "Argonian"];
+const WEATHER_OPTIONS = ["Clear", "Cloudy", "Rainy", "Snowy", "Foggy", "Stormy"];
+const TIME_OPTIONS = ["Dawn", "Morning", "Afternoon", "Evening", "Night", "Midnight"];
+
+const selectClass = "h-8 w-full rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring";
+
 interface CustomScenarioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -372,7 +379,7 @@ export function CustomScenarioDialog({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Gender</Label>
-                    <Input
+                    <select
                       value={form.player.gender}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -380,12 +387,16 @@ export function CustomScenarioDialog({
                           player: { ...f.player, gender: e.target.value },
                         }))
                       }
-                      className="h-8 text-sm"
-                    />
+                      className={selectClass}
+                    >
+                      {GENDERS.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Race</Label>
-                    <Input
+                    <select
                       value={form.player.race}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -393,8 +404,12 @@ export function CustomScenarioDialog({
                           player: { ...f.player, race: e.target.value },
                         }))
                       }
-                      className="h-8 text-sm"
-                    />
+                      className={selectClass}
+                    >
+                      {SKYRIM_RACES.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Level</Label>
@@ -439,7 +454,7 @@ export function CustomScenarioDialog({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Weather</Label>
-                    <Input
+                    <select
                       value={form.scene.weather}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -447,12 +462,16 @@ export function CustomScenarioDialog({
                           scene: { ...f.scene, weather: e.target.value },
                         }))
                       }
-                      className="h-8 text-sm"
-                    />
+                      className={selectClass}
+                    >
+                      {WEATHER_OPTIONS.map((w) => (
+                        <option key={w} value={w}>{w}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Time of Day</Label>
-                    <Input
+                    <select
                       value={form.scene.timeOfDay}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -460,8 +479,12 @@ export function CustomScenarioDialog({
                           scene: { ...f.scene, timeOfDay: e.target.value },
                         }))
                       }
-                      className="h-8 text-sm"
-                    />
+                      className={selectClass}
+                    >
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -532,22 +555,28 @@ export function CustomScenarioDialog({
                         placeholder="Display Name"
                         className="h-8 text-sm"
                       />
-                      <Input
+                      <select
                         value={npc.gender}
                         onChange={(e) =>
                           handleUpdateNpc(i, "gender", e.target.value)
                         }
-                        placeholder="Gender"
-                        className="h-8 text-sm"
-                      />
-                      <Input
+                        className={selectClass}
+                      >
+                        {GENDERS.map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                      <select
                         value={npc.race}
                         onChange={(e) =>
                           handleUpdateNpc(i, "race", e.target.value)
                         }
-                        placeholder="Race"
-                        className="h-8 text-sm"
-                      />
+                        className={selectClass}
+                      >
+                        {SKYRIM_RACES.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
                       <Input
                         type="number"
                         value={npc.distance}
@@ -620,7 +649,7 @@ export function CustomScenarioDialog({
                           onChange={(e) =>
                             handleUpdateTurn(i, "inputType", e.target.value)
                           }
-                          className="h-8 rounded-md border bg-background px-2 text-sm"
+                          className={selectClass}
                         >
                           <option value="player">Player</option>
                           <option value="npc">NPC</option>
@@ -654,7 +683,7 @@ export function CustomScenarioDialog({
                             onChange={(e) =>
                               handleUpdateTurn(i, "respondingNpcIndex", parseInt(e.target.value) || 0)
                             }
-                            className="h-8 w-full rounded-md border bg-background px-2 text-sm"
+                            className={selectClass}
                           >
                             {form.npcs.map((npc, ni) => (
                               <option key={ni} value={ni}>
@@ -713,7 +742,7 @@ export function CustomScenarioDialog({
                         onChange={(e) =>
                           handleUpdateChat(i, "type", e.target.value)
                         }
-                        className="h-8 rounded-md border bg-background px-2 text-sm"
+                        className={selectClass}
                       >
                         <option value="player">Player</option>
                         <option value="npc">NPC</option>
