@@ -5,7 +5,8 @@ import { useAppStore } from "@/stores/appStore";
 import { EditorPanel } from "@/components/editor/EditorPanel";
 import { PreviewChat } from "@/components/chat/PreviewChat";
 import { TunerChat } from "@/components/chat/TunerChat";
-import { Code, MessageSquare, Eye } from "lucide-react";
+import { BenchmarkCenter } from "@/components/benchmark/BenchmarkCenter";
+import { Code, MessageSquare, Eye, BarChart3 } from "lucide-react";
 
 export function CenterPanel() {
   const activeTab = useAppStore((s) => s.activeTab);
@@ -32,6 +33,10 @@ export function CenterPanel() {
               <Eye className="h-3.5 w-3.5" />
               Preview
             </TabsTrigger>
+            <TabsTrigger value="benchmark" className="gap-1.5 text-xs h-7 data-[state=active]:bg-background">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Benchmark
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="editor" className="flex-1 overflow-hidden mt-0">
@@ -42,6 +47,9 @@ export function CenterPanel() {
         </TabsContent>
         <TabsContent value="preview" className="flex-1 overflow-hidden mt-0">
           <PreviewChat />
+        </TabsContent>
+        <TabsContent value="benchmark" className="flex-1 overflow-hidden mt-0">
+          <BenchmarkCenter />
         </TabsContent>
       </Tabs>
     </div>

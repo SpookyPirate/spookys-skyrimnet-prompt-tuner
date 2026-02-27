@@ -157,7 +157,16 @@ export function buildEventArray(
     if (entry.type === "player") {
       type = "dialogue_player_text";
       originatingActor = playerUUID;
-      targetActor = "";
+      // Resolve target: look up NPC by name, fall back to empty
+      const targetName = entry.target || "";
+      if (targetName === "Player" || targetName === entry.speaker) {
+        targetActor = "";
+      } else {
+        const targetNpc = [...npcMap.entries()].find(
+          ([, v]) => v.name === targetName
+        );
+        targetActor = targetNpc ? String(targetNpc[0]) : "";
+      }
       data = { speaker: entry.speaker || "Player", text: entry.content };
     } else if (entry.type === "npc") {
       type = "dialogue";
@@ -166,14 +175,25 @@ export function buildEventArray(
         ([, v]) => v.name === entry.speaker
       );
       originatingActor = npcEntry ? String(npcEntry[0]) : "";
-      targetActor = entry.target === "Player" || entry.target === entry.speaker ? playerUUID : "";
+      // Resolve target: "Player" → playerUUID, NPC name → NPC UUID, else playerUUID
+      const targetName = entry.target || "";
+      if (targetName === "Player") {
+        targetActor = playerUUID;
+      } else if (targetName) {
+        const targetNpc = [...npcMap.entries()].find(
+          ([, v]) => v.name === targetName
+        );
+        targetActor = targetNpc ? String(targetNpc[0]) : playerUUID;
+      } else {
+        targetActor = playerUUID;
+      }
       data = { speaker: entry.speaker || "NPC", text: entry.content };
     } else if (entry.type === "narration") {
       type = entry.gmAction === "Narrate" ? "gamemaster_dialogue" : "direct_narration";
       data = { text: entry.content };
     } else {
-      // system messages
-      type = "system";
+      // system messages — GM directives become gamemaster_dialogue events
+      type = entry.gmAction ? "gamemaster_dialogue" : "system";
       data = { text: entry.content };
     }
 

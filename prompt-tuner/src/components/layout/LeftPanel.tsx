@@ -7,6 +7,7 @@ import { SceneSetup } from "@/components/world/SceneSetup";
 import { ActionManager } from "@/components/actions/ActionManager";
 import { EventSimulator } from "@/components/triggers/EventSimulator";
 import { AutochatControls } from "@/components/autochat/AutochatControls";
+import { BenchmarkSetup } from "@/components/benchmark/BenchmarkSetup";
 import { PlayerSetup } from "@/components/simulation/PlayerSetup";
 import { ScenePresetManager } from "@/components/simulation/ScenePresetManager";
 import { Separator } from "@/components/ui/separator";
@@ -46,6 +47,10 @@ export function LeftPanel() {
 
   const toggle = (key: string) =>
     setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  if (activeTab === "benchmark") {
+    return <BenchmarkSetup />;
+  }
 
   if (activeTab === "preview") {
     return (

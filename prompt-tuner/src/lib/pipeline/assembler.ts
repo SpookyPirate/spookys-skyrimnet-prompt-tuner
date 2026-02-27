@@ -284,9 +284,10 @@ function buildDecoratorFunctions(
 
       const fmt = String(format || "verbose");
 
-      // Dialogue events
+      // Dialogue events — return text only; the event_history template
+      // already prepends get_name(actor) before calling format_event()
       if (type === "dialogue" || type === "dialogue_player_text") {
-        return `${data.speaker}: ${data.text}`;
+        return String(data.text || "");
       }
       if (type === "gamemaster_dialogue" || type === "direct_narration") {
         return `*${data.text}*`;

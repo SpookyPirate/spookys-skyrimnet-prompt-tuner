@@ -142,7 +142,7 @@ export function useGmLoop() {
     const app = useAppStore.getState();
     const triggerState = useTriggerStore.getState();
 
-    const { selectedNpcs, scene, playerConfig, addLlmCall, addChatEntry, getEligibleActions } = store;
+    const { selectedNpcs, scene, playerConfig, addLlmCall, addChatEntry, getEligibleActions, setProcessing } = store;
     const activePromptSet = app.activePromptSet;
     const gameEvents = triggerState.eventHistory;
 
@@ -184,59 +184,78 @@ export function useGmLoop() {
         ? { type: "npc", UUID: targetNpc.uuid }
         : { type: "player", UUID: "player_001" };
 
-      // Render NPC dialogue through pipeline with GM context
-      let npcMessages: ChatMessage[];
-      try {
-        const renderRes = await fetch("/api/prompts/render-dialogue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            npc: speaker,
-            player: playerConfig,
-            scene,
-            selectedNpcs,
-            chatHistory: tickChatHistory,
-            responseTarget,
-            dialogueRequest: parsed.params.topic || "",
-            eligibleActions: getEligibleActions().map((a) => ({
-              name: a.name,
-              description: a.description,
-              parameterSchema: a.parameterSchema,
-            })),
-            gameEvents,
-            promptSetBase: activePromptSet || undefined,
-          }),
-        });
-        const renderData = await renderRes.json();
-        if (renderData.messages && renderData.messages.length > 0) {
-          npcMessages = renderData.messages;
-        } else {
-          return tickChatHistory;
-        }
-      } catch {
-        return tickChatHistory;
-      }
-
-      const npcLog = await sendLlmRequest({ messages: npcMessages, agent: "default" });
-      addLlmCall(npcLog);
-
-      if (npcLog.error) {
-        console.warn(`[GM] NPC dialogue LLM error for ${speaker.displayName}:`, npcLog.error);
-      }
-
-      if (npcLog.response) {
-        const npcEntry: ChatEntry = {
-          id: `${Date.now()}-gm-npc`,
-          type: "npc",
-          speaker: speaker.displayName,
-          target: parsed.params.target,
-          content: npcLog.response,
+      // Inject GM directive as a system event so the NPC sees it in event history
+      // (mirrors real SkyrimNet's gamemaster_dialogue event mechanism)
+      const topic = parsed.params.topic || "";
+      if (topic) {
+        const gmDirective: ChatEntry = {
+          id: `${Date.now()}-gm-directive`,
+          type: "system",
+          content: `[GM directs ${speaker.displayName} to ${parsed.params.target || "Player"}: ${topic}]`,
           timestamp: Date.now(),
-          gmBeatIndex: beatIndex,
           gmAction: parsed.action,
         };
-        addChatEntry(npcEntry);
-        return [...tickChatHistory, npcEntry];
+        addChatEntry(gmDirective);
+        tickChatHistory = [...tickChatHistory, gmDirective];
+      }
+
+      // Render NPC dialogue through pipeline with GM context
+      setProcessing(true);
+      try {
+        let npcMessages: ChatMessage[];
+        try {
+          const renderRes = await fetch("/api/prompts/render-dialogue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              npc: speaker,
+              player: playerConfig,
+              scene,
+              selectedNpcs,
+              chatHistory: tickChatHistory,
+              responseTarget,
+              eligibleActions: getEligibleActions().map((a) => ({
+                name: a.name,
+                description: a.description,
+                parameterSchema: a.parameterSchema,
+              })),
+              gameEvents,
+              promptSetBase: activePromptSet || undefined,
+            }),
+          });
+          const renderData = await renderRes.json();
+          if (renderData.messages && renderData.messages.length > 0) {
+            npcMessages = renderData.messages;
+          } else {
+            return tickChatHistory;
+          }
+        } catch {
+          return tickChatHistory;
+        }
+
+        const npcLog = await sendLlmRequest({ messages: npcMessages, agent: "default" });
+        addLlmCall(npcLog);
+
+        if (npcLog.error) {
+          console.warn(`[GM] NPC dialogue LLM error for ${speaker.displayName}:`, npcLog.error);
+        }
+
+        if (npcLog.response) {
+          const npcEntry: ChatEntry = {
+            id: `${Date.now()}-gm-npc`,
+            type: "npc",
+            speaker: speaker.displayName,
+            target: parsed.params.target,
+            content: npcLog.response,
+            timestamp: Date.now(),
+            gmBeatIndex: beatIndex,
+            gmAction: parsed.action,
+          };
+          addChatEntry(npcEntry);
+          return [...tickChatHistory, npcEntry];
+        }
+      } finally {
+        setProcessing(false);
       }
     }
 
@@ -267,6 +286,12 @@ export function useGmLoop() {
       } = store;
 
       if (!gmEnabled || !config.globalApiKey || selectedNpcs.length === 0) {
+        return;
+      }
+
+      // Skip tick if dialogue generation is already in progress (player or previous GM action)
+      if (store.isProcessing) {
+        console.log("[GM] Skipping tick — dialogue generation in progress");
         return;
       }
 
@@ -458,6 +483,20 @@ export function useGmLoop() {
       if (state.gmCooldown !== prev.gmCooldown && state.gmEnabled) {
         clearLoop();
         intervalRef.current = setInterval(tick, state.gmCooldown * 1000);
+      }
+    });
+    return unsub;
+  }, [tick, clearLoop]);
+
+  // Reset GM cooldown when player sends a message (mirrors real SkyrimNet behavior)
+  useEffect(() => {
+    const unsub = useSimulationStore.subscribe((state, prev) => {
+      if (state.gmEnabled && state.chatHistory.length > prev.chatHistory.length) {
+        const lastEntry = state.chatHistory[state.chatHistory.length - 1];
+        if (lastEntry?.type === "player") {
+          clearLoop();
+          intervalRef.current = setInterval(tick, state.gmCooldown * 1000);
+        }
       }
     });
     return unsub;

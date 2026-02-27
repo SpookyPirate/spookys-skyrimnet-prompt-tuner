@@ -1,28 +1,28 @@
-import type { AgentType } from "@/types/config";
+import type { AgentType, ModelSlot } from "@/types/config";
 import type { ChatMessage, LlmCallLog } from "@/types/llm";
 import { useConfigStore } from "@/stores/configStore";
 
-/**
- * Send an LLM request through the proxy API route.
- * Handles streaming by calling onChunk for each delta.
- * Returns the full response text and a log entry.
- */
-export async function sendLlmRequest({
-  messages,
-  agent,
-  onChunk,
-  signal,
-}: {
+// ── Internal shared implementation ──────────────────────────────────
+
+interface InternalRequest {
   messages: ChatMessage[];
   agent: AgentType;
+  model: string;
+  apiKey: string;
+  slot: ModelSlot;
   onChunk?: (chunk: string) => void;
   signal?: AbortSignal;
-}): Promise<LlmCallLog> {
-  const store = useConfigStore.getState();
-  const slot = store.slots[agent];
-  const model = store.getNextModel(agent);
-  const apiKey = store.getEffectiveApiKey(agent);
+}
 
+async function _sendLlmRequestInternal({
+  messages,
+  agent,
+  model,
+  apiKey,
+  slot,
+  onChunk,
+  signal,
+}: InternalRequest): Promise<LlmCallLog> {
   const startTime = Date.now();
   const logId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -140,4 +140,63 @@ export async function sendLlmRequest({
     totalTokens: promptTokens + completionTokens,
     latencyMs,
   };
+}
+
+// ── Public: reads from global configStore ───────────────────────────
+
+export async function sendLlmRequest({
+  messages,
+  agent,
+  onChunk,
+  signal,
+}: {
+  messages: ChatMessage[];
+  agent: AgentType;
+  onChunk?: (chunk: string) => void;
+  signal?: AbortSignal;
+}): Promise<LlmCallLog> {
+  const store = useConfigStore.getState();
+  const slot = store.slots[agent];
+  const model = store.getNextModel(agent);
+  const apiKey = store.getEffectiveApiKey(agent);
+
+  return _sendLlmRequestInternal({
+    messages,
+    agent,
+    model,
+    apiKey,
+    slot,
+    onChunk,
+    signal,
+  });
+}
+
+// ── Public: uses explicit slot + apiKey (for benchmarks) ────────────
+
+export async function sendLlmRequestWithSlot({
+  messages,
+  agent,
+  slot,
+  model,
+  apiKey,
+  onChunk,
+  signal,
+}: {
+  messages: ChatMessage[];
+  agent: AgentType;
+  slot: ModelSlot;
+  model: string;
+  apiKey: string;
+  onChunk?: (chunk: string) => void;
+  signal?: AbortSignal;
+}): Promise<LlmCallLog> {
+  return _sendLlmRequestInternal({
+    messages,
+    agent,
+    model,
+    apiKey,
+    slot,
+    onChunk,
+    signal,
+  });
 }

@@ -3,7 +3,9 @@ import { create } from "zustand";
 const STORAGE_KEY = "skyrimnet-app";
 const DEFAULT_PROMPT_SET = "v1.0";
 
-function loadPersistedState(): { activePromptSet: string; activeTab: "editor" | "tuner" | "preview" } {
+type AppTab = "editor" | "tuner" | "preview" | "benchmark";
+
+function loadPersistedState(): { activePromptSet: string; activeTab: AppTab } {
   if (typeof window === "undefined") return { activePromptSet: DEFAULT_PROMPT_SET, activeTab: "editor" };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -12,7 +14,7 @@ function loadPersistedState(): { activePromptSet: string; activeTab: "editor" | 
       const tab = parsed.activeTab;
       return {
         activePromptSet: parsed.activePromptSet ?? DEFAULT_PROMPT_SET,
-        activeTab: tab === "editor" || tab === "tuner" || tab === "preview" ? tab : "editor",
+        activeTab: tab === "editor" || tab === "tuner" || tab === "preview" || tab === "benchmark" ? tab : "editor",
       };
     }
   } catch {}
@@ -29,7 +31,7 @@ function persistState(state: { activePromptSet: string; activeTab: string }) {
 interface AppState {
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
-  activeTab: "editor" | "tuner" | "preview";
+  activeTab: AppTab;
   exportDialogOpen: boolean;
   saveSetDialogOpen: boolean;
   loadPromptSetDialogOpen: boolean;
@@ -41,7 +43,7 @@ interface AppState {
 
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
-  setActiveTab: (tab: "editor" | "tuner" | "preview") => void;
+  setActiveTab: (tab: AppTab) => void;
   setExportDialogOpen: (open: boolean) => void;
   setSaveSetDialogOpen: (open: boolean) => void;
   setLoadPromptSetDialogOpen: (open: boolean) => void;

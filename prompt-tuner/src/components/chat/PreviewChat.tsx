@@ -464,7 +464,7 @@ function ChatBubble({ entry }: { entry: ChatEntry }) {
           <div className="font-semibold text-[10px] text-blue-400 mb-0.5">
             {entry.speaker}
             {entry.gmAction && (
-              <span className="text-[8px] text-purple-400/70 ml-1">[GM]</span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400/60 ml-1 align-middle" title={`GM: ${entry.gmAction}`} />
             )}
           </div>
         )}

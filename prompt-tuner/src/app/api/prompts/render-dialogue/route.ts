@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       eligibleActions = [],
       gameEvents = [],
       promptSetBase,
+      dialogueRequest: bodyDialogueRequest,
     } = body;
 
     const baseDir = resolvePromptSetBase(promptSetBase);
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       selectedNpcs,
       chatHistory,
       eligibleActions,
-      dialogueRequest: chatHistory.filter((e: { type: string }) => e.type === "player").pop()?.content || "",
+      dialogueRequest: bodyDialogueRequest || "",
       responseTarget: responseTarget || {
         type: "player",
         UUID: "player_001",

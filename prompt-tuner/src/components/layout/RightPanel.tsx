@@ -12,9 +12,12 @@ import { AgentTestDialog } from "@/components/analysis/AgentTestDialog";
 import { TriggerMatchResultsContent } from "@/components/triggers/TriggerMatchResults";
 import { ScenePlanDisplayContent } from "@/components/gamemaster/ScenePlanDisplay";
 import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater, Brain, BookOpen, UserCog } from "lucide-react";
+import { BenchmarkAssessmentPanel } from "@/components/benchmark/BenchmarkAssessmentPanel";
+import { useAppStore } from "@/stores/appStore";
 import type { LlmCallLog } from "@/types/llm";
 
 export function RightPanel() {
+  const activeTab = useAppStore((s) => s.activeTab);
   const lastAction = useSimulationStore((s) => s.lastAction);
   const lastSpeakerPrediction = useSimulationStore((s) => s.lastSpeakerPrediction);
   const llmCallLog = useSimulationStore((s) => s.llmCallLog);
@@ -26,6 +29,10 @@ export function RightPanel() {
   const [memoryGenOpen, setMemoryGenOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
   const [bioUpdateOpen, setBioUpdateOpen] = useState(false);
+
+  if (activeTab === "benchmark") {
+    return <BenchmarkAssessmentPanel />;
+  }
 
   const agentTestDisabled = selectedNpcs.length === 0 || chatHistory.length === 0;
 

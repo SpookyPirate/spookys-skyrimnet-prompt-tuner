@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Users\\\\spook\\\\Desktop\\\\Projects\\\\3. Development\\\\skyrim-mods\\\\spookys-skyrimnet-prompt-tuner\\\\prompt-tuner\" && npx tsc --noEmit 2>&1)",
+      "Bash(cd:*)",
+      "WebFetch(domain:goncalo22.github.io)",
+      "Bash(gh api repos/MinLL/SkyrimNet-GamePlugin/git/trees/main?recursive=1)",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(x[''path'']\\) for x in data.get\\(''tree'',[]\\) if any\\(k in x[''path''].lower\\(\\) for k in [''profile'',''bio'',''memory'',''diary'',''character'',''prompt'']\\)]\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(x[''path'']\\) for x in data.get\\(''tree'',[]\\) if ''memory'' in x[''path''].lower\\(\\)]\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(x[''path'']\\) for x in data[''tree''] if ''diary'' in x[''path''].lower\\(\\)]\")",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(x[''path'']\\) for x in data[''tree''] if ''diary'' in x[''path''].lower\\(\\)]\")",
+      "Bash(python -c \":*)",
+      "Bash(py -3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(x[''path'']\\) for x in data.get\\(''tree'',[]\\) if ''memory'' in x[''path''].lower\\(\\)]\")",
+      "Bash(gh api repos/MinLL/SkyrimNet-GamePlugin/contents/SKSE/Plugins/SkyrimNet/prompts/helpers/generate_profile.prompt --jq '.content')",
+      "Bash(gh api repos/MinLL/SkyrimNet-GamePlugin/contents/SKSE/Plugins/SkyrimNet/prompts/diary_entry.prompt --jq '.content')",
+      "Bash(python3 -c \"import sys,base64; print\\(base64.b64decode\\(sys.stdin.read\\(\\).replace\\(''\\\\n'',''''\\)\\).decode\\(\\)\\)\")",
+      "Bash(gh api repos/MinLL/SkyrimNet-GamePlugin/contents/SKSE/Plugins/SkyrimNet/prompts/character_profile_update.prompt --jq '.content')",
+      "Bash(gh api \"repos/MinLL/SkyrimNet-GamePlugin/contents/plugins/SkyrimNet/Messages/skynet_DiaryScopeMessage - 0012DC_SkyrimNet.esp.json\" --jq '.content')",
+      "Bash(gh api repos/MinLL/SkyrimNet-GamePlugin/contents/SKSE/Plugins/SkyrimNet/prompts/dynamic_bio_update.prompt --jq '.content')",
+      "Bash(gh api repos/MinLL/SkyrimNet-GamePlugin/contents/SKSE/Plugins/SkyrimNet/prompts/components/character_bio_full.prompt --jq '.content')",
+      "Bash(gh api repos/MinLL/SkyrimNet-GamePlugin/contents/SKSE/Plugins/SkyrimNet/prompts/memory/mood_evaluator.prompt --jq '.content')",
+      "Bash(py -3 -c \"import sys,base64; print\\(base64.b64decode\\(sys.stdin.read\\(\\).strip\\(\\)\\).decode\\(''utf-8''\\)\\)\")"
+    ]
+  }
+}
