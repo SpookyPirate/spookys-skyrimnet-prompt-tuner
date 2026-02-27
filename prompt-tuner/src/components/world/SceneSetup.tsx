@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { sendLlmRequest } from "@/lib/llm/client";
-import { Wand2, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Wand2, Loader2, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/types/llm";
 import type { NpcConfig } from "@/types/simulation";
 
@@ -77,23 +77,25 @@ export function SceneSetup() {
         .filter(([, v]) => !v)
         .map(([k]) => k as AutoGenFieldKey);
 
-      // Build context for fixed (unchecked) values
+      // Build context for fixed (unchecked) values — the LLM should build the scene around these
       let fixedContext = "";
-      if (uncheckedFields.length > 0) {
-        const fixedValues: Record<string, string> = {};
-        for (const field of uncheckedFields) {
-          if (field === "npcs") {
-            fixedValues.npcs = selectedNpcs.map((n) => n.displayName).join(", ") || "none";
-          } else {
-            fixedValues[field] = scene[field as keyof typeof scene] || "(empty)";
-          }
+      const fixedValues: Record<string, string> = {};
+      for (const field of uncheckedFields) {
+        if (field === "npcs") {
+          const names = selectedNpcs.map((n) => `${n.displayName} (${n.gender} ${n.race})`).join(", ");
+          if (names) fixedValues.npcs = names;
+        } else {
+          const val = scene[field as keyof typeof scene];
+          if (val) fixedValues[field] = val;
         }
-        fixedContext = `\n\nThe following values are FIXED and must not be changed. Use them as context for generating a cohesive scene:\n${JSON.stringify(fixedValues, null, 2)}`;
+      }
+      if (Object.keys(fixedValues).length > 0) {
+        fixedContext = `\n\nThe following values are ALREADY SET by the user. Do NOT include these fields in your JSON output. Instead, use them as context to generate a cohesive scene that fits with them:\n${JSON.stringify(fixedValues, null, 2)}`;
       }
 
       // Build the requested JSON shape description
       const fieldDescriptions: Record<AutoGenFieldKey, string> = {
-        location: `"location": string (a specific Skyrim location, e.g. "Riften, The Bee and Barb" or "Falkreath, Dead Man's Drink")`,
+        location: `"location": string (a specific named Skyrim location — use the full breadth of Skyrim: taverns, homes, dungeons, Dwemer ruins, mountain passes, camps, ships, farms, guild halls, caves, forts, Daedric shrines, cities, wilderness, etc.)`,
         weather: `"weather": one of: ${WEATHER_OPTIONS.join(", ")}`,
         timeOfDay: `"timeOfDay": one of: ${TIME_OPTIONS.join(", ")}`,
         worldPrompt: `"worldPrompt": string (1-2 sentences defining the overall world rules, tone, or RP style — e.g. "Skyrim is gripped by civil war. NPCs are suspicious of strangers." This is NOT a scene description; it shapes how ALL characters behave across the entire world)`,
@@ -119,15 +121,37 @@ Requested JSON shape:
 }${fixedContext}${npcListContext}
 
 Guidelines:
+- Be creative and varied — use the full breadth of Skyrim's world across different holds, dungeons, wilderness, and interiors
 - Make the scene feel authentic to Skyrim's world
-- If generating NPCs, pick 2-4 characters that make sense for the location
+- If generating NPCs, pick 2-6 characters that make sense for the location
 - World prompt defines global RP rules/tone that apply everywhere (NOT scene-specific details)
 - Scene prompt should describe what's happening right now in this specific scene
-- Distances represent how far the NPC is from the player (300 = nearby conversation distance)`;
+- Distances represent how far the NPC is from the player (300 = nearby conversation distance)
+- All generated fields must be cohesive with each other and with any fixed context provided`;
+
+      const locationHints = [
+        "A cozy tavern or inn.",
+        "A remote wilderness location or dungeon.",
+        "A location tied to a Daedric quest or guild.",
+        "A Dwemer ruin, Falmer cave, or ancient Nordic tomb.",
+        "Somewhere near water — a dock, ship, fishing camp, or lakeside.",
+        "Along a road, mountain pass, or border crossing.",
+        "A mine, mill, farm, or other working-class location.",
+        "A temple, shrine, or place of worship.",
+        "A military location — a fort, war camp, or battlefield.",
+        "Underground — a cave, smuggler's den, or crypt.",
+        "A college, court, or seat of power.",
+        "Somewhere high up — a mountain peak, tower, or overlook.",
+        "A marketplace, trade caravan, or merchant stall.",
+        "A bandit hideout, vampire lair, or necromancer's den.",
+        "A peaceful village or homestead.",
+        "A Stormcloak or Imperial encampment.",
+      ];
+      const hint = locationHints[Math.floor(Math.random() * locationHints.length)];
 
       const messages: ChatMessage[] = [
         { role: "system", content: systemPrompt },
-        { role: "user", content: "Generate a Skyrim scene." },
+        { role: "user", content: `Generate a Skyrim scene.${autoGenFields.location ? ` Location idea: ${hint}` : ""}` },
       ];
 
       const log = await sendLlmRequest({ messages, agent: "meta_eval" });
@@ -144,7 +168,26 @@ Guidelines:
         jsonText = jsonText.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
       }
 
-      const parsed = JSON.parse(jsonText);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let parsed: any;
+      try {
+        parsed = JSON.parse(jsonText);
+      } catch {
+        // Attempt to repair truncated JSON: close open strings, arrays, objects
+        let repaired = jsonText;
+        // Close an unterminated string
+        const quotes = (repaired.match(/"/g) || []).length;
+        if (quotes % 2 !== 0) repaired += '"';
+        // Close any open brackets/braces
+        const opens = (repaired.match(/[{[]/g) || []).length;
+        const closes = (repaired.match(/[}\]]/g) || []).length;
+        for (let i = 0; i < opens - closes; i++) {
+          // Determine whether to close array or object based on last opener
+          const lastOpen = repaired.lastIndexOf("[") > repaired.lastIndexOf("{") ? "]" : "}";
+          repaired += lastOpen;
+        }
+        parsed = JSON.parse(repaired);
+      }
 
       // Apply checked scene fields
       const sceneUpdate: Partial<typeof scene> = {};
@@ -211,6 +254,8 @@ Guidelines:
       setIsGenerating(false);
     }
   }, [autoGenFields, scene, selectedNpcs, setScene, addNpc, removeNpc, addLlmCall]);
+
+  const hasSceneData = scene.location || scene.worldPrompt || scene.scenePrompt;
 
   return (
     <div className="space-y-1.5">
@@ -319,6 +364,26 @@ Guidelines:
             </div>
           )}
         </div>
+
+        {hasSceneData && (
+          <div className="flex justify-end pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 text-[10px] px-1.5 text-muted-foreground hover:text-destructive gap-1"
+              onClick={() => setScene({
+                location: "",
+                weather: "Clear",
+                timeOfDay: "Afternoon",
+                worldPrompt: "",
+                scenePrompt: "",
+              })}
+            >
+              <Trash2 className="h-3 w-3" />
+              Clear Fields
+            </Button>
+          </div>
+        )}
     </div>
   );
 }

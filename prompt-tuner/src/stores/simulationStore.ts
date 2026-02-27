@@ -167,7 +167,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   gmContinuousMode: false,
   gmActionLog: [],
   autochatEnabled: false,
-  autochatDuration: 5,
+  autochatDuration: (() => {
+    if (typeof window === "undefined") return 5;
+    try {
+      const stored = localStorage.getItem("skyrimnet-autochat-duration");
+      if (stored !== null) return Number(stored);
+    } catch {}
+    return 5;
+  })(),
   autochatStartedAt: null,
   autochatStatus: "idle",
 
@@ -319,7 +326,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     set({ scenePlan: null, gmActionLog: [], isPlanning: false, gmStatus: "idle" }),
 
   setAutochatEnabled: (enabled) => set({ autochatEnabled: enabled }),
-  setAutochatDuration: (minutes) => set({ autochatDuration: minutes }),
+  setAutochatDuration: (minutes) => {
+    set({ autochatDuration: minutes });
+    try { localStorage.setItem("skyrimnet-autochat-duration", String(minutes)); } catch {}
+  },
   setAutochatStartedAt: (timestamp) => set({ autochatStartedAt: timestamp }),
   setAutochatStatus: (status) => set({ autochatStatus: status }),
 }));

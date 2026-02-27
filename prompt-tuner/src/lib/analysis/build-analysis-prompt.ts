@@ -181,6 +181,14 @@ For each agent that was actually used in the session, grade A-F:
 - Quality of its outputs
 - Any notable failures or successes
 
+If the **game_master** agent was used, additionally evaluate:
+- Did it output structured ACTION lines (e.g. ACTION: StartConversation {"speaker":"...","target":"...","topic":"..."}) rather than free-form dialogue or narration?
+- Did it prioritize NPC-to-NPC interactions over NPC-to-Player when multiple NPCs are present?
+- Were topic directions brief (2-6 words like "questioning the scouting report") rather than full dialogue lines?
+- If continuous mode was active, did it follow scene plan beats in order and advance through them?
+- Was Narrate used sparingly (0-1 per cycle) with dialogue beats as the primary action type?
+- Did it avoid selecting "None" excessively in continuous mode (None is only valid in normal mode)?
+
 ## 4. Model Evaluation & Recommendations
 For each model used:
 - Speed assessment (based on latency data)

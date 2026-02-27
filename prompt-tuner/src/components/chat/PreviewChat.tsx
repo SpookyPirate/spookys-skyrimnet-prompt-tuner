@@ -13,7 +13,7 @@ import { runTargetSelection, runRealActionSelector, runSpeakerPrediction } from 
 import type { ChatMessage } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
 import { GmControls } from "@/components/gamemaster/GmControls";
-import { Send, Loader2, Trash2, Square } from "lucide-react";
+import { Send, Loader2, Trash2, Square, Copy, Check, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export function PreviewChat() {
@@ -39,12 +39,14 @@ export function PreviewChat() {
   const [input, setInput] = useState("");
   const [streamingText, setStreamingText] = useState("");
   const [streamingSpeaker, setStreamingSpeaker] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const viewport = scrollAreaRef.current?.querySelector('[data-slot="scroll-area-viewport"]');
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
   }, [chatHistory, streamingText]);
 
@@ -289,13 +291,40 @@ export function PreviewChat() {
     setStreamingSpeaker("");
   }, [setProcessing]);
 
+  const formatChatMarkdown = useCallback(() => {
+    return chatHistory.map((e) => {
+      if (e.type === "player") return `**${playerConfig.name}:** ${e.content}`;
+      if (e.type === "npc") return `**${e.speaker}:** ${e.content}`;
+      if (e.type === "narration") return `*${e.content}*`;
+      return `> ${e.content}`;
+    }).join("\n\n");
+  }, [chatHistory, playerConfig.name]);
+
+  const handleCopyChat = useCallback(() => {
+    navigator.clipboard.writeText(formatChatMarkdown()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [formatChatMarkdown]);
+
+  const handleDownloadChat = useCallback(() => {
+    const date = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([formatChatMarkdown()], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `chat-log-${date}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [formatChatMarkdown]);
+
   const hasApiKey = !!globalApiKey;
 
   return (
     <div className="flex h-full flex-col">
       {/* Chat messages */}
-      <ScrollArea className="flex-1">
-        <div ref={scrollRef} className="p-3 space-y-2">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
+        <div className="p-3 space-y-2">
           {chatHistory.length === 0 && !streamingText && (
             <div className="text-center text-xs text-muted-foreground py-8">
               {!hasApiKey ? (
@@ -338,9 +367,32 @@ export function PreviewChat() {
             className="h-8 w-8 shrink-0"
             onClick={clearChat}
             disabled={isProcessing}
+            title="Clear chat"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
+          {chatHistory.length > 0 && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={handleCopyChat}
+                title="Copy dialogue"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={handleDownloadChat}
+                title="Download as markdown"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}

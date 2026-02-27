@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSimulationStore } from "@/stores/simulationStore";
-import { Search, X, User, MapPin } from "lucide-react";
+import { Search, X, Trash2, User, MapPin } from "lucide-react";
 import type { NpcConfig } from "@/types/simulation";
 import type { FileNode } from "@/types/files";
 
@@ -123,6 +123,19 @@ export function NpcSelector() {
         {selectedNpcs.length === 0 && (
           <div className="text-[10px] text-muted-foreground text-center py-1">
             No NPCs added yet
+          </div>
+        )}
+        {selectedNpcs.length > 1 && (
+          <div className="flex justify-end pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 text-[10px] px-1.5 text-muted-foreground hover:text-destructive gap-1"
+              onClick={() => selectedNpcs.forEach((n) => removeNpc(n.uuid))}
+            >
+              <Trash2 className="h-3 w-3" />
+              Clear All
+            </Button>
           </div>
         )}
       </div>

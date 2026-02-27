@@ -142,7 +142,7 @@ export function useGmLoop() {
     const app = useAppStore.getState();
     const triggerState = useTriggerStore.getState();
 
-    const { selectedNpcs, scene, playerConfig, addLlmCall, addChatEntry } = store;
+    const { selectedNpcs, scene, playerConfig, addLlmCall, addChatEntry, getEligibleActions } = store;
     const activePromptSet = app.activePromptSet;
     const gameEvents = triggerState.eventHistory;
 
@@ -175,7 +175,16 @@ export function useGmLoop() {
         return tickChatHistory;
       }
 
-      // Render NPC dialogue through pipeline
+      // Resolve the response target: NPC-to-NPC or NPC-to-Player
+      const targetName = parsed.params.target?.toLowerCase();
+      const targetNpc = targetName
+        ? selectedNpcs.find((n) => n.displayName.toLowerCase() === targetName)
+        : null;
+      const responseTarget = targetNpc
+        ? { type: "npc", UUID: targetNpc.uuid }
+        : { type: "player", UUID: "player_001" };
+
+      // Render NPC dialogue through pipeline with GM context
       let npcMessages: ChatMessage[];
       try {
         const renderRes = await fetch("/api/prompts/render-dialogue", {
@@ -187,6 +196,13 @@ export function useGmLoop() {
             scene,
             selectedNpcs,
             chatHistory: tickChatHistory,
+            responseTarget,
+            dialogueRequest: parsed.params.topic || "",
+            eligibleActions: getEligibleActions().map((a) => ({
+              name: a.name,
+              description: a.description,
+              parameterSchema: a.parameterSchema,
+            })),
             gameEvents,
             promptSetBase: activePromptSet || undefined,
           }),
