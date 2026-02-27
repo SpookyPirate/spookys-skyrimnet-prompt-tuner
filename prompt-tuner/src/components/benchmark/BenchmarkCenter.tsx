@@ -424,9 +424,11 @@ function SubtaskBlock({
 
 function PromptMessage({ message }: { message: ChatMessage }) {
   const roleClass = ROLE_COLORS[message.role] ?? "";
-  const truncated =
-    message.content.length > 500
-      ? message.content.substring(0, 500) + "... (expand to see full)"
+  const [expanded, setExpanded] = useState(false);
+  const isLong = message.content.length > 500;
+  const displayText =
+    isLong && !expanded
+      ? message.content.substring(0, 500) + "..."
       : message.content;
 
   return (
@@ -438,8 +440,16 @@ function PromptMessage({ message }: { message: ChatMessage }) {
         {message.role}
       </Badge>
       <pre className="whitespace-pre-wrap break-words text-[10px] font-mono leading-relaxed text-muted-foreground rounded bg-background p-1.5">
-        {truncated}
+        {displayText}
       </pre>
+      {isLong && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="text-[9px] text-primary/70 hover:text-primary mt-0.5"
+        >
+          {expanded ? "Collapse" : "Expand full message"}
+        </button>
+      )}
     </div>
   );
 }

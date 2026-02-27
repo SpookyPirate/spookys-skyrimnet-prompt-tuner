@@ -399,7 +399,9 @@ function buildDecoratorFunctions(
         }
         return parts.join("\n");
       } catch {
-        return `[character profile: ${uuid} not found]`;
+        // No character file (e.g. player UUID) — return empty instead of
+        // leaking an error string into the rendered prompt.
+        return "";
       }
     },
 

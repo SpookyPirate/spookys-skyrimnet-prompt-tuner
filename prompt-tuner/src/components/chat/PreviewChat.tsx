@@ -57,7 +57,7 @@ export function PreviewChat() {
     const playerMessage = input.trim();
     setInput("");
 
-    // Add player message to chat
+    // Add player message to chat (target filled in after target selection)
     const playerEntry: ChatEntry = {
       id: `${Date.now()}-player`,
       type: "player",
@@ -118,6 +118,10 @@ export function PreviewChat() {
         return;
       }
 
+      // Backfill target on the player entry now that we know who they're addressing
+      playerEntry.target = targetNpc.displayName;
+      fullChatHistory[fullChatHistory.length - 1] = { ...playerEntry };
+
       // Step 2: Generate dialogue response through pipeline
       setStreamingSpeaker(targetNpc.displayName);
       setStreamingText("");
@@ -135,6 +139,7 @@ export function PreviewChat() {
             scene,
             selectedNpcs,
             chatHistory: fullChatHistory,
+            responseTarget: { type: "player", UUID: "player_001" },
             eligibleActions: getEligibleActions().map((a) => ({
               name: a.name,
               description: a.description,
