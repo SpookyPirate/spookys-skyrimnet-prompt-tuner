@@ -22,6 +22,7 @@ import {
   Loader2,
   Settings2,
   ScanSearch,
+  Play,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<BenchmarkCategory, React.ReactNode> = {
@@ -46,20 +47,28 @@ export function BenchmarkSetup() {
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<BenchmarkCategory | null>(null);
 
-  const handleRunBenchmark = (category: BenchmarkCategory) => {
+  const setActiveCategory = useBenchmarkStore((s) => s.setActiveCategory);
+
+  const handleSelectCategory = (category: BenchmarkCategory) => {
+    if (isRunning) return;
+    setActiveCategory(category);
+  };
+
+  const handleRunBenchmark = () => {
+    if (!activeCategory) return;
     const selectedProfiles = profiles.filter((p) =>
       selectedProfileIds.includes(p.id)
     );
     if (selectedProfiles.length === 0) return;
 
-    const scenarioId = activeScenarioIds[category];
+    const scenarioId = activeScenarioIds[activeCategory];
     const scenario = scenarioId
       ? customScenarios.find((s) => s.id === scenarioId)
         || findBuiltinScenario(scenarioId)
-        || getDefaultScenario(category)
-      : getDefaultScenario(category);
+        || getDefaultScenario(activeCategory)
+      : getDefaultScenario(activeCategory);
 
-    runBenchmark(category, selectedProfiles, scenario);
+    runBenchmark(activeCategory, selectedProfiles, scenario);
   };
 
   const noProfilesSelected = selectedProfileIds.length === 0;
@@ -133,30 +142,19 @@ export function BenchmarkSetup() {
               Run Benchmark
             </div>
 
-            {isRunning && (
-              <Button
-                variant="destructive"
-                size="sm"
-                className="w-full gap-1.5 text-xs"
-                onClick={stopBenchmark}
-              >
-                <Square className="h-3 w-3" />
-                Stop
-              </Button>
-            )}
-
             <div className="space-y-1">
               {BENCHMARK_CATEGORIES.map((cat) => {
-                const isActive = isRunning && activeCategory === cat.id;
+                const isSelected = activeCategory === cat.id;
+                const isActive = isRunning && isSelected;
                 const subtaskCount = cat.subtasks.length;
                 return (
                   <Button
                     key={cat.id}
-                    variant={isActive ? "default" : "outline"}
+                    variant={isSelected ? "default" : "outline"}
                     size="sm"
                     className="w-full justify-start gap-1.5 text-xs"
                     disabled={noProfilesSelected || isRunning}
-                    onClick={() => handleRunBenchmark(cat.id)}
+                    onClick={() => handleSelectCategory(cat.id)}
                     title={cat.description}
                   >
                     {isActive ? (
@@ -174,6 +172,30 @@ export function BenchmarkSetup() {
                 );
               })}
             </div>
+
+            {activeCategory && (
+              isRunning ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full gap-1.5 text-xs"
+                  onClick={stopBenchmark}
+                >
+                  <Square className="h-3 w-3" />
+                  Stop
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className="w-full gap-1.5 text-xs"
+                  disabled={noProfilesSelected}
+                  onClick={handleRunBenchmark}
+                >
+                  <Play className="h-3 w-3" />
+                  Run {BENCHMARK_CATEGORIES.find((c) => c.id === activeCategory)?.label}
+                </Button>
+              )
+            )}
           </div>
 
           {/* Scenario Dropdown (for active category) */}
