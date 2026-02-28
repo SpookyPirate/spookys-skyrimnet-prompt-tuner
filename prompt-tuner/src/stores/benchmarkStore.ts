@@ -55,6 +55,8 @@ interface BenchmarkState {
   initResult: (key: string, result: BenchmarkResult) => void;
   updateSubtask: (key: string, subtaskIdx: number, updates: Partial<BenchmarkSubtaskResult>) => void;
   appendSubtaskStream: (key: string, subtaskIdx: number, chunk: string) => void;
+  appendExplanationStream: (key: string, subtaskIdx: number, chunk: string) => void;
+  updateExplanation: (key: string, subtaskIdx: number, updates: Partial<Pick<BenchmarkSubtaskResult, "explanation" | "explanationStatus" | "explanationError">>) => void;
   finalizeResult: (key: string) => void;
   clearResults: () => void;
   setAssessment: (assessment: Partial<BenchmarkAssessment>) => void;
@@ -138,6 +140,37 @@ export const useBenchmarkStore = create<BenchmarkState>((set, get) => ({
         ...newSubtasks[subtaskIdx],
         streamedText: newSubtasks[subtaskIdx].streamedText + chunk,
       };
+      return {
+        results: {
+          ...s.results,
+          [key]: { ...prev, subtasks: newSubtasks },
+        },
+      };
+    }),
+
+  appendExplanationStream: (key, subtaskIdx, chunk) =>
+    set((s) => {
+      const prev = s.results[key];
+      if (!prev) return s;
+      const newSubtasks = [...prev.subtasks];
+      newSubtasks[subtaskIdx] = {
+        ...newSubtasks[subtaskIdx],
+        explanationStreamedText: newSubtasks[subtaskIdx].explanationStreamedText + chunk,
+      };
+      return {
+        results: {
+          ...s.results,
+          [key]: { ...prev, subtasks: newSubtasks },
+        },
+      };
+    }),
+
+  updateExplanation: (key, subtaskIdx, updates) =>
+    set((s) => {
+      const prev = s.results[key];
+      if (!prev) return s;
+      const newSubtasks = [...prev.subtasks];
+      newSubtasks[subtaskIdx] = { ...newSubtasks[subtaskIdx], ...updates };
       return {
         results: {
           ...s.results,

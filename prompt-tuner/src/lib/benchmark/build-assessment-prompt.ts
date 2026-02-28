@@ -19,7 +19,10 @@ export function buildAssessmentMessages(
         const stStats = `- Latency: ${st.latencyMs}ms | Tokens: ${st.totalTokens} (${st.promptTokens} prompt + ${st.completionTokens} completion)`;
         const stStatus = st.status === "error" ? `- ERROR: ${st.error}` : "";
         const response = st.response || "(no response)";
-        return [stHeader, stStats, stStatus, `\n\`\`\`\n${response}\n\`\`\``].filter(Boolean).join("\n");
+        const explanationBlock = st.explanation
+          ? `\n**Model's Self-Explanation:**\n\`\`\`\n${st.explanation}\n\`\`\``
+          : "";
+        return [stHeader, stStats, stStatus, `\n\`\`\`\n${response}\n\`\`\``, explanationBlock].filter(Boolean).join("\n");
       }).join("\n\n");
 
       return `${header}\n${stats}\n\n${subtaskSections}`;
@@ -57,6 +60,11 @@ Rate each model's responses on these dimensions (1-10 scale):
 **Speed** — Latency assessment
 - Relative speed comparison between models
 
+**Self-Awareness** — Quality of the model's self-explanation (when available)
+- Does the model accurately identify what it did and why?
+- Does it demonstrate understanding of the prompt constraints?
+- Is it genuinely self-critical or just generic?
+
 ## Output Format
 
 Produce a markdown report with:
@@ -77,6 +85,8 @@ ${renderedText.substring(0, 4000)}${renderedText.length > 4000 ? "\n... (truncat
 ## Model Responses
 
 ${responsesSection}
+
+Where available, each response includes the model's self-explanation of its reasoning. Factor these into your Self-Awareness evaluation.
 
 Please evaluate these models comparatively across all subtasks.`;
 

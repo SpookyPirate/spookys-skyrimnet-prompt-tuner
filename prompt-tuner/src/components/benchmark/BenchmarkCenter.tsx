@@ -16,6 +16,7 @@ import {
   X,
   MessageSquare,
   ArrowRight,
+  Brain,
 } from "lucide-react";
 import type {
   BenchmarkResult,
@@ -501,6 +502,11 @@ function OutputColumn({
         )}
       </pre>
 
+      {/* Self-Explanation */}
+      {subtask.explanationStatus !== "idle" && (
+        <ExplanationBlock subtask={subtask} />
+      )}
+
       {/* Footer: stats */}
       <div className="flex items-center gap-2 border-t px-2 py-1 text-[10px] text-muted-foreground">
         {subtask.status === "done" && (
@@ -525,6 +531,70 @@ function OutputColumn({
           <StatusDot status={subtask.status} />
         </span>
       </div>
+    </div>
+  );
+}
+
+/* ── Explanation Block ────────────────────────────────────────────────── */
+
+function ExplanationBlock({ subtask }: { subtask: BenchmarkSubtaskResult }) {
+  const [expanded, setExpanded] = useState(true);
+  const scrollRef = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    if (subtask.explanationStatus === "streaming" && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [subtask.explanationStreamedText, subtask.explanationStatus]);
+
+  const displayText =
+    subtask.explanationStatus === "streaming"
+      ? subtask.explanationStreamedText
+      : subtask.explanation || subtask.explanationStreamedText;
+
+  return (
+    <div className="border-t border-amber-500/20">
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="flex w-full items-center gap-1.5 px-2 py-1 text-left hover:bg-amber-500/5"
+      >
+        {expanded ? (
+          <ChevronDown className="h-2.5 w-2.5 shrink-0 text-amber-400" />
+        ) : (
+          <ChevronRight className="h-2.5 w-2.5 shrink-0 text-amber-400" />
+        )}
+        <Brain className="h-2.5 w-2.5 shrink-0 text-amber-400" />
+        <span className="text-[10px] font-semibold text-amber-400">
+          Self-Explanation
+        </span>
+        {subtask.explanationStatus === "streaming" && (
+          <Loader2 className="h-2.5 w-2.5 animate-spin text-amber-400/70 ml-1" />
+        )}
+        {subtask.explanationStatus === "error" && (
+          <span className="text-[9px] text-destructive ml-1">Error</span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="px-2 pb-1.5">
+          {subtask.explanationStatus === "error" && subtask.explanationError && (
+            <p className="text-[10px] text-destructive mb-1">
+              {subtask.explanationError}
+            </p>
+          )}
+          <pre
+            ref={scrollRef}
+            className="whitespace-pre-wrap break-words text-[10px] font-mono leading-relaxed text-amber-300/80 max-h-[200px] overflow-auto rounded bg-amber-500/5 p-1.5"
+          >
+            {displayText || (
+              <span className="text-muted-foreground italic">Waiting...</span>
+            )}
+            {subtask.explanationStatus === "streaming" && (
+              <span className="inline-block w-1.5 h-3 bg-amber-400/70 animate-pulse ml-0.5 align-text-bottom" />
+            )}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }

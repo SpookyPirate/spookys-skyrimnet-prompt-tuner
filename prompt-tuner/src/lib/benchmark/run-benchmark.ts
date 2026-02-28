@@ -1,11 +1,80 @@
 import type { BenchmarkCategory, BenchmarkChatEntry, BenchmarkScenario } from "@/types/benchmark";
 import type { ChatMessage } from "@/types/llm";
 import type { SettingsProfile } from "@/types/config";
+import type { AgentType, ModelSlot } from "@/types/config";
 import { getCategoryDef } from "./categories";
 import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody } from "./default-scenarios";
+import { buildExplanationMessages } from "./build-explanation-prompt";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
 import { useAppStore } from "@/stores/appStore";
 import { sendLlmRequestWithSlot } from "@/lib/llm/client";
+
+/**
+ * Run a self-explanation follow-up: asks the same model to explain
+ * why it responded the way it did. Streams independently from the
+ * main response.
+ */
+async function runSelfExplanation({
+  key,
+  subtaskIdx,
+  category,
+  subtaskLabel,
+  originalMessages,
+  modelResponse,
+  agent,
+  slot,
+  model,
+  apiKey,
+  signal,
+}: {
+  key: string;
+  subtaskIdx: number;
+  category: BenchmarkCategory;
+  subtaskLabel: string;
+  originalMessages: ChatMessage[];
+  modelResponse: string;
+  agent: AgentType;
+  slot: ModelSlot;
+  model: string;
+  apiKey: string;
+  signal: AbortSignal;
+}) {
+  const store = useBenchmarkStore.getState();
+  store.updateExplanation(key, subtaskIdx, { explanationStatus: "streaming" });
+
+  try {
+    const explanationMessages = buildExplanationMessages(
+      category,
+      subtaskLabel,
+      originalMessages,
+      modelResponse,
+    );
+
+    const log = await sendLlmRequestWithSlot({
+      messages: explanationMessages,
+      agent,
+      slot,
+      model,
+      apiKey,
+      onChunk: (chunk) => {
+        useBenchmarkStore.getState().appendExplanationStream(key, subtaskIdx, chunk);
+      },
+      signal,
+    });
+
+    useBenchmarkStore.getState().updateExplanation(key, subtaskIdx, {
+      explanation: log.response,
+      explanationStatus: log.error ? "error" : "done",
+      explanationError: log.error,
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") return;
+    useBenchmarkStore.getState().updateExplanation(key, subtaskIdx, {
+      explanationStatus: "error",
+      explanationError: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+}
 
 export async function runBenchmark(
   category: BenchmarkCategory,
@@ -57,6 +126,9 @@ export async function runBenchmark(
           totalTokens: 0,
           streamedText: "",
           status: "pending",
+          explanation: "",
+          explanationStreamedText: "",
+          explanationStatus: "idle",
         })),
         totalLatencyMs: 0,
         totalTokens: 0,
@@ -151,6 +223,23 @@ export async function runBenchmark(
             status: log.error ? "error" : "done",
             error: log.error,
           });
+
+          // Run self-explanation after successful response
+          if (log.response && !log.error) {
+            await runSelfExplanation({
+              key,
+              subtaskIdx: stIdx,
+              category,
+              subtaskLabel: subtask.label,
+              originalMessages: messages,
+              modelResponse: log.response,
+              agent: catDef.agent,
+              slot: agentSlot,
+              model,
+              apiKey,
+              signal: abortController.signal,
+            });
+          }
         } catch (err: unknown) {
           if (err instanceof Error && err.name === "AbortError") return;
           useBenchmarkStore.getState().updateSubtask(key, stIdx, {
@@ -226,6 +315,9 @@ async function runMultiTurnBenchmark(
           totalTokens: 0,
           streamedText: "",
           status: "pending",
+          explanation: "",
+          explanationStreamedText: "",
+          explanationStatus: "idle",
         })),
         totalLatencyMs: 0,
         totalTokens: 0,
@@ -315,6 +407,23 @@ async function runMultiTurnBenchmark(
             status: log.error ? "error" : "done",
             error: log.error,
           });
+
+          // Run self-explanation after successful response
+          if (log.response && !log.error) {
+            await runSelfExplanation({
+              key,
+              subtaskIdx: turnIdx,
+              category,
+              subtaskLabel: turn.label,
+              originalMessages: messages,
+              modelResponse: log.response,
+              agent: catDef.agent,
+              slot: agentSlot,
+              model,
+              apiKey,
+              signal: abortController.signal,
+            });
+          }
 
           // 4. Push NPC response to accumulated chat for next turn
           if (log.response && !log.error) {

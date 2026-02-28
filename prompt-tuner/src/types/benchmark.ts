@@ -106,6 +106,11 @@ export interface BenchmarkSubtaskResult {
   streamedText: string;
   status: "pending" | "streaming" | "done" | "error";
   error?: string;
+  // Self-explanation (separate follow-up prompt after each response)
+  explanation: string;
+  explanationStreamedText: string;
+  explanationStatus: "idle" | "streaming" | "done" | "error";
+  explanationError?: string;
 }
 
 export interface BenchmarkResult {
