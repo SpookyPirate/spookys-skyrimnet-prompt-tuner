@@ -15,7 +15,6 @@ import { RightPanel } from "./RightPanel";
 import { SettingsDialog } from "@/components/config/SettingsDialog";
 import { ExportDialog } from "@/components/export/ExportDialog";
 import { SavePromptSetDialog } from "@/components/export/SavePromptSetDialog";
-import { LoadPromptSetDialog } from "@/components/export/LoadPromptSetDialog";
 import { EnhanceSpeechDialog } from "@/components/speech/EnhanceSpeechDialog";
 import { UpdateOriginalsDialog } from "@/components/file-explorer/UpdateOriginalsDialog";
 import { CreateYamlDialog } from "@/components/actions/CreateYamlDialog";
@@ -29,8 +28,6 @@ export function AppShell() {
   const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const saveSetDialogOpen = useAppStore((s) => s.saveSetDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
-  const loadPromptSetDialogOpen = useAppStore((s) => s.loadPromptSetDialogOpen);
-  const setLoadPromptSetDialogOpen = useAppStore((s) => s.setLoadPromptSetDialogOpen);
   const enhanceSpeechDialogOpen = useAppStore((s) => s.enhanceSpeechDialogOpen);
   const setEnhanceSpeechDialogOpen = useAppStore((s) => s.setEnhanceSpeechDialogOpen);
   const updateOriginalsDialogOpen = useAppStore((s) => s.updateOriginalsDialogOpen);
@@ -129,10 +126,6 @@ export function AppShell() {
         onOpenChange={setSaveSetDialogOpen}
         currentSetName={activePromptSet}
         onSaved={(name) => setActivePromptSet(name)}
-      />
-      <LoadPromptSetDialog
-        open={loadPromptSetDialogOpen}
-        onOpenChange={setLoadPromptSetDialogOpen}
       />
       <EnhanceSpeechDialog
         open={enhanceSpeechDialogOpen}

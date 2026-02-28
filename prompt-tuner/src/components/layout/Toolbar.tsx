@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/appStore";
+import { useFileStore } from "@/stores/fileStore";
 import { useConfigStore } from "@/stores/configStore";
 import {
   PanelLeft,
@@ -26,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 export function Toolbar() {
   const toggleLeftPanel = useAppStore((s) => s.toggleLeftPanel);
@@ -35,10 +38,8 @@ export function Toolbar() {
   const setSettingsOpen = useConfigStore((s) => s.setSettingsOpen);
   const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
-  const setLoadPromptSetDialogOpen = useAppStore((s) => s.setLoadPromptSetDialogOpen);
   const setEnhanceSpeechDialogOpen = useAppStore((s) => s.setEnhanceSpeechDialogOpen);
   const setCreateYamlDialogOpen = useAppStore((s) => s.setCreateYamlDialogOpen);
-  const activePromptSet = useAppStore((s) => s.activePromptSet);
 
   return (
     <div className="flex h-10 items-center justify-between border-b bg-card px-2">
@@ -63,16 +64,9 @@ export function Toolbar() {
       </div>
 
       <div className="flex items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setLoadPromptSetDialogOpen(true)}>
-              <FolderOpen className="h-3.5 w-3.5" />
-              Load Prompt Set
-              <span className="text-green-500 font-normal">({activePromptSet})</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Switch to a different prompt set</TooltipContent>
-        </Tooltip>
+        <PromptSetSwitcher />
+
+        <div className="mx-0.5 h-4 w-px bg-border" />
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -148,5 +142,58 @@ export function Toolbar() {
         </Tooltip>
       </div>
     </div>
+  );
+}
+
+/* ── Prompt Set Switcher ─────────────────────────────────────────────── */
+
+function PromptSetSwitcher() {
+  const [sets, setSets] = useState<string[]>([]);
+  const activePromptSet = useAppStore((s) => s.activePromptSet);
+
+  useEffect(() => {
+    fetch("/api/export/list-sets")
+      .then((res) => res.json())
+      .then((data) => setSets(data.sets ?? []))
+      .catch(() => {});
+  }, []);
+
+  const handleSelect = async (value: string) => {
+    if (value === activePromptSet) return;
+    useAppStore.getState().setActivePromptSet(value);
+    useFileStore.getState().closeAllFiles();
+    await useFileStore.getState().refreshTree();
+    toast.success(
+      value ? `Prompt set "${value}" loaded` : "Switched to original prompts",
+    );
+  };
+
+  // Ensure the current value always has a matching option
+  const allSets =
+    activePromptSet && !sets.includes(activePromptSet)
+      ? [activePromptSet, ...sets]
+      : sets;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-1.5">
+          <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+          <select
+            value={activePromptSet}
+            onChange={(e) => handleSelect(e.target.value)}
+            className="h-7 rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
+          >
+            <option value="">Default (Original Prompts)</option>
+            {allSets.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>Switch active prompt set</TooltipContent>
+    </Tooltip>
   );
 }
