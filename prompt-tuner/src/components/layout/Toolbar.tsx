@@ -183,7 +183,7 @@ function PromptSetSwitcher() {
           <select
             value={activePromptSet}
             onChange={(e) => handleSelect(e.target.value)}
-            className="h-7 rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
+            className="h-7 rounded-md border bg-background text-green-500 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
           >
             <option value="">Default (Original Prompts)</option>
             {allSets.map((name) => (
