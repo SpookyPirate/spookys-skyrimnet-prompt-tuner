@@ -178,8 +178,8 @@ function PromptSetSwitcher() {
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="flex items-center gap-1.5">
-          <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Prompt Set</span>
+          <FolderOpen className="h-3.5 w-3.5" />
+          <span className="text-xs">Active Prompt Set</span>
           <select
             value={activePromptSet}
             onChange={(e) => handleSelect(e.target.value)}
