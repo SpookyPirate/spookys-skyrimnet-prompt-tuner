@@ -1,4 +1,4 @@
-import type { BenchmarkCategory, BenchmarkScenario } from "@/types/benchmark";
+import type { BenchmarkCategory, BenchmarkScenario, BenchmarkChatEntry } from "@/types/benchmark";
 import type { SettingsProfile } from "@/types/config";
 import type { ChatMessage } from "@/types/llm";
 import type { TuningTarget } from "@/types/autotuner";
@@ -81,49 +81,123 @@ export async function runTuningLoop(
       let renderedMessages: ChatMessage[] = [];
       let renderedText = "";
 
+      const isMultiTurn = activeScenario.turns && activeScenario.turns.length > 0;
+
       try {
-        // Render the prompt
-        const subtask = catDef.subtasks[0]; // Use first subtask for simplicity
         const promptSetBase = workingPromptSet || undefined;
-        const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
 
-        const renderResponse = await fetch(subtask.renderEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(renderBody),
-          signal: abortController.signal,
-        });
+        if (isMultiTurn) {
+          // ── Multi-turn dialogue: iterate all turns sequentially ──
+          const turns = activeScenario.turns!;
+          const accumulatedChat: BenchmarkChatEntry[] = [];
+          const allResponses: string[] = [];
 
-        if (!renderResponse.ok) {
-          const errData = await renderResponse.json().catch(() => ({}));
-          throw new Error(errData.error || `Render failed: HTTP ${renderResponse.status}`);
-        }
+          for (let turnIdx = 0; turnIdx < turns.length; turnIdx++) {
+            if (abortController.signal.aborted) break;
 
-        const renderData = await renderResponse.json();
-        renderedMessages = renderData.messages;
-        renderedText = renderData.renderedText || "";
+            const turn = turns[turnIdx];
 
-        // Send to LLM with working settings
-        const log = await sendLlmRequestWithSlot({
-          messages: renderedMessages,
-          agent,
-          slot: workingSlot,
-          model,
-          apiKey,
-          onChunk: () => {
-            // We don't stream benchmark results in the auto-tuner for simplicity
-          },
-          signal: abortController.signal,
-        });
+            // Push scripted input to accumulated chat
+            accumulatedChat.push({
+              type: turn.inputType === "player" ? "player" : "npc",
+              speaker: turn.inputSpeaker,
+              content: turn.inputContent,
+              target: turn.inputTarget,
+            });
 
-        benchResponse = log.response;
-        benchLatencyMs = log.latencyMs;
-        benchPromptTokens = log.promptTokens;
-        benchCompletionTokens = log.completionTokens;
-        benchTotalTokens = log.totalTokens;
+            // Render the prompt for the responding NPC with current chat
+            const renderBody = buildMultiTurnRenderBody(
+              turn,
+              activeScenario,
+              accumulatedChat,
+              promptSetBase,
+            );
 
-        if (log.error) {
-          throw new Error(log.error);
+            const renderResponse = await fetch("/api/prompts/render-dialogue", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(renderBody),
+              signal: abortController.signal,
+            });
+
+            if (!renderResponse.ok) {
+              const errData = await renderResponse.json().catch(() => ({}));
+              throw new Error(errData.error || `Render failed on turn ${turnIdx + 1}: HTTP ${renderResponse.status}`);
+            }
+
+            const renderData = await renderResponse.json();
+            renderedMessages = renderData.messages;
+            if (turnIdx === 0) renderedText = renderData.renderedText || "";
+
+            // Send to LLM
+            const log = await sendLlmRequestWithSlot({
+              messages: renderedMessages,
+              agent,
+              slot: workingSlot,
+              model,
+              apiKey,
+              onChunk: () => {},
+              signal: abortController.signal,
+            });
+
+            if (log.error) throw new Error(log.error);
+
+            allResponses.push(log.response);
+            benchLatencyMs += log.latencyMs;
+            benchPromptTokens += log.promptTokens;
+            benchCompletionTokens += log.completionTokens;
+            benchTotalTokens += log.totalTokens;
+
+            // Push NPC response to accumulated chat for next turn
+            const respondingNpc = activeScenario.npcs[turn.respondingNpcIndex];
+            accumulatedChat.push({
+              type: "npc",
+              speaker: respondingNpc?.displayName || "NPC",
+              content: log.response,
+              target: turn.inputSpeaker,
+            });
+          }
+
+          // Aggregate all turn responses for assessment
+          benchResponse = allResponses.map((r, i) => `[Turn ${i + 1}] ${r}`).join("\n\n");
+        } else {
+          // ── Single-turn: original path ──
+          const subtask = catDef.subtasks[0];
+          const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
+
+          const renderResponse = await fetch(subtask.renderEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(renderBody),
+            signal: abortController.signal,
+          });
+
+          if (!renderResponse.ok) {
+            const errData = await renderResponse.json().catch(() => ({}));
+            throw new Error(errData.error || `Render failed: HTTP ${renderResponse.status}`);
+          }
+
+          const renderData = await renderResponse.json();
+          renderedMessages = renderData.messages;
+          renderedText = renderData.renderedText || "";
+
+          const log = await sendLlmRequestWithSlot({
+            messages: renderedMessages,
+            agent,
+            slot: workingSlot,
+            model,
+            apiKey,
+            onChunk: () => {},
+            signal: abortController.signal,
+          });
+
+          if (log.error) throw new Error(log.error);
+
+          benchResponse = log.response;
+          benchLatencyMs = log.latencyMs;
+          benchPromptTokens = log.promptTokens;
+          benchCompletionTokens = log.completionTokens;
+          benchTotalTokens = log.totalTokens;
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") break;
