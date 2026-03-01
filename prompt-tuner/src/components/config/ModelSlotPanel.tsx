@@ -307,22 +307,6 @@ export function ModelSlotPanel({ agent }: ModelSlotPanelProps) {
             </select>
           </Field>
 
-          {(agent !== "tuner") && (
-            <Field label="Event History Count">
-              <Input
-                type="number"
-                value={slot.tuning.eventHistoryCount}
-                onChange={(e) =>
-                  updateTuning(agent, {
-                    eventHistoryCount: parseInt(e.target.value) || 50,
-                  })
-                }
-                min={5}
-                max={200}
-                className="h-7 text-xs"
-              />
-            </Field>
-          )}
         </div>
       </div>
     </div>

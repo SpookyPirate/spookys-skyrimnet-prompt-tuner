@@ -191,7 +191,6 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       lines.push(`stopSequences    = "${slot.tuning.stopSequences}"`);
       lines.push(`structuredOutputs = ${slot.tuning.structuredOutputs}`);
       lines.push(`allowReasoning   = ${slot.tuning.allowReasoning}`);
-      lines.push(`eventHistoryCount = ${slot.tuning.eventHistoryCount}`);
       lines.push("```");
       lines.push("");
     }

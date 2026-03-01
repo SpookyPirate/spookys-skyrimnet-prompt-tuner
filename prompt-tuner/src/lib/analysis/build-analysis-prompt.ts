@@ -71,7 +71,6 @@ export function buildAnalysisMessages(): ChatMessage[] {
       `  - Stop Sequences: ${slot.tuning.stopSequences}`,
       `  - Structured Outputs: ${slot.tuning.structuredOutputs}`,
       `  - Allow Reasoning: ${slot.tuning.allowReasoning}`,
-      `  - Event History Count: ${slot.tuning.eventHistoryCount}`,
     ].filter(Boolean).join("\n");
   }).join("\n\n");
 

@@ -15,7 +15,6 @@ const SETTINGS_DESCRIPTIONS: Record<keyof AiTuningSettings, string> = {
   stopSequences: "JSON array of strings that stop generation when encountered.",
   structuredOutputs: "Whether to use structured/JSON output mode.",
   allowReasoning: "Whether to allow the model to use extended thinking/reasoning.",
-  eventHistoryCount: "Number of game events to include in context. Higher = more context but more tokens.",
 };
 
 /**

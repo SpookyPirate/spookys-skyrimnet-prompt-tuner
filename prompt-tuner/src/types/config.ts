@@ -68,7 +68,6 @@ export interface AiTuningSettings {
   stopSequences: string;
   structuredOutputs: boolean;
   allowReasoning: boolean;
-  eventHistoryCount: number;
 }
 
 export interface ModelSlot {
@@ -99,7 +98,6 @@ export const DEFAULT_TUNING_SETTINGS: AiTuningSettings = {
   stopSequences: "[]",
   structuredOutputs: false,
   allowReasoning: false,
-  eventHistoryCount: 50,
 };
 
 export const DEFAULT_MODEL_NAMES: Record<AgentType, string> = {
