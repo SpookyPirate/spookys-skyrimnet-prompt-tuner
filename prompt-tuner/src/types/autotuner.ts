@@ -52,6 +52,9 @@ export interface AutoTunerConfig {
   selectedProfileId: string;
   selectedCategory: BenchmarkCategory | null;
   selectedScenarioId: string;
+  selectedPromptSet: string;
   tuningTarget: TuningTarget;
   maxRounds: number;
+  lockedSettings: (keyof AiTuningSettings)[];
+  customInstructions: string;
 }

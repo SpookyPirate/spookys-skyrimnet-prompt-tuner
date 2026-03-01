@@ -23,6 +23,9 @@ export async function runTuningLoop(
   tuningTarget: TuningTarget,
   maxRounds: number,
   scenario?: BenchmarkScenario,
+  selectedPromptSet?: string,
+  lockedSettings?: (keyof import("@/types/config").AiTuningSettings)[],
+  customInstructions?: string,
 ) {
   const store = useAutoTunerStore.getState();
   const catDef = getCategoryDef(category);
@@ -35,7 +38,7 @@ export async function runTuningLoop(
   // Snapshot original settings
   const originalSettings = { ...agentSlot.tuning };
   let workingSettings = { ...originalSettings };
-  let workingPromptSet = "";
+  let workingPromptSet = selectedPromptSet || "";
   let tempSetCreated = false;
 
   const abortController = new AbortController();
@@ -232,6 +235,8 @@ export async function runTuningLoop(
           currentResponse: benchResponse,
           currentLatencyMs: benchLatencyMs,
           currentTokens: benchTotalTokens,
+          lockedSettings,
+          customInstructions,
         });
 
         const proposalLog = await sendLlmRequest({

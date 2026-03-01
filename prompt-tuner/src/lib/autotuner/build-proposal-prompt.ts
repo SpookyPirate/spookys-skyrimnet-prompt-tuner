@@ -33,6 +33,8 @@ export function buildProposalMessages({
   currentResponse,
   currentLatencyMs,
   currentTokens,
+  lockedSettings = [],
+  customInstructions = "",
 }: {
   category: BenchmarkCategory;
   tuningTarget: TuningTarget;
@@ -44,6 +46,8 @@ export function buildProposalMessages({
   currentResponse: string;
   currentLatencyMs: number;
   currentTokens: number;
+  lockedSettings?: (keyof AiTuningSettings)[];
+  customInstructions?: string;
 }): ChatMessage[] {
   const catDef = getCategoryDef(category);
   const agentName = catDef?.label || category;
@@ -62,11 +66,12 @@ ${Object.entries(currentSettings)
     const desc = SETTINGS_DESCRIPTIONS[key as keyof AiTuningSettings] || "";
     const origVal = originalSettings[key as keyof AiTuningSettings];
     const changed = JSON.stringify(value) !== JSON.stringify(origVal);
-    return `- **${key}**: \`${JSON.stringify(value)}\` ${changed ? `(originally: \`${JSON.stringify(origVal)}\`)` : ""} — ${desc}`;
+    const isLocked = lockedSettings.includes(key as keyof AiTuningSettings);
+    return `- **${key}**: \`${JSON.stringify(value)}\` ${changed ? `(originally: \`${JSON.stringify(origVal)}\`)` : ""}${isLocked ? " **(LOCKED — do not change)**" : ""} — ${desc}`;
   })
   .join("\n")}
 
-You may propose changes to any of these settings. Use the parameter name exactly as shown.`
+You may propose changes to any UNLOCKED settings. Use the parameter name exactly as shown.${lockedSettings.length > 0 ? ` Do NOT propose changes to locked settings: ${lockedSettings.join(", ")}.` : ""}`
     : "";
 
   // Build prompts section
@@ -136,7 +141,13 @@ Respond with a JSON object (no markdown fences):
   ]
 }
 
-If no changes are needed for a category, use an empty array. Always include all fields.`;
+If no changes are needed for a category, use an empty array. Always include all fields.${customInstructions.trim() ? `
+
+## User Instructions (PRIORITY)
+
+The user has provided the following instructions. Follow them carefully:
+
+${customInstructions.trim()}` : ""}`;
 
   const userContent = `## This Round's Benchmark Result
 
