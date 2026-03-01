@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,9 +24,12 @@ import type {
   BenchmarkNpc,
   BenchmarkDialogueTurn,
 } from "@/types/benchmark";
-import { Trash2, Copy, Search, X, MapPin } from "lucide-react";
+import { Trash2, Copy, Search, X, MapPin, Sparkles, Loader2 } from "lucide-react";
 import type { FileNode } from "@/types/files";
 import { parseCharacterName } from "@/lib/files/paths";
+import { sendLlmRequest } from "@/lib/llm/client";
+import { buildSceneGenMessages } from "@/lib/benchmark/build-scene-gen-prompt";
+import { toast } from "sonner";
 
 const GENDERS = ["Male", "Female"];
 const SKYRIM_RACES = ["Nord", "Imperial", "Breton", "Redguard", "Dunmer", "Altmer", "Bosmer", "Orsimer", "Khajiit", "Argonian"];
@@ -86,11 +89,21 @@ export function CustomScenarioDialog({
     createEmptyForm(initialCategory)
   );
 
+  const [generating, setGenerating] = useState(false);
+  const [genDescription, setGenDescription] = useState("");
+  const [showGenInput, setShowGenInput] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     if (open) {
       setSelectedCategory(initialCategory);
       setEditingId(null);
       setForm(createEmptyForm(initialCategory));
+      setGenerating(false);
+      setShowGenInput(false);
+      setGenDescription("");
+      abortRef.current?.abort();
+      abortRef.current = null;
     }
   }, [open, initialCategory]);
 
@@ -105,6 +118,43 @@ export function CustomScenarioDialog({
       name: `${def.name} (Copy)`,
       description: def.description,
     });
+  };
+
+  const handleGenerateScene = async () => {
+    setGenerating(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const messages = buildSceneGenMessages(selectedCategory, genDescription);
+      const result = await sendLlmRequest({
+        messages,
+        agent: "tuner",
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+
+      let text = result.response ?? "";
+      // Strip markdown fences if present
+      text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+      const parsed = JSON.parse(text);
+
+      // Defensive: if scenePlan came back as object, stringify it
+      if (parsed.scenePlan && typeof parsed.scenePlan === "object") {
+        parsed.scenePlan = JSON.stringify(parsed.scenePlan, null, 2);
+      }
+
+      const base = createEmptyForm(selectedCategory);
+      setForm({ ...base, ...parsed, category: selectedCategory });
+      setGenDescription("");
+      setShowGenInput(false);
+      toast.success("Scene generated");
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      toast.error("Generation failed: " + (err instanceof Error ? err.message : "Unknown error"));
+    } finally {
+      setGenerating(false);
+      abortRef.current = null;
+    }
   };
 
   const handleEdit = (scenario: BenchmarkScenario) => {
@@ -340,18 +390,65 @@ export function CustomScenarioDialog({
                 <span className="text-xs font-medium">
                   {editingId ? "Edit Scenario" : "New Scenario"}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 gap-1.5 text-xs px-2"
-                  onClick={handleCopyFromDefault}
-                >
-                  <Copy className="h-3 w-3" />
-                  Copy from Default
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1.5 text-xs px-2"
+                    disabled={generating}
+                    onClick={() => setShowGenInput((v) => !v)}
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    Generate Scene
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1.5 text-xs px-2"
+                    disabled={generating}
+                    onClick={handleCopyFromDefault}
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy from Default
+                  </Button>
+                </div>
               </div>
+              {showGenInput && (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={genDescription}
+                    onChange={(e) => setGenDescription(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !generating) handleGenerateScene();
+                    }}
+                    placeholder="Describe the scene or leave empty for random"
+                    className="h-6 text-xs flex-1"
+                    disabled={generating}
+                  />
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-6 text-xs px-3"
+                    disabled={generating}
+                    onClick={handleGenerateScene}
+                  >
+                    {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : "Go"}
+                  </Button>
+                  {generating && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs px-2"
+                      onClick={() => abortRef.current?.abort()}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Name / Description */}
+              <div className={`space-y-3 ${generating ? "opacity-50 pointer-events-none" : ""}`}>
               <div className="grid grid-cols-2 gap-1.5">
                 <div>
                   <Label className="text-[10px] text-muted-foreground">Name</Label>
@@ -844,6 +941,7 @@ export function CustomScenarioDialog({
                   </div>
                 </>
               )}
+              </div>
             </div>
           </ScrollArea>
         </div>
@@ -853,7 +951,7 @@ export function CustomScenarioDialog({
             variant="default"
             size="sm"
             onClick={handleSave}
-            disabled={!form.name.trim()}
+            disabled={!form.name.trim() || generating}
           >
             {editingId ? "Update" : "Create"} Scenario
           </Button>
