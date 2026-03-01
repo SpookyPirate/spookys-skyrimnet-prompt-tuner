@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAutoTunerStore } from "@/stores/autoTunerStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useAppStore } from "@/stores/appStore";
-import { saveSettingsToProfile, savePromptsToSet, deleteTunerTempSet } from "@/lib/autotuner/save-results";
+import { saveSettingsToProfile, saveSettingsToNewProfile, savePromptsToSet, deleteTunerTempSet } from "@/lib/autotuner/save-results";
 import type { AiTuningSettings } from "@/types/config";
 import type { TunerPhase } from "@/types/autotuner";
 import {
@@ -17,6 +17,7 @@ import {
   Loader2,
   Save,
   Trash2,
+  Copy,
 } from "lucide-react";
 
 const PHASE_LABELS: Record<TunerPhase, string> = {
@@ -43,12 +44,21 @@ export function AutoTunerReport() {
   const profiles = useProfileStore((s) => s.profiles);
   const activePromptSet = useAppStore((s) => s.activePromptSet);
 
+  type SaveMode = "overwrite" | "copy" | "other";
+  const [saveMode, setSaveMode] = useState<SaveMode>("overwrite");
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingPrompts, setSavingPrompts] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [promptsSaved, setPromptsSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [targetProfileId, setTargetProfileId] = useState(selectedProfileId);
+  const [otherProfileId, setOtherProfileId] = useState(() => {
+    const other = profiles.find((p) => p.id !== selectedProfileId);
+    return other?.id || "";
+  });
+  const [copyName, setCopyName] = useState(() => {
+    const source = profiles.find((p) => p.id === selectedProfileId);
+    return source ? `${source.name} (Tuned)` : "Tuned Copy";
+  });
   const [promptSetTarget, setPromptSetTarget] = useState(activePromptSet || "tuned-v1");
 
   const hasChanges = rounds.length > 0;
@@ -59,19 +69,28 @@ export function AutoTunerReport() {
     (r) => r.proposal?.promptChanges && r.proposal.promptChanges.length > 0
   );
 
+  const tunedProfile = profiles.find((p) => p.id === selectedProfileId);
+  const otherProfiles = profiles.filter((p) => p.id !== selectedProfileId);
+
   const handleSaveSettings = useCallback(async () => {
     if (!selectedCategory || !workingSettings) return;
     setSavingSettings(true);
     setSaveError(null);
     try {
-      saveSettingsToProfile(targetProfileId, selectedCategory, workingSettings);
+      if (saveMode === "overwrite") {
+        saveSettingsToProfile(selectedProfileId, selectedCategory, workingSettings);
+      } else if (saveMode === "copy") {
+        saveSettingsToNewProfile(selectedProfileId, copyName, selectedCategory, workingSettings);
+      } else {
+        saveSettingsToProfile(otherProfileId, selectedCategory, workingSettings);
+      }
       setSettingsSaved(true);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
       setSavingSettings(false);
     }
-  }, [selectedCategory, workingSettings, targetProfileId]);
+  }, [selectedCategory, workingSettings, saveMode, selectedProfileId, copyName, otherProfileId]);
 
   const handleSavePrompts = useCallback(async () => {
     if (!workingPromptSet) return;
@@ -213,24 +232,70 @@ export function AutoTunerReport() {
 
                 {/* Save Settings */}
                 {hasSettingsChanges && workingSettings && (
-                  <div className="space-y-1 px-1">
-                    <div className="text-[10px] text-muted-foreground">Save settings to profile:</div>
-                    <select
-                      value={targetProfileId}
-                      onChange={(e) => setTargetProfileId(e.target.value)}
-                      className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground"
+                  <div className="space-y-2 px-1">
+                    <div className="text-[10px] text-muted-foreground">Save settings to:</div>
+
+                    {/* Option: Overwrite tuned profile */}
+                    <SaveModeOption
+                      selected={saveMode === "overwrite"}
+                      onSelect={() => setSaveMode("overwrite")}
+                      disabled={settingsSaved}
+                      label={`Update "${tunedProfile?.name || "Unknown"}"`}
+                      description="Overwrite the profile that was tuned"
+                      icon={<Save className="h-3 w-3" />}
+                    />
+
+                    {/* Option: Save as copy */}
+                    <SaveModeOption
+                      selected={saveMode === "copy"}
+                      onSelect={() => setSaveMode("copy")}
+                      disabled={settingsSaved}
+                      label="Save as new profile"
+                      description="Create a copy with the tuned settings"
+                      icon={<Copy className="h-3 w-3" />}
                     >
-                      {profiles.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}{p.id === selectedProfileId ? " (tuned)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                      {saveMode === "copy" && (
+                        <input
+                          type="text"
+                          value={copyName}
+                          onChange={(e) => setCopyName(e.target.value)}
+                          className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
+                          placeholder="New profile name"
+                        />
+                      )}
+                    </SaveModeOption>
+
+                    {/* Option: Save to another profile */}
+                    {otherProfiles.length > 0 && (
+                      <SaveModeOption
+                        selected={saveMode === "other"}
+                        onSelect={() => setSaveMode("other")}
+                        disabled={settingsSaved}
+                        label="Apply to another profile"
+                        description="Update a different profile's agent settings"
+                        icon={<Save className="h-3 w-3" />}
+                      >
+                        {saveMode === "other" && (
+                          <select
+                            value={otherProfileId}
+                            onChange={(e) => setOtherProfileId(e.target.value)}
+                            className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
+                          >
+                            {otherProfiles.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </SaveModeOption>
+                    )}
+
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full gap-1.5 text-xs"
-                      disabled={savingSettings || settingsSaved}
+                      disabled={savingSettings || settingsSaved || (saveMode === "copy" && !copyName.trim()) || (saveMode === "other" && !otherProfileId)}
                       onClick={handleSaveSettings}
                     >
                       {savingSettings ? (
@@ -296,6 +361,53 @@ export function AutoTunerReport() {
           )}
         </div>
       </ScrollArea>
+    </div>
+  );
+}
+
+function SaveModeOption({
+  selected,
+  onSelect,
+  disabled,
+  label,
+  description,
+  icon,
+  children,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  disabled: boolean;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`rounded border p-2 transition-colors ${
+        selected
+          ? "bg-primary/10 border-primary/30"
+          : "border-transparent hover:bg-accent/30"
+      } ${disabled ? "opacity-50" : "cursor-pointer"}`}
+      onClick={() => !disabled && onSelect()}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={`h-3 w-3 rounded-full border flex items-center justify-center shrink-0 ${
+            selected ? "bg-primary border-primary" : "border-muted-foreground/30"
+          }`}
+        >
+          {selected && (
+            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+          )}
+        </span>
+        <span className="text-muted-foreground">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium">{label}</div>
+          <div className="text-[10px] text-muted-foreground">{description}</div>
+        </div>
+      </div>
+      {children && <div className="pl-5 mt-1">{children}</div>}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { getCategoryDef } from "@/lib/benchmark/categories";
 const TUNER_TEMP_SET = "__tuner_temp__";
 
 /**
- * Save tuned settings to a profile by updating its agent slot.
+ * Save tuned settings to an existing profile by updating its agent slot.
  */
 export function saveSettingsToProfile(
   profileId: string,
@@ -38,9 +38,43 @@ export function saveSettingsToProfile(
   const profiles = profileStore.profiles.map((p) =>
     p.id === profileId ? { ...p, slots: updatedSlots } : p,
   );
-  // Manually update the profiles array and persist
   useProfileStore.setState({ profiles });
   profileStore.save();
+}
+
+/**
+ * Save tuned settings to a new profile (copy of the source profile with tuned agent slot).
+ * Returns the new profile's ID.
+ */
+export function saveSettingsToNewProfile(
+  sourceProfileId: string,
+  newProfileName: string,
+  category: BenchmarkCategory,
+  settings: AiTuningSettings,
+): string {
+  const catDef = getCategoryDef(category);
+  if (!catDef) throw new Error(`Unknown category: ${category}`);
+
+  const profileStore = useProfileStore.getState();
+  const sourceProfile = profileStore.getProfile(sourceProfileId);
+  if (!sourceProfile) throw new Error(`Profile not found: ${sourceProfileId}`);
+
+  const agent = catDef.agent as SkyrimNetAgentType;
+
+  // Deep copy the source profile's slots, then apply tuned settings
+  const copiedSlots = JSON.parse(JSON.stringify(sourceProfile.slots));
+  copiedSlots[agent] = {
+    ...copiedSlots[agent],
+    tuning: { ...settings },
+  };
+
+  const newProfile = profileStore.addProfile(
+    newProfileName,
+    sourceProfile.globalApiKey,
+    copiedSlots,
+  );
+
+  return newProfile.id;
 }
 
 /**
