@@ -43,6 +43,8 @@ export function AppShell() {
   const savedRightPanelOpen = useRef(true);
   const prevTabRef = useRef(activeTab);
   const hideRightPanel = activeTab === "editor" || activeTab === "tuner";
+  const hideRightPanelRef = useRef(hideRightPanel);
+  hideRightPanelRef.current = hideRightPanel;
 
   useEffect(() => {
     const prevTab = prevTabRef.current;
@@ -96,6 +98,7 @@ export function AppShell() {
 
   const handleRightResize = useCallback(
     (size: { asPercentage: number }) => {
+      if (hideRightPanelRef.current) return; // Ignore resize events from auto-collapse
       const store = useAppStore.getState();
       if (size.asPercentage === 0 && store.rightPanelOpen) {
         store.toggleRightPanel();
