@@ -41,6 +41,7 @@ export function AutoTunerReport() {
   const selectedCategory = useAutoTunerStore((s) => s.selectedCategory);
   const selectedProfileId = useAutoTunerStore((s) => s.selectedProfileId);
   const workingPromptSet = useAutoTunerStore((s) => s.workingPromptSet);
+  const tuningTarget = useAutoTunerStore((s) => s.tuningTarget);
 
   const profiles = useProfileStore((s) => s.profiles);
   const activePromptSet = useAppStore((s) => s.activePromptSet);
@@ -312,7 +313,7 @@ export function AutoTunerReport() {
                 )}
 
                 {/* Save Prompts */}
-                {hasPromptChanges && workingPromptSet && (
+                {hasPromptChanges && workingPromptSet && tuningTarget !== "settings" && (
                   <div className="space-y-1 px-1">
                     <div className="text-[10px] text-muted-foreground">Save prompts to set:</div>
                     <input
@@ -341,8 +342,8 @@ export function AutoTunerReport() {
                   </div>
                 )}
 
-                {/* Discard temp set */}
-                {workingPromptSet && (
+                {/* Discard temp prompt set */}
+                {workingPromptSet && tuningTarget !== "settings" && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -350,7 +351,7 @@ export function AutoTunerReport() {
                     onClick={handleDiscardTemp}
                   >
                     <Trash2 className="h-3 w-3" />
-                    Discard Temp Changes
+                    Discard Changes
                   </Button>
                 )}
 
