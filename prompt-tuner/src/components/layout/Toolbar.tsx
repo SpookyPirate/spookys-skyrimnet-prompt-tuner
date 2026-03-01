@@ -35,6 +35,9 @@ export function Toolbar() {
   const toggleRightPanel = useAppStore((s) => s.toggleRightPanel);
   const leftPanelOpen = useAppStore((s) => s.leftPanelOpen);
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
+  const activeTab = useAppStore((s) => s.activeTab);
+
+  const showRightPanel = activeTab !== "editor" && activeTab !== "tuner";
   const setSettingsOpen = useConfigStore((s) => s.setSettingsOpen);
   const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
@@ -58,8 +61,21 @@ export function Toolbar() {
           <TooltipContent>Toggle File Explorer</TooltipContent>
         </Tooltip>
 
-        <span className="ml-2 text-sm font-semibold text-foreground">
-          SkyrimNet Prompt Tuner
+        <img src="/spookys-icon.png" alt="" className="ml-2 h-7 w-7" />
+        <span className="ml-1.5 text-sm select-none">
+          <span
+            className="font-bold uppercase tracking-[0.12em]"
+            style={{
+              fontFamily: "var(--font-cinzel-decorative), serif",
+              color: "#b8d4e8",
+              textShadow: "0 0 8px rgba(100,160,220,0.6), 0 0 2px rgba(140,190,240,0.4)",
+            }}
+          >
+            Spookys
+          </span>
+          <span className="font-semibold" style={{ color: "#9ab0c4" }}>
+            {" "}SkyrimNet Prompt Tuner
+          </span>
         </span>
       </div>
 
@@ -127,19 +143,21 @@ export function Toolbar() {
           <TooltipContent>Settings</TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={rightPanelOpen ? "secondary" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={toggleRightPanel}
-            >
-              <PanelRight className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Toggle Analysis Panel</TooltipContent>
-        </Tooltip>
+        {showRightPanel && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={rightPanelOpen ? "secondary" : "ghost"}
+                size="icon"
+                className="h-7 w-7"
+                onClick={toggleRightPanel}
+              >
+                <PanelRight className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Toggle Analysis Panel</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

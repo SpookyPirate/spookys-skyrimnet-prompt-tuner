@@ -35,8 +35,38 @@ export function AppShell() {
   const activePromptSet = useAppStore((s) => s.activePromptSet);
   const setActivePromptSet = useAppStore((s) => s.setActivePromptSet);
 
+  const activeTab = useAppStore((s) => s.activeTab);
   const leftPanelRef = usePanelRef();
   const rightPanelRef = usePanelRef();
+
+  // Remember the user's right-panel preference for tabs that support it
+  const savedRightPanelOpen = useRef(true);
+  const prevTabRef = useRef(activeTab);
+  const hideRightPanel = activeTab === "editor" || activeTab === "tuner";
+
+  useEffect(() => {
+    const prevTab = prevTabRef.current;
+    prevTabRef.current = activeTab;
+
+    const prevHidden = prevTab === "editor" || prevTab === "tuner";
+    const nowHidden = activeTab === "editor" || activeTab === "tuner";
+
+    if (nowHidden) {
+      // Entering a no-right-panel tab: save current state
+      if (!prevHidden) {
+        savedRightPanelOpen.current = useAppStore.getState().rightPanelOpen;
+      }
+      // Panel is unmounted, no ref call needed
+    } else if (prevHidden) {
+      // Leaving a no-right-panel tab: restore saved state after panel mounts
+      // Use rAF to ensure the panel has mounted before calling expand
+      requestAnimationFrame(() => {
+        if (savedRightPanelOpen.current) {
+          rightPanelRef.current?.expand();
+        }
+      });
+    }
+  }, [activeTab, rightPanelRef]);
 
   // Sync store → panel collapse/expand
   useEffect(() => {
@@ -48,12 +78,13 @@ export function AppShell() {
   }, [leftPanelOpen, leftPanelRef]);
 
   useEffect(() => {
+    if (hideRightPanel) return; // Panel not in DOM
     if (rightPanelOpen) {
       rightPanelRef.current?.expand();
     } else {
       rightPanelRef.current?.collapse();
     }
-  }, [rightPanelOpen, rightPanelRef]);
+  }, [rightPanelOpen, rightPanelRef, hideRightPanel]);
 
   // Sync panel resize → store (detect drag-to-collapse)
   const handleLeftResize = useCallback(
@@ -97,21 +128,25 @@ export function AppShell() {
             <LeftPanel />
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize="55%" minSize="300px">
+          <ResizablePanel defaultSize={hideRightPanel ? "80%" : "55%"} minSize="300px">
             <CenterPanel />
           </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel
-            panelRef={rightPanelRef}
-            defaultSize="25%"
-            minSize="200px"
-            maxSize="35%"
-            collapsible
-            collapsedSize={0}
-            onResize={handleRightResize}
-          >
-            <RightPanel />
-          </ResizablePanel>
+          {!hideRightPanel && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                panelRef={rightPanelRef}
+                defaultSize="25%"
+                minSize="200px"
+                maxSize="35%"
+                collapsible
+                collapsedSize={0}
+                onResize={handleRightResize}
+              >
+                <RightPanel />
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
       <StatusBar />
