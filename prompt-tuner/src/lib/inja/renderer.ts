@@ -98,9 +98,10 @@ async function renderNode(
     }
 
     case "block": {
-      // Check if there's a character block override
+      // Check if there's a block override — parse and render it
       if (ctx.blocks[node.name]) {
-        return ctx.blocks[node.name];
+        const blockAst = parse(ctx.blocks[node.name]);
+        return renderNodes(blockAst, ctx);
       }
       // Otherwise render default body
       return renderNodes(node.body, ctx);
