@@ -83,23 +83,30 @@ The following prompt files are used by this agent. You can propose search/replac
 ${promptContent}`
     : "";
 
-  // Previous rounds summary
+  // Previous rounds summary — include assessment so the tuner can see what improved/regressed
   const previousRoundsSection = previousRounds.length > 0
     ? `## Previous Rounds
 
+Use this history to understand what's working and what isn't. If a change made things worse, revert it or try something different. If a change improved things, build on it.
+
 ${previousRounds.map((r) => {
+  const resp = r.benchmarkResult?.response || "";
   const settingsChanges = r.proposal?.settingsChanges?.length
     ? `Settings changes: ${r.proposal.settingsChanges.map((c) => `${c.parameter}: ${JSON.stringify(c.oldValue)} → ${JSON.stringify(c.newValue)}`).join(", ")}`
     : "No settings changes";
   const promptChanges = r.proposal?.promptChanges?.length
-    ? `Prompt changes: ${r.proposal.promptChanges.length} file(s) modified`
+    ? `Prompt changes: ${r.proposal.promptChanges.map((c) => `${c.filePath}: ${c.reason}`).join("; ")}`
     : "No prompt changes";
+  const assessmentSummary = r.assessmentText
+    ? `Assessment:\n${r.assessmentText.substring(0, 600)}${r.assessmentText.length > 600 ? "..." : ""}`
+    : "Assessment: N/A";
   return `### Round ${r.roundNumber}
-- Response: ${(r.benchmarkResult?.response || "").substring(0, 200)}${(r.benchmarkResult?.response || "").length > 200 ? "..." : ""}
+- Response: ${resp.substring(0, 300)}${resp.length > 300 ? "..." : ""}
 - Latency: ${r.benchmarkResult?.latencyMs || 0}ms | Tokens: ${r.benchmarkResult?.totalTokens || 0}
 - ${settingsChanges}
 - ${promptChanges}
-- Reasoning: ${r.proposal?.reasoning || "N/A"}`;
+- Reasoning: ${r.proposal?.reasoning || "N/A"}
+- ${assessmentSummary}`;
 }).join("\n\n")}`
     : "";
 

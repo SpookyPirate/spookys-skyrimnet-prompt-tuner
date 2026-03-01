@@ -1,7 +1,7 @@
 import type { BenchmarkCategory, BenchmarkScenario, BenchmarkChatEntry } from "@/types/benchmark";
 import type { SettingsProfile } from "@/types/config";
 import type { ChatMessage } from "@/types/llm";
-import type { TuningTarget } from "@/types/autotuner";
+import type { TuningTarget, TunerTurnResult } from "@/types/autotuner";
 import { getCategoryDef } from "@/lib/benchmark/categories";
 import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody } from "@/lib/benchmark/default-scenarios";
 import { buildAssessmentMessages } from "@/lib/benchmark/build-assessment-prompt";
@@ -81,6 +81,7 @@ export async function runTuningLoop(
       let benchTotalTokens = 0;
       let renderedMessages: ChatMessage[] = [];
       let renderedText = "";
+      let roundTurnResults: TunerTurnResult[] = [];
 
       const isMultiTurn = activeScenario.turns && activeScenario.turns.length > 0;
 
@@ -149,8 +150,15 @@ export async function runTuningLoop(
             benchCompletionTokens += log.completionTokens;
             benchTotalTokens += log.totalTokens;
 
-            // Push NPC response to accumulated chat for next turn
+            // Store per-turn data
             const respondingNpc = activeScenario.npcs[turn.respondingNpcIndex];
+            roundTurnResults.push({
+              label: `Turn ${turnIdx + 1}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"}`,
+              messages: [...renderedMessages],
+              response: log.response,
+            });
+
+            // Push NPC response to accumulated chat for next turn
             accumulatedChat.push({
               type: "npc",
               speaker: respondingNpc?.displayName || "NPC",
@@ -159,46 +167,76 @@ export async function runTuningLoop(
             });
           }
 
+          // Store per-turn results
+          store.setRoundTurnResults(roundIdx, roundTurnResults);
+
           // Aggregate all turn responses for assessment
           benchResponse = allResponses.map((r, i) => `[Turn ${i + 1}] ${r}`).join("\n\n");
         } else {
-          // ── Single-turn: original path ──
-          const subtask = catDef.subtasks[0];
-          const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
+          // ── Single-turn path: run ALL subtasks for this category ──
+          const allSubtaskResponses: string[] = [];
 
-          const renderResponse = await fetch(subtask.renderEndpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(renderBody),
-            signal: abortController.signal,
-          });
+          for (let stIdx = 0; stIdx < catDef.subtasks.length; stIdx++) {
+            if (abortController.signal.aborted) break;
 
-          if (!renderResponse.ok) {
-            const errData = await renderResponse.json().catch(() => ({}));
-            throw new Error(errData.error || `Render failed: HTTP ${renderResponse.status}`);
+            const subtask = catDef.subtasks[stIdx];
+            const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
+
+            const renderResponse = await fetch(subtask.renderEndpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(renderBody),
+              signal: abortController.signal,
+            });
+
+            if (!renderResponse.ok) {
+              const errData = await renderResponse.json().catch(() => ({}));
+              throw new Error(errData.error || `Render failed for ${subtask.label}: HTTP ${renderResponse.status}`);
+            }
+
+            const renderData = await renderResponse.json();
+            const subtaskMessages: ChatMessage[] = renderData.messages;
+            if (stIdx === 0) renderedText = renderData.renderedText || "";
+
+            const log = await sendLlmRequestWithSlot({
+              messages: subtaskMessages,
+              agent,
+              slot: workingSlot,
+              model,
+              apiKey,
+              onChunk: () => {},
+              signal: abortController.signal,
+            });
+
+            if (log.error) throw new Error(log.error);
+
+            allSubtaskResponses.push(log.response);
+            benchLatencyMs += log.latencyMs;
+            benchPromptTokens += log.promptTokens;
+            benchCompletionTokens += log.completionTokens;
+            benchTotalTokens += log.totalTokens;
+
+            // Keep last subtask's messages as the primary renderedMessages
+            renderedMessages = subtaskMessages;
+
+            // Store per-subtask data when there are multiple subtasks
+            if (catDef.subtasks.length > 1) {
+              roundTurnResults.push({
+                label: subtask.label,
+                messages: [...subtaskMessages],
+                response: log.response,
+              });
+            }
           }
 
-          const renderData = await renderResponse.json();
-          renderedMessages = renderData.messages;
-          renderedText = renderData.renderedText || "";
+          // Store per-subtask results for multi-subtask categories
+          if (roundTurnResults.length > 1) {
+            store.setRoundTurnResults(roundIdx, roundTurnResults);
+          }
 
-          const log = await sendLlmRequestWithSlot({
-            messages: renderedMessages,
-            agent,
-            slot: workingSlot,
-            model,
-            apiKey,
-            onChunk: () => {},
-            signal: abortController.signal,
-          });
-
-          if (log.error) throw new Error(log.error);
-
-          benchResponse = log.response;
-          benchLatencyMs = log.latencyMs;
-          benchPromptTokens = log.promptTokens;
-          benchCompletionTokens = log.completionTokens;
-          benchTotalTokens = log.totalTokens;
+          benchResponse = catDef.subtasks.length > 1
+            ? allSubtaskResponses.map((r, i) => `[${catDef.subtasks[i].label}] ${r}`).join("\n\n")
+            : allSubtaskResponses[0] || "";
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") break;
@@ -208,9 +246,12 @@ export async function runTuningLoop(
       }
 
       // Store benchmark result (explanation pending)
+      const subtaskLabel = catDef.subtasks.length > 1
+        ? catDef.subtasks.map((s) => s.label).join(" + ")
+        : catDef.subtasks[0].label;
       store.setRoundBenchmarkResult(roundIdx, {
         subtaskId: catDef.subtasks[0].id,
-        subtaskLabel: catDef.subtasks[0].label,
+        subtaskLabel,
         messages: renderedMessages,
         response: benchResponse,
         latencyMs: benchLatencyMs,
@@ -233,12 +274,13 @@ export async function runTuningLoop(
 
       let explanationText = "";
       try {
-        const subtaskLabel = catDef.subtasks[0].label;
+        const subtaskLabel = catDef.subtasks.map((s) => s.label).join(" + ");
         const explanationMessages = buildExplanationMessages(
           category,
           subtaskLabel,
           renderedMessages,
           benchResponse,
+          roundTurnResults.length > 1 ? roundTurnResults : undefined,
         );
 
         const explanationLog = await sendLlmRequestWithSlot({
@@ -266,7 +308,7 @@ export async function runTuningLoop(
       // Update benchmark result with explanation
       store.setRoundBenchmarkResult(roundIdx, {
         subtaskId: catDef.subtasks[0].id,
-        subtaskLabel: catDef.subtasks[0].label,
+        subtaskLabel,
         messages: renderedMessages,
         response: benchResponse,
         latencyMs: benchLatencyMs,
@@ -289,32 +331,76 @@ export async function runTuningLoop(
 
       let assessmentText = "";
       try {
+        // Build context-aware rendered text for assessment
+        let assessRenderedText = renderedText;
+        const isMultiPart = roundTurnResults.length > 1;
+        const isMultiSubtask = !isMultiTurn && isMultiPart;
+
+        if (isMultiPart) {
+          const typeLabel = isMultiTurn
+            ? `MULTI-TURN DIALOGUE TEST — ${roundTurnResults.length} turns`
+            : `MULTI-SUBTASK TEST — ${roundTurnResults.length} subtasks`;
+          const typeExplanation = isMultiTurn
+            ? `Each turn below was sent as a SEPARATE prompt to the model. The model responded once per turn, not all at once. Evaluate each response individually.`
+            : `Each subtask below was sent as a SEPARATE prompt to the model. Evaluate each response individually for its specific task.`;
+
+          assessRenderedText = `[${typeLabel}]\n${typeExplanation}\n\n` +
+            roundTurnResults.map((turn) => {
+              const promptSummary = turn.messages
+                .map((m) => `[${m.role}] ${m.content}`)
+                .join("\n\n");
+              const truncated = promptSummary.length > 2000
+                ? promptSummary.substring(0, 2000) + "\n... (truncated)"
+                : promptSummary;
+              return `--- ${turn.label} ---\n\nPrompt:\n${truncated}\n\nModel Response:\n${turn.response}`;
+            }).join("\n\n===\n\n");
+        }
+
+        // Build subtasks array — one per subtask for multi-subtask, or one aggregated for single/multi-turn
+        const assessSubtasks = isMultiSubtask
+          ? roundTurnResults.map((tr, i) => ({
+              subtaskId: catDef.subtasks[i]?.id || `subtask_${i}`,
+              subtaskLabel: tr.label,
+              messages: tr.messages,
+              response: tr.response,
+              latencyMs: 0,
+              promptTokens: 0,
+              completionTokens: 0,
+              totalTokens: 0,
+              streamedText: tr.response,
+              status: "done" as const,
+              explanation: explanationText,
+              explanationStreamedText: explanationText,
+              explanationStatus: explanationText ? "done" as const : "idle" as const,
+            }))
+          : [{
+              subtaskId: catDef.subtasks[0].id,
+              subtaskLabel: catDef.subtasks[0].label,
+              messages: renderedMessages,
+              response: benchResponse,
+              latencyMs: benchLatencyMs,
+              promptTokens: benchPromptTokens,
+              completionTokens: benchCompletionTokens,
+              totalTokens: benchTotalTokens,
+              streamedText: benchResponse,
+              status: "done" as const,
+              explanation: explanationText,
+              explanationStreamedText: explanationText,
+              explanationStatus: explanationText ? "done" as const : "idle" as const,
+            }];
+
         const benchmarkResult = {
           profileId: profile.id,
           profileName: profile.name,
           category,
           model,
-          subtasks: [{
-            subtaskId: catDef.subtasks[0].id,
-            subtaskLabel: catDef.subtasks[0].label,
-            messages: renderedMessages,
-            response: benchResponse,
-            latencyMs: benchLatencyMs,
-            promptTokens: benchPromptTokens,
-            completionTokens: benchCompletionTokens,
-            totalTokens: benchTotalTokens,
-            streamedText: benchResponse,
-            status: "done" as const,
-            explanation: explanationText,
-            explanationStreamedText: explanationText,
-            explanationStatus: explanationText ? "done" as const : "idle" as const,
-          }],
+          subtasks: assessSubtasks,
           totalLatencyMs: benchLatencyMs,
           totalTokens: benchTotalTokens,
           overallStatus: "done" as const,
         };
 
-        const assessmentMessages = buildAssessmentMessages([benchmarkResult], renderedText);
+        const assessmentMessages = buildAssessmentMessages([benchmarkResult], assessRenderedText);
 
         const assessLog = await sendLlmRequest({
           messages: assessmentMessages,

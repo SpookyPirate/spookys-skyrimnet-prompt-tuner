@@ -7,6 +7,7 @@ import type {
   TunerPhase,
   TunerRound,
   TunerProposal,
+  TunerTurnResult,
 } from "@/types/autotuner";
 import type { BenchmarkSubtaskResult } from "@/types/benchmark";
 
@@ -110,6 +111,7 @@ interface AutoTunerState {
   setRoundPhase: (roundIdx: number, phase: TunerPhase) => void;
   setRoundError: (roundIdx: number, error: string) => void;
   setRoundAppliedSettings: (roundIdx: number, settings: AiTuningSettings) => void;
+  setRoundTurnResults: (roundIdx: number, turnResults: TunerTurnResult[]) => void;
 
   // Actions - streaming
   appendExplanationStream: (chunk: string) => void;
@@ -272,6 +274,14 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
       const rounds = [...s.rounds];
       if (!rounds[roundIdx]) return s;
       rounds[roundIdx] = { ...rounds[roundIdx], appliedSettings: settings };
+      return { rounds };
+    }),
+
+  setRoundTurnResults: (roundIdx, turnResults) =>
+    set((s) => {
+      const rounds = [...s.rounds];
+      if (!rounds[roundIdx]) return s;
+      rounds[roundIdx] = { ...rounds[roundIdx], turnResults };
       return { rounds };
     }),
 

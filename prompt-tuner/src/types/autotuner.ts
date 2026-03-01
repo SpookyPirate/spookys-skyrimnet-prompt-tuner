@@ -1,5 +1,6 @@
 import type { AiTuningSettings } from "./config";
 import type { BenchmarkCategory, BenchmarkSubtaskResult } from "./benchmark";
+import type { ChatMessage } from "./llm";
 
 export type TuningTarget = "prompts" | "settings" | "both";
 
@@ -38,9 +39,16 @@ export interface TunerProposal {
   reasoning: string;
 }
 
+export interface TunerTurnResult {
+  label: string;
+  messages: ChatMessage[];
+  response: string;
+}
+
 export interface TunerRound {
   roundNumber: number;
   benchmarkResult: BenchmarkSubtaskResult | null;
+  turnResults?: TunerTurnResult[];
   assessmentText: string;
   proposal: TunerProposal | null;
   proposalRaw: string;

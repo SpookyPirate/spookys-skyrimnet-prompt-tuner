@@ -119,12 +119,15 @@ function TunerRoundCard({
   proposalStream: string;
 }) {
   const [promptOpen, setPromptOpen] = useState(false);
+  const [turnsOpen, setTurnsOpen] = useState<Record<number, boolean>>({});
   const [responseOpen, setResponseOpen] = useState(true);
   const [explanationOpen, setExplanationOpen] = useState(true);
   const [assessOpen, setAssessOpen] = useState(true);
   const [proposalOpen, setProposalOpen] = useState(true);
 
   const benchResult = round.benchmarkResult;
+  const turnResults = round.turnResults;
+  const isMultiTurn = turnResults && turnResults.length > 0;
   const showExplanationStream = isCurrentRound && !!benchResult && !benchResult.explanation;
   const showAssessmentStream = isCurrentRound && !round.assessmentText;
   const showProposalStream = isCurrentRound && !round.proposal;
@@ -132,6 +135,9 @@ function TunerRoundCard({
   // Explanation display text
   const explanationText = benchResult?.explanation || "";
   const explanationDisplay = explanationText || (showExplanationStream ? explanationStream : "");
+
+  const toggleTurn = (idx: number) =>
+    setTurnsOpen((prev) => ({ ...prev, [idx]: !prev[idx] }));
 
   return (
     <div className="rounded-lg border bg-card">
@@ -150,50 +156,105 @@ function TunerRoundCard({
       </div>
 
       <div className="space-y-0">
-        {/* Rendered Prompt */}
-        {benchResult && benchResult.messages.length > 0 && (
-          <CollapsibleSection
-            title="Rendered Prompt"
-            open={promptOpen}
-            onToggle={() => setPromptOpen(!promptOpen)}
-            badge={`${benchResult.messages.length} messages`}
-          >
-            <div className="space-y-1.5">
-              {benchResult.messages.map((msg, i) => (
-                <div key={i} className="space-y-0.5">
-                  <div className={`text-[10px] font-medium uppercase tracking-wider ${
-                    msg.role === "system" ? "text-blue-400" : msg.role === "user" ? "text-green-400" : "text-amber-400"
-                  }`}>
-                    {msg.role}
+        {/* Multi-turn: per-turn sections */}
+        {isMultiTurn ? (
+          <>
+            {turnResults.map((turn, tIdx) => (
+              <CollapsibleSection
+                key={tIdx}
+                title={turn.label}
+                open={turnsOpen[tIdx] ?? (tIdx === 0)}
+                onToggle={() => toggleTurn(tIdx)}
+                badge={`${turn.messages.length} messages`}
+              >
+                <div className="space-y-2">
+                  {/* Prompt messages for this turn */}
+                  <div className="space-y-1.5">
+                    {turn.messages.map((msg, i) => (
+                      <div key={i} className="space-y-0.5">
+                        <div className={`text-[10px] font-medium uppercase tracking-wider ${
+                          msg.role === "system" ? "text-blue-400" : msg.role === "user" ? "text-green-400" : "text-amber-400"
+                        }`}>
+                          {msg.role}
+                        </div>
+                        <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-64 overflow-auto">
+                          {msg.content}
+                        </pre>
+                      </div>
+                    ))}
                   </div>
-                  <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-64 overflow-auto">
-                    {msg.content}
-                  </pre>
+                  {/* Response for this turn */}
+                  <div className="space-y-0.5">
+                    <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-400">
+                      Response
+                    </div>
+                    <pre className="whitespace-pre-wrap text-xs bg-emerald-500/5 rounded p-2 max-h-64 overflow-auto">
+                      {turn.response || "(no response)"}
+                    </pre>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* Model Response */}
-        {benchResult && (
-          <CollapsibleSection
-            title="Model Response"
-            open={responseOpen}
-            onToggle={() => setResponseOpen(!responseOpen)}
-          >
-            <div className="space-y-2">
-              <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-64 overflow-auto">
-                {benchResult.response || "(no response)"}
-              </pre>
-              <div className="flex gap-4 text-[10px] text-muted-foreground">
-                <span>Latency: {benchResult.latencyMs}ms</span>
-                <span>Prompt: {benchResult.promptTokens}</span>
-                <span>Completion: {benchResult.completionTokens}</span>
-                <span>Total: {benchResult.totalTokens}</span>
+              </CollapsibleSection>
+            ))}
+            {/* Aggregated stats */}
+            {benchResult && (
+              <div className="px-3 py-1.5 border-t">
+                <div className="flex gap-4 text-[10px] text-muted-foreground">
+                  <span>Total Latency: {benchResult.latencyMs}ms</span>
+                  <span>Prompt: {benchResult.promptTokens}</span>
+                  <span>Completion: {benchResult.completionTokens}</span>
+                  <span>Total: {benchResult.totalTokens}</span>
+                </div>
               </div>
-            </div>
-          </CollapsibleSection>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Single-turn: Rendered Prompt */}
+            {benchResult && benchResult.messages.length > 0 && (
+              <CollapsibleSection
+                title="Rendered Prompt"
+                open={promptOpen}
+                onToggle={() => setPromptOpen(!promptOpen)}
+                badge={`${benchResult.messages.length} messages`}
+              >
+                <div className="space-y-1.5">
+                  {benchResult.messages.map((msg, i) => (
+                    <div key={i} className="space-y-0.5">
+                      <div className={`text-[10px] font-medium uppercase tracking-wider ${
+                        msg.role === "system" ? "text-blue-400" : msg.role === "user" ? "text-green-400" : "text-amber-400"
+                      }`}>
+                        {msg.role}
+                      </div>
+                      <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-64 overflow-auto">
+                        {msg.content}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* Single-turn: Model Response */}
+            {benchResult && (
+              <CollapsibleSection
+                title="Model Response"
+                open={responseOpen}
+                onToggle={() => setResponseOpen(!responseOpen)}
+              >
+                <div className="space-y-2">
+                  <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-64 overflow-auto">
+                    {benchResult.response || "(no response)"}
+                  </pre>
+                  <div className="flex gap-4 text-[10px] text-muted-foreground">
+                    <span>Latency: {benchResult.latencyMs}ms</span>
+                    <span>Prompt: {benchResult.promptTokens}</span>
+                    <span>Completion: {benchResult.completionTokens}</span>
+                    <span>Total: {benchResult.totalTokens}</span>
+                  </div>
+                </div>
+              </CollapsibleSection>
+            )}
+          </>
         )}
 
         {/* Self-Explanation */}
