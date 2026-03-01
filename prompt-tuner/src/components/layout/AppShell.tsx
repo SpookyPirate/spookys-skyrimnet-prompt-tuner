@@ -52,19 +52,14 @@ export function AppShell() {
     const nowHidden = activeTab === "editor" || activeTab === "tuner";
 
     if (nowHidden) {
-      // Entering a no-right-panel tab: save current state
       if (!prevHidden) {
         savedRightPanelOpen.current = useAppStore.getState().rightPanelOpen;
       }
-      // Panel is unmounted, no ref call needed
+      rightPanelRef.current?.collapse();
     } else if (prevHidden) {
-      // Leaving a no-right-panel tab: restore saved state after panel mounts
-      // Use rAF to ensure the panel has mounted before calling expand
-      requestAnimationFrame(() => {
-        if (savedRightPanelOpen.current) {
-          rightPanelRef.current?.expand();
-        }
-      });
+      if (savedRightPanelOpen.current) {
+        rightPanelRef.current?.expand();
+      }
     }
   }, [activeTab, rightPanelRef]);
 
@@ -78,7 +73,7 @@ export function AppShell() {
   }, [leftPanelOpen, leftPanelRef]);
 
   useEffect(() => {
-    if (hideRightPanel) return; // Panel not in DOM
+    if (hideRightPanel) return;
     if (rightPanelOpen) {
       rightPanelRef.current?.expand();
     } else {
@@ -128,25 +123,21 @@ export function AppShell() {
             <LeftPanel />
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={hideRightPanel ? "80%" : "55%"} minSize="300px">
+          <ResizablePanel defaultSize="55%" minSize="300px">
             <CenterPanel />
           </ResizablePanel>
-          {!hideRightPanel && (
-            <>
-              <ResizableHandle withHandle />
-              <ResizablePanel
-                panelRef={rightPanelRef}
-                defaultSize="25%"
-                minSize="200px"
-                maxSize="35%"
-                collapsible
-                collapsedSize={0}
-                onResize={handleRightResize}
-              >
-                <RightPanel />
-              </ResizablePanel>
-            </>
-          )}
+          <ResizableHandle withHandle className={hideRightPanel ? "pointer-events-none opacity-0 !w-0" : ""} />
+          <ResizablePanel
+            panelRef={rightPanelRef}
+            defaultSize="25%"
+            minSize="200px"
+            maxSize="35%"
+            collapsible
+            collapsedSize={0}
+            onResize={handleRightResize}
+          >
+            <RightPanel />
+          </ResizablePanel>
         </ResizablePanelGroup>
       </div>
       <StatusBar />
