@@ -4,7 +4,7 @@ import type { ChatMessage } from "@/types/llm";
 import type { TuningTarget, TunerTurnResult } from "@/types/autotuner";
 import { getCategoryDef } from "@/lib/benchmark/categories";
 import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody } from "@/lib/benchmark/default-scenarios";
-import { buildAssessmentMessages } from "@/lib/benchmark/build-assessment-prompt";
+import { buildTunerAssessmentMessages } from "./build-tuner-assessment";
 import { buildExplanationMessages } from "@/lib/benchmark/build-explanation-prompt";
 import { buildProposalMessages } from "./build-proposal-prompt";
 import { parseProposal } from "./parse-proposal";
@@ -225,6 +225,10 @@ export async function runTuningLoop(
                 label: subtask.label,
                 messages: [...subtaskMessages],
                 response: log.response,
+                latencyMs: log.latencyMs,
+                promptTokens: log.promptTokens,
+                completionTokens: log.completionTokens,
+                totalTokens: log.totalTokens,
               });
             }
           }
@@ -334,13 +338,13 @@ export async function runTuningLoop(
         // Build context-aware rendered text for assessment
         let assessRenderedText = renderedText;
         const isMultiPart = roundTurnResults.length > 1;
-        const isMultiSubtask = !isMultiTurn && isMultiPart;
 
         if (isMultiPart) {
-          const typeLabel = isMultiTurn
+          const isDialogueTurns = isMultiTurn;
+          const typeLabel = isDialogueTurns
             ? `MULTI-TURN DIALOGUE TEST — ${roundTurnResults.length} turns`
             : `MULTI-SUBTASK TEST — ${roundTurnResults.length} subtasks`;
-          const typeExplanation = isMultiTurn
+          const typeExplanation = isDialogueTurns
             ? `Each turn below was sent as a SEPARATE prompt to the model. The model responded once per turn, not all at once. Evaluate each response individually.`
             : `Each subtask below was sent as a SEPARATE prompt to the model. Evaluate each response individually for its specific task.`;
 
@@ -356,51 +360,18 @@ export async function runTuningLoop(
             }).join("\n\n===\n\n");
         }
 
-        // Build subtasks array — one per subtask for multi-subtask, or one aggregated for single/multi-turn
-        const assessSubtasks = isMultiSubtask
-          ? roundTurnResults.map((tr, i) => ({
-              subtaskId: catDef.subtasks[i]?.id || `subtask_${i}`,
-              subtaskLabel: tr.label,
-              messages: tr.messages,
-              response: tr.response,
-              latencyMs: 0,
-              promptTokens: 0,
-              completionTokens: 0,
-              totalTokens: 0,
-              streamedText: tr.response,
-              status: "done" as const,
-              explanation: explanationText,
-              explanationStreamedText: explanationText,
-              explanationStatus: explanationText ? "done" as const : "idle" as const,
-            }))
-          : [{
-              subtaskId: catDef.subtasks[0].id,
-              subtaskLabel: catDef.subtasks[0].label,
-              messages: renderedMessages,
-              response: benchResponse,
-              latencyMs: benchLatencyMs,
-              promptTokens: benchPromptTokens,
-              completionTokens: benchCompletionTokens,
-              totalTokens: benchTotalTokens,
-              streamedText: benchResponse,
-              status: "done" as const,
-              explanation: explanationText,
-              explanationStreamedText: explanationText,
-              explanationStatus: explanationText ? "done" as const : "idle" as const,
-            }];
-
-        const benchmarkResult = {
-          profileId: profile.id,
-          profileName: profile.name,
+        const assessmentMessages = buildTunerAssessmentMessages({
           category,
           model,
-          subtasks: assessSubtasks,
-          totalLatencyMs: benchLatencyMs,
+          renderedText: assessRenderedText,
+          response: benchResponse,
+          explanation: explanationText,
+          latencyMs: benchLatencyMs,
           totalTokens: benchTotalTokens,
-          overallStatus: "done" as const,
-        };
-
-        const assessmentMessages = buildAssessmentMessages([benchmarkResult], assessRenderedText);
+          promptTokens: benchPromptTokens,
+          completionTokens: benchCompletionTokens,
+          turnResults: isMultiPart ? roundTurnResults : undefined,
+        });
 
         const assessLog = await sendLlmRequest({
           messages: assessmentMessages,

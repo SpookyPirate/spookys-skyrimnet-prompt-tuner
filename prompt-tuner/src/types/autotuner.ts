@@ -43,6 +43,10 @@ export interface TunerTurnResult {
   label: string;
   messages: ChatMessage[];
   response: string;
+  latencyMs?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
 }
 
 export interface TunerRound {
