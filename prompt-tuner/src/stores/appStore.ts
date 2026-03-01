@@ -3,7 +3,7 @@ import { create } from "zustand";
 const STORAGE_KEY = "skyrimnet-app";
 const DEFAULT_PROMPT_SET = "v1.0";
 
-type AppTab = "editor" | "tuner" | "preview" | "benchmark";
+type AppTab = "editor" | "tuner" | "preview" | "benchmark" | "autotuner";
 
 function loadPersistedState(): { activePromptSet: string; activeTab: AppTab } {
   if (typeof window === "undefined") return { activePromptSet: DEFAULT_PROMPT_SET, activeTab: "editor" };
@@ -14,7 +14,7 @@ function loadPersistedState(): { activePromptSet: string; activeTab: AppTab } {
       const tab = parsed.activeTab;
       return {
         activePromptSet: parsed.activePromptSet ?? DEFAULT_PROMPT_SET,
-        activeTab: tab === "editor" || tab === "tuner" || tab === "preview" || tab === "benchmark" ? tab : "editor",
+        activeTab: tab === "editor" || tab === "tuner" || tab === "preview" || tab === "benchmark" || tab === "autotuner" ? tab : "editor",
       };
     }
   } catch {}

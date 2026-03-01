@@ -6,7 +6,8 @@ import { EditorPanel } from "@/components/editor/EditorPanel";
 import { PreviewChat } from "@/components/chat/PreviewChat";
 import { TunerChat } from "@/components/chat/TunerChat";
 import { BenchmarkCenter } from "@/components/benchmark/BenchmarkCenter";
-import { Code, MessageSquare, Eye, BarChart3 } from "lucide-react";
+import { AutoTunerCenter } from "@/components/autotuner/AutoTunerCenter";
+import { Code, MessageSquare, Eye, BarChart3, Wand2 } from "lucide-react";
 
 export function CenterPanel() {
   const activeTab = useAppStore((s) => s.activeTab);
@@ -27,7 +28,7 @@ export function CenterPanel() {
             </TabsTrigger>
             <TabsTrigger value="tuner" className="gap-1.5 text-xs h-7 data-[state=active]:bg-background">
               <MessageSquare className="h-3.5 w-3.5" />
-              Tuner Chat
+              Chat
             </TabsTrigger>
             <TabsTrigger value="preview" className="gap-1.5 text-xs h-7 data-[state=active]:bg-background">
               <Eye className="h-3.5 w-3.5" />
@@ -36,6 +37,10 @@ export function CenterPanel() {
             <TabsTrigger value="benchmark" className="gap-1.5 text-xs h-7 data-[state=active]:bg-background">
               <BarChart3 className="h-3.5 w-3.5" />
               Benchmark
+            </TabsTrigger>
+            <TabsTrigger value="autotuner" className="gap-1.5 text-xs h-7 data-[state=active]:bg-background">
+              <Wand2 className="h-3.5 w-3.5" />
+              Tuner
             </TabsTrigger>
           </TabsList>
         </div>
@@ -50,6 +55,9 @@ export function CenterPanel() {
         </TabsContent>
         <TabsContent value="benchmark" className="flex-1 overflow-hidden mt-0">
           <BenchmarkCenter />
+        </TabsContent>
+        <TabsContent value="autotuner" className="flex-1 overflow-hidden mt-0">
+          <AutoTunerCenter />
         </TabsContent>
       </Tabs>
     </div>

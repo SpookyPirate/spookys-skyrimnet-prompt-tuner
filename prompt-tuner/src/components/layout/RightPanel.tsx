@@ -13,6 +13,7 @@ import { TriggerMatchResultsContent } from "@/components/triggers/TriggerMatchRe
 import { ScenePlanDisplayContent } from "@/components/gamemaster/ScenePlanDisplay";
 import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater, Brain, BookOpen, UserCog } from "lucide-react";
 import { BenchmarkAssessmentPanel } from "@/components/benchmark/BenchmarkAssessmentPanel";
+import { AutoTunerReport } from "@/components/autotuner/AutoTunerReport";
 import { useAppStore } from "@/stores/appStore";
 import type { LlmCallLog } from "@/types/llm";
 
@@ -32,6 +33,10 @@ export function RightPanel() {
 
   if (activeTab === "benchmark") {
     return <BenchmarkAssessmentPanel />;
+  }
+
+  if (activeTab === "autotuner") {
+    return <AutoTunerReport />;
   }
 
   const agentTestDisabled = selectedNpcs.length === 0 || chatHistory.length === 0;
