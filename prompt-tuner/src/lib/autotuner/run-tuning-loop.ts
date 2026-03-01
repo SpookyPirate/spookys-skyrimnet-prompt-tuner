@@ -5,6 +5,7 @@ import type { TuningTarget } from "@/types/autotuner";
 import { getCategoryDef } from "@/lib/benchmark/categories";
 import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody } from "@/lib/benchmark/default-scenarios";
 import { buildAssessmentMessages } from "@/lib/benchmark/build-assessment-prompt";
+import { buildExplanationMessages } from "@/lib/benchmark/build-explanation-prompt";
 import { buildProposalMessages } from "./build-proposal-prompt";
 import { parseProposal } from "./parse-proposal";
 import { applySettingsChanges, applyPromptChanges } from "./apply-changes";
@@ -206,7 +207,7 @@ export async function runTuningLoop(
         break;
       }
 
-      // Store benchmark result
+      // Store benchmark result (explanation pending)
       store.setRoundBenchmarkResult(roundIdx, {
         subtaskId: catDef.subtasks[0].id,
         subtaskLabel: catDef.subtasks[0].label,
@@ -221,6 +222,62 @@ export async function runTuningLoop(
         explanation: "",
         explanationStreamedText: "",
         explanationStatus: "idle",
+      });
+
+      if (abortController.signal.aborted) break;
+
+      // ── EXPLAIN PHASE ──
+      store.setPhase("explaining");
+      store.setRoundPhase(roundIdx, "explaining");
+      store.clearStreams();
+
+      let explanationText = "";
+      try {
+        const subtaskLabel = catDef.subtasks[0].label;
+        const explanationMessages = buildExplanationMessages(
+          category,
+          subtaskLabel,
+          renderedMessages,
+          benchResponse,
+        );
+
+        const explanationLog = await sendLlmRequestWithSlot({
+          messages: explanationMessages,
+          agent,
+          slot: workingSlot,
+          model,
+          apiKey,
+          onChunk: (chunk) => {
+            useAutoTunerStore.getState().appendExplanationStream(chunk);
+          },
+          signal: abortController.signal,
+        });
+
+        explanationText = explanationLog.response;
+        if (explanationLog.error) {
+          // Non-fatal — continue without explanation
+          explanationText = "";
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") break;
+        // Non-fatal — continue without explanation
+      }
+
+      // Update benchmark result with explanation
+      store.setRoundBenchmarkResult(roundIdx, {
+        subtaskId: catDef.subtasks[0].id,
+        subtaskLabel: catDef.subtasks[0].label,
+        messages: renderedMessages,
+        response: benchResponse,
+        latencyMs: benchLatencyMs,
+        promptTokens: benchPromptTokens,
+        completionTokens: benchCompletionTokens,
+        totalTokens: benchTotalTokens,
+        streamedText: benchResponse,
+        status: "done",
+        explanation: explanationText,
+        explanationStreamedText: explanationText,
+        explanationStatus: explanationText ? "done" : "idle",
       });
 
       if (abortController.signal.aborted) break;
@@ -248,9 +305,9 @@ export async function runTuningLoop(
             totalTokens: benchTotalTokens,
             streamedText: benchResponse,
             status: "done" as const,
-            explanation: "",
-            explanationStreamedText: "",
-            explanationStatus: "idle" as const,
+            explanation: explanationText,
+            explanationStreamedText: explanationText,
+            explanationStatus: explanationText ? "done" as const : "idle" as const,
           }],
           totalLatencyMs: benchLatencyMs,
           totalTokens: benchTotalTokens,

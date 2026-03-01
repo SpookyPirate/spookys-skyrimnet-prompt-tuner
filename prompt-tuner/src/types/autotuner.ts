@@ -6,6 +6,7 @@ export type TuningTarget = "prompts" | "settings" | "both";
 export type TunerPhase =
   | "idle"
   | "benchmarking"
+  | "explaining"
   | "assessing"
   | "proposing"
   | "applying"

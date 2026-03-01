@@ -17,6 +17,7 @@ import { useState } from "react";
 const PHASE_LABELS: Record<TunerPhase, string> = {
   idle: "Waiting",
   benchmarking: "Running Benchmark",
+  explaining: "Self-Explanation",
   assessing: "Assessing Quality",
   proposing: "Proposing Changes",
   applying: "Applying Changes",
@@ -45,6 +46,7 @@ export function AutoTunerCenter() {
   const currentRound = useAutoTunerStore((s) => s.currentRound);
   const maxRounds = useAutoTunerStore((s) => s.maxRounds);
   const rounds = useAutoTunerStore((s) => s.rounds);
+  const explanationStream = useAutoTunerStore((s) => s.explanationStream);
   const assessmentStream = useAutoTunerStore((s) => s.assessmentStream);
   const proposalStream = useAutoTunerStore((s) => s.proposalStream);
   const isRunning = useAutoTunerStore((s) => s.isRunning);
@@ -56,7 +58,7 @@ export function AutoTunerCenter() {
     if (isRunning && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [assessmentStream, proposalStream, isRunning, rounds]);
+  }, [explanationStream, assessmentStream, proposalStream, isRunning, rounds]);
 
   if (phase === "idle" && rounds.length === 0) {
     return (
@@ -92,6 +94,7 @@ export function AutoTunerCenter() {
               key={round.roundNumber}
               round={round}
               isCurrentRound={idx === rounds.length - 1 && isRunning}
+              explanationStream={idx === rounds.length - 1 ? explanationStream : ""}
               assessmentStream={idx === rounds.length - 1 ? assessmentStream : ""}
               proposalStream={idx === rounds.length - 1 ? proposalStream : ""}
             />
@@ -105,21 +108,30 @@ export function AutoTunerCenter() {
 function TunerRoundCard({
   round,
   isCurrentRound,
+  explanationStream,
   assessmentStream,
   proposalStream,
 }: {
   round: TunerRound;
   isCurrentRound: boolean;
+  explanationStream: string;
   assessmentStream: string;
   proposalStream: string;
 }) {
-  const [benchOpen, setBenchOpen] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [responseOpen, setResponseOpen] = useState(true);
+  const [explanationOpen, setExplanationOpen] = useState(true);
   const [assessOpen, setAssessOpen] = useState(true);
   const [proposalOpen, setProposalOpen] = useState(true);
 
   const benchResult = round.benchmarkResult;
+  const showExplanationStream = isCurrentRound && !!benchResult && !benchResult.explanation;
   const showAssessmentStream = isCurrentRound && !round.assessmentText;
   const showProposalStream = isCurrentRound && !round.proposal;
+
+  // Explanation display text
+  const explanationText = benchResult?.explanation || "";
+  const explanationDisplay = explanationText || (showExplanationStream ? explanationStream : "");
 
   return (
     <div className="rounded-lg border bg-card">
@@ -127,22 +139,51 @@ function TunerRoundCard({
       <div className="flex items-center gap-2 px-3 py-2 border-b">
         <PhaseIcon phase={round.phase} />
         <span className="text-xs font-medium">Round {round.roundNumber}</span>
+        {benchResult && (
+          <span className="text-[10px] text-muted-foreground ml-auto">
+            {benchResult.latencyMs}ms · {benchResult.totalTokens} tok
+          </span>
+        )}
         {round.error && (
           <span className="text-xs text-red-500 ml-auto">{round.error}</span>
         )}
       </div>
 
       <div className="space-y-0">
-        {/* Benchmark Result */}
+        {/* Rendered Prompt */}
+        {benchResult && benchResult.messages.length > 0 && (
+          <CollapsibleSection
+            title="Rendered Prompt"
+            open={promptOpen}
+            onToggle={() => setPromptOpen(!promptOpen)}
+            badge={`${benchResult.messages.length} messages`}
+          >
+            <div className="space-y-1.5">
+              {benchResult.messages.map((msg, i) => (
+                <div key={i} className="space-y-0.5">
+                  <div className={`text-[10px] font-medium uppercase tracking-wider ${
+                    msg.role === "system" ? "text-blue-400" : msg.role === "user" ? "text-green-400" : "text-amber-400"
+                  }`}>
+                    {msg.role}
+                  </div>
+                  <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-64 overflow-auto">
+                    {msg.content}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* Model Response */}
         {benchResult && (
           <CollapsibleSection
-            title="Benchmark Result"
-            open={benchOpen}
-            onToggle={() => setBenchOpen(!benchOpen)}
-            badge={`${benchResult.latencyMs}ms · ${benchResult.totalTokens} tok`}
+            title="Model Response"
+            open={responseOpen}
+            onToggle={() => setResponseOpen(!responseOpen)}
           >
             <div className="space-y-2">
-              <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-48 overflow-auto">
+              <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-2 max-h-64 overflow-auto">
                 {benchResult.response || "(no response)"}
               </pre>
               <div className="flex gap-4 text-[10px] text-muted-foreground">
@@ -152,6 +193,20 @@ function TunerRoundCard({
                 <span>Total: {benchResult.totalTokens}</span>
               </div>
             </div>
+          </CollapsibleSection>
+        )}
+
+        {/* Self-Explanation */}
+        {(explanationDisplay || showExplanationStream) && (
+          <CollapsibleSection
+            title="Self-Explanation"
+            open={explanationOpen}
+            onToggle={() => setExplanationOpen(!explanationOpen)}
+            streaming={showExplanationStream && !!explanationStream}
+          >
+            <pre className="whitespace-pre-wrap text-xs text-amber-300/80 bg-amber-500/5 rounded p-2 max-h-48 overflow-auto">
+              {explanationDisplay || "Generating explanation..."}
+            </pre>
           </CollapsibleSection>
         )}
 

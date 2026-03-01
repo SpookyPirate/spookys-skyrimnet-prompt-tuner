@@ -23,6 +23,7 @@ import {
 const PHASE_LABELS: Record<TunerPhase, string> = {
   idle: "Idle",
   benchmarking: "Benchmarking",
+  explaining: "Explaining",
   assessing: "Assessing",
   proposing: "Proposing",
   applying: "Applying",

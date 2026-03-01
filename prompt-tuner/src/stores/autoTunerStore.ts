@@ -76,6 +76,7 @@ interface AutoTunerState {
   workingPromptSet: string;
 
   // Streaming
+  explanationStream: string;
   assessmentStream: string;
   proposalStream: string;
 
@@ -111,6 +112,7 @@ interface AutoTunerState {
   setRoundAppliedSettings: (roundIdx: number, settings: AiTuningSettings) => void;
 
   // Actions - streaming
+  appendExplanationStream: (chunk: string) => void;
   appendAssessmentStream: (chunk: string) => void;
   appendProposalStream: (chunk: string) => void;
   clearStreams: () => void;
@@ -146,6 +148,7 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
   workingPromptSet: "",
 
   // Streaming
+  explanationStream: "",
   assessmentStream: "",
   proposalStream: "",
 
@@ -209,6 +212,7 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
     set((s) => ({
       rounds: [...s.rounds, newRound],
       currentRound: roundNumber,
+      explanationStream: "",
       assessmentStream: "",
       proposalStream: "",
     }));
@@ -272,11 +276,13 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
     }),
 
   // Streaming actions
+  appendExplanationStream: (chunk) =>
+    set((s) => ({ explanationStream: s.explanationStream + chunk })),
   appendAssessmentStream: (chunk) =>
     set((s) => ({ assessmentStream: s.assessmentStream + chunk })),
   appendProposalStream: (chunk) =>
     set((s) => ({ proposalStream: s.proposalStream + chunk })),
-  clearStreams: () => set({ assessmentStream: "", proposalStream: "" }),
+  clearStreams: () => set({ explanationStream: "", assessmentStream: "", proposalStream: "" }),
 
   // Lifecycle
   reset: () =>
@@ -289,6 +295,7 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
       workingSettings: null,
       originalSettings: null,
       workingPromptSet: "",
+      explanationStream: "",
       assessmentStream: "",
       proposalStream: "",
     }),
