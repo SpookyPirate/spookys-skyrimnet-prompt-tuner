@@ -11,6 +11,8 @@ import {
   DEFAULT_API_SETTINGS,
   DEFAULT_TUNING_SETTINGS,
   DEFAULT_MODEL_NAMES,
+  DEFAULT_AGENT_TUNING_OVERRIDES,
+  DEFAULT_AGENT_API_OVERRIDES,
 } from "@/types/config";
 
 const ALL_AGENTS: AgentType[] = [
@@ -23,6 +25,7 @@ const ALL_AGENTS: AgentType[] = [
   "diary",
   "tuner",
   "autochat",
+  "copycat",
 ];
 
 function createDefaultSlots(): Record<AgentType, ModelSlot> {
@@ -32,8 +35,12 @@ function createDefaultSlots(): Record<AgentType, ModelSlot> {
       api: {
         ...DEFAULT_API_SETTINGS,
         modelNames: DEFAULT_MODEL_NAMES[agent],
+        ...(DEFAULT_AGENT_API_OVERRIDES[agent] || {}),
       },
-      tuning: { ...DEFAULT_TUNING_SETTINGS },
+      tuning: {
+        ...DEFAULT_TUNING_SETTINGS,
+        ...(DEFAULT_AGENT_TUNING_OVERRIDES[agent] || {}),
+      },
     };
   }
   return slots;
@@ -134,8 +141,12 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
           api: {
             ...DEFAULT_API_SETTINGS,
             modelNames: DEFAULT_MODEL_NAMES[agent],
+            ...(DEFAULT_AGENT_API_OVERRIDES[agent] || {}),
           },
-          tuning: { ...DEFAULT_TUNING_SETTINGS },
+          tuning: {
+            ...DEFAULT_TUNING_SETTINGS,
+            ...(DEFAULT_AGENT_TUNING_OVERRIDES[agent] || {}),
+          },
         },
       },
     }));

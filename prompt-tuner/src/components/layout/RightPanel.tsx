@@ -14,6 +14,7 @@ import { ScenePlanDisplayContent } from "@/components/gamemaster/ScenePlanDispla
 import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater, Brain, BookOpen, UserCog } from "lucide-react";
 import { BenchmarkAssessmentPanel } from "@/components/benchmark/BenchmarkAssessmentPanel";
 import { AutoTunerReport } from "@/components/autotuner/AutoTunerReport";
+import { CopycatReport } from "@/components/copycat/CopycatReport";
 import { useAppStore } from "@/stores/appStore";
 import type { LlmCallLog } from "@/types/llm";
 
@@ -37,6 +38,10 @@ export function RightPanel() {
 
   if (activeTab === "autotuner") {
     return <AutoTunerReport />;
+  }
+
+  if (activeTab === "copycat") {
+    return <CopycatReport />;
   }
 
   const agentTestDisabled = selectedNpcs.length === 0 || chatHistory.length === 0;

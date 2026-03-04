@@ -6,11 +6,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAutoTunerStore } from "@/stores/autoTunerStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { useAppStore } from "@/stores/appStore";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
 import { BENCHMARK_CATEGORIES } from "@/lib/benchmark/categories";
 import { getDefaultScenario, getBuiltinScenarios, findBuiltinScenario } from "@/lib/benchmark/default-scenarios";
 import { runTuningLoop, stopTuningLoop } from "@/lib/autotuner/run-tuning-loop";
 import { CustomScenarioDialog } from "@/components/benchmark/CustomScenarioDialog";
+import { ScenarioSelector } from "@/components/shared/ScenarioSelector";
 import type { BenchmarkCategory } from "@/types/benchmark";
 import type { TuningTarget } from "@/types/autotuner";
 import type { AiTuningSettings } from "@/types/config";
@@ -25,6 +27,7 @@ import {
   ScanSearch,
   Play,
   Settings2,
+  ChevronRight,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<BenchmarkCategory, React.ReactNode> = {
@@ -77,10 +80,12 @@ export function AutoTunerSetup() {
   const reset = useAutoTunerStore((s) => s.reset);
 
   const customScenarios = useBenchmarkStore((s) => s.customScenarios);
+  const activePromptSet = useAppStore((s) => s.activePromptSet);
 
   const [promptSets, setPromptSets] = useState<string[]>([]);
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<BenchmarkCategory | null>(null);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
 
   useEffect(() => {
     fetch("/api/export/list-sets")
@@ -127,13 +132,17 @@ export function AutoTunerSetup() {
         || getDefaultScenario(selectedCategory)
       : getDefaultScenario(selectedCategory);
 
+    const resolvedPromptSet = selectedPromptSet === "__active__"
+      ? useAppStore.getState().activePromptSet || ""
+      : selectedPromptSet;
+
     runTuningLoop(
       selectedCategory,
       profile,
       tuningTarget,
       maxRounds,
       scenario,
-      selectedPromptSet,
+      resolvedPromptSet,
       lockedSettings,
       customInstructions,
     );
@@ -164,7 +173,7 @@ export function AutoTunerSetup() {
                 value={selectedProfileId}
                 onChange={(e) => setSelectedProfileId(e.target.value)}
                 disabled={isRunning}
-                className="h-7 w-full rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                className="h-7 w-full rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 [&>option]:bg-background [&>option]:text-foreground"
               >
                 <option value="">Select a profile...</option>
                 {profiles.map((profile) => (
@@ -187,11 +196,15 @@ export function AutoTunerSetup() {
               value={selectedPromptSet}
               onChange={(e) => setSelectedPromptSet(e.target.value)}
               disabled={isRunning}
-              className="h-7 w-full rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+              className="h-7 w-full rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+              style={{ color: selectedPromptSet === "__active__" ? "#22c55e" : selectedPromptSet === "" ? "#60a5fa" : undefined }}
             >
-              <option value="">Default (Original Prompts)</option>
+              <option value="__active__" style={{ color: "#22c55e" }}>
+                Active: {activePromptSet || "Original Prompts"}
+              </option>
+              <option value="" style={{ color: "#60a5fa" }}>Default (Original Prompts)</option>
               {allPromptSets.map((name) => (
-                <option key={name} value={name}>
+                <option key={name} value={name} className="text-foreground">
                   {name}
                 </option>
               ))}
@@ -309,8 +322,15 @@ export function AutoTunerSetup() {
                 type="number"
                 min={1}
                 max={20}
-                value={maxRounds}
-                onChange={(e) => setMaxRounds(parseInt(e.target.value) || 5)}
+                defaultValue={maxRounds}
+                key={maxRounds}
+                onBlur={(e) => {
+                  const v = parseInt(e.target.value);
+                  setMaxRounds(isNaN(v) || v < 1 ? 1 : v > 20 ? 20 : v);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
                 disabled={isRunning}
                 className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground disabled:opacity-50"
               />
@@ -319,46 +339,58 @@ export function AutoTunerSetup() {
             {/* Settings to Tune (lock/unlock checkboxes) */}
             {showSettingsLocks && (
               <div className="space-y-1 px-1">
-                <div className="text-[10px] text-muted-foreground">Settings to tune</div>
-                <div className="space-y-0.5">
-                  {ALL_SETTINGS_KEYS.map(({ key, label }) => {
-                    const isUnlocked = !lockedSettings.includes(key);
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => handleToggleLock(key)}
-                        disabled={isRunning}
-                        className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent/50 ${
-                          isRunning ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                      >
-                        <span
-                          className={`h-3 w-3 rounded-sm border flex items-center justify-center shrink-0 ${
-                            isUnlocked
-                              ? "bg-primary border-primary"
-                              : "border-muted-foreground/30"
+                <button
+                  type="button"
+                  onClick={() => setSettingsExpanded((v) => !v)}
+                  className="flex w-full items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronRight className={`h-3 w-3 transition-transform ${settingsExpanded ? "rotate-90" : ""}`} />
+                  Settings to tune
+                  <span className="ml-auto text-[9px] opacity-60">
+                    {ALL_SETTINGS_KEYS.length - lockedSettings.length}/{ALL_SETTINGS_KEYS.length}
+                  </span>
+                </button>
+                {settingsExpanded && (
+                  <div className="space-y-0.5">
+                    {ALL_SETTINGS_KEYS.map(({ key, label }) => {
+                      const isUnlocked = !lockedSettings.includes(key);
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => handleToggleLock(key)}
+                          disabled={isRunning}
+                          className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent/50 ${
+                            isRunning ? "opacity-50 cursor-not-allowed" : ""
                           }`}
                         >
-                          {isUnlocked && (
-                            <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-primary-foreground">
-                              <path
-                                d="M10 3L4.5 8.5L2 6"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          )}
-                        </span>
-                        <span className={`truncate ${isUnlocked ? "font-medium" : "text-muted-foreground"}`}>
-                          {label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                          <span
+                            className={`h-3 w-3 rounded-sm border flex items-center justify-center shrink-0 ${
+                              isUnlocked
+                                ? "bg-primary border-primary"
+                                : "border-muted-foreground/30"
+                            }`}
+                          >
+                            {isUnlocked && (
+                              <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-primary-foreground">
+                                <path
+                                  d="M10 3L4.5 8.5L2 6"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
+                          </span>
+                          <span className={`truncate ${isUnlocked ? "font-medium" : "text-muted-foreground"}`}>
+                            {label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -416,43 +448,3 @@ export function AutoTunerSetup() {
   );
 }
 
-function ScenarioSelector({
-  category,
-  activeScenarioId,
-  customScenarios,
-  onSelect,
-  disabled,
-}: {
-  category: BenchmarkCategory;
-  activeScenarioId?: string;
-  customScenarios: { id: string; name: string }[];
-  onSelect: (id: string) => void;
-  disabled: boolean;
-}) {
-  const builtinScenarios = getBuiltinScenarios(category);
-  const defaultId = builtinScenarios[0]?.id;
-  const effectiveId = activeScenarioId || defaultId;
-
-  return (
-    <select
-      value={effectiveId}
-      onChange={(e) => onSelect(e.target.value)}
-      disabled={disabled}
-      className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground disabled:opacity-50"
-    >
-      {builtinScenarios.map((s, i) => (
-        <option key={s.id} value={s.id}>
-          {s.name}{i === 0 ? " (Default)" : ""}
-        </option>
-      ))}
-      {customScenarios.length > 0 && (
-        <option disabled>── Custom ──</option>
-      )}
-      {customScenarios.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.name}
-        </option>
-      ))}
-    </select>
-  );
-}

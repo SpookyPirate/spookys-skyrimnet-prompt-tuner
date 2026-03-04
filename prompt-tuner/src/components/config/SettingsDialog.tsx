@@ -22,7 +22,7 @@ import {
 } from "@/types/config";
 import { Key } from "lucide-react";
 
-const ALL_AGENTS: AgentType[] = [...SKYRIMNET_AGENTS, "tuner"];
+const ALL_AGENTS: AgentType[] = [...SKYRIMNET_AGENTS, "tuner", "copycat"];
 
 export function SettingsDialog() {
   const settingsOpen = useConfigStore((s) => s.settingsOpen);
@@ -77,14 +77,20 @@ export function SettingsDialog() {
             <div className="border-b px-4 py-2 shrink-0 space-y-2">
               <div>
                 <div className="mb-1">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Prompt Tuner</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tuning Tools</span>
                 </div>
-                <TabsList className="h-auto bg-transparent p-0 w-full justify-center">
+                <TabsList className="h-auto bg-transparent p-0 w-full justify-center gap-1 flex">
                   <TabsTrigger
                     value="tuner"
-                    className="text-xs h-7 data-[state=active]:bg-background px-2.5 rounded-md w-full"
+                    className="text-xs h-7 data-[state=active]:bg-background px-2.5 rounded-md flex-1"
                   >
                     {AGENT_LABELS["tuner"]}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="copycat"
+                    className="text-xs h-7 data-[state=active]:bg-background px-2.5 rounded-md flex-1"
+                  >
+                    {AGENT_LABELS["copycat"]}
                   </TabsTrigger>
                 </TabsList>
               </div>

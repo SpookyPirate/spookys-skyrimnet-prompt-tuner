@@ -7,9 +7,10 @@ export type AgentType =
   | "meta_eval"
   | "diary"
   | "tuner"
-  | "autochat";
+  | "autochat"
+  | "copycat";
 
-export type SkyrimNetAgentType = Exclude<AgentType, "tuner" | "autochat">;
+export type SkyrimNetAgentType = Exclude<AgentType, "tuner" | "autochat" | "copycat">;
 
 export const SKYRIMNET_AGENTS: SkyrimNetAgentType[] = [
   "default",
@@ -31,6 +32,7 @@ export const AGENT_LABELS: Record<AgentType, string> = {
   diary: "Diary",
   tuner: "Tuner",
   autochat: "Autochat",
+  copycat: "Copycat",
 };
 
 export const AGENT_DESCRIPTIONS: Record<AgentType, string> = {
@@ -43,6 +45,7 @@ export const AGENT_DESCRIPTIONS: Record<AgentType, string> = {
   diary: "Diary entry generation",
   tuner: "AI tuner agent for prompt editing assistance",
   autochat: "Autonomous player character dialogue generation",
+  copycat: "Style-matching agent that copies one model's dialogue quality to another",
 };
 
 export interface ApiSettings {
@@ -101,15 +104,39 @@ export const DEFAULT_TUNING_SETTINGS: AiTuningSettings = {
 };
 
 export const DEFAULT_MODEL_NAMES: Record<AgentType, string> = {
-  default: "google/gemini-2.5-flash",
-  game_master: "google/gemini-2.5-flash",
-  memory_gen: "google/gemini-2.5-flash",
-  profile_gen: "google/gemini-2.5-flash",
-  action_eval: "google/gemini-2.5-flash",
-  meta_eval: "google/gemini-2.5-flash",
-  diary: "google/gemini-2.5-flash",
-  tuner: "anthropic/claude-sonnet-4",
-  autochat: "google/gemini-2.5-flash",
+  default: "deepseek/deepseek-chat-v3-0324",
+  game_master: "anthropic/claude-haiku-4.5",
+  memory_gen: "deepseek/deepseek-chat-v3-0324",
+  profile_gen: "deepseek/deepseek-r1-0528",
+  action_eval: "x-ai/grok-4.1-fast",
+  meta_eval: "x-ai/grok-4.1-fast",
+  diary: "anthropic/claude-sonnet-4.5",
+  tuner: "anthropic/claude-sonnet-4-6",
+  autochat: "anthropic/claude-sonnet-4-6",
+  copycat: "anthropic/claude-opus-4-6",
+};
+
+/** Per-agent tuning overrides (merged on top of DEFAULT_TUNING_SETTINGS) */
+export const DEFAULT_AGENT_TUNING_OVERRIDES: Partial<
+  Record<AgentType, Partial<AiTuningSettings>>
+> = {
+  game_master: { temperature: 0.8, maxTokens: 256 },
+  memory_gen: { maxTokens: 4000 },
+  profile_gen: { maxTokens: 10000, allowReasoning: true },
+  action_eval: { maxTokens: 500 },
+  meta_eval: { maxTokens: 100 },
+  diary: { temperature: 0.8, maxTokens: 12000 },
+  copycat: { maxTokens: 16000, temperature: 1.0, allowReasoning: true },
+};
+
+/** Per-agent API overrides (merged on top of DEFAULT_API_SETTINGS) */
+export const DEFAULT_AGENT_API_OVERRIDES: Partial<
+  Record<AgentType, Partial<ApiSettings>>
+> = {
+  memory_gen: { requestTimeout: 60 },
+  profile_gen: { requestTimeout: 300 },
+  diary: { requestTimeout: 120 },
+  copycat: { requestTimeout: 180 },
 };
 
 export interface SettingsProfile {

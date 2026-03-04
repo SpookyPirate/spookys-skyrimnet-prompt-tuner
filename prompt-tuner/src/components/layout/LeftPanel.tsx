@@ -9,6 +9,7 @@ import { EventSimulator } from "@/components/triggers/EventSimulator";
 import { AutochatControls } from "@/components/autochat/AutochatControls";
 import { BenchmarkSetup } from "@/components/benchmark/BenchmarkSetup";
 import { AutoTunerSetup } from "@/components/autotuner/AutoTunerSetup";
+import { CopycatSetup } from "@/components/copycat/CopycatSetup";
 import { PlayerSetup } from "@/components/simulation/PlayerSetup";
 import { ScenePresetManager } from "@/components/simulation/ScenePresetManager";
 import { Separator } from "@/components/ui/separator";
@@ -55,6 +56,10 @@ export function LeftPanel() {
 
   if (activeTab === "autotuner") {
     return <AutoTunerSetup />;
+  }
+
+  if (activeTab === "copycat") {
+    return <CopycatSetup />;
   }
 
   if (activeTab === "preview") {

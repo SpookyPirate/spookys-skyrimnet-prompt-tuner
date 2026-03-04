@@ -7,7 +7,8 @@ import { PreviewChat } from "@/components/chat/PreviewChat";
 import { TunerChat } from "@/components/chat/TunerChat";
 import { BenchmarkCenter } from "@/components/benchmark/BenchmarkCenter";
 import { AutoTunerCenter } from "@/components/autotuner/AutoTunerCenter";
-import { Code, MessageSquare, Eye, BarChart3, Wand2 } from "lucide-react";
+import { CopycatCenter } from "@/components/copycat/CopycatCenter";
+import { Code, MessageSquare, Eye, BarChart3, Wand2, Layers } from "lucide-react";
 
 export function CenterPanel() {
   const activeTab = useAppStore((s) => s.activeTab);
@@ -42,6 +43,10 @@ export function CenterPanel() {
               <Wand2 className="h-3.5 w-3.5" />
               Tuner
             </TabsTrigger>
+            <TabsTrigger value="copycat" className="gap-1.5 text-xs h-7 data-[state=active]:bg-background">
+              <Layers className="h-3.5 w-3.5" />
+              Copycat
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="editor" className="flex-1 overflow-hidden mt-0">
@@ -58,6 +63,9 @@ export function CenterPanel() {
         </TabsContent>
         <TabsContent value="autotuner" className="flex-1 overflow-hidden mt-0">
           <AutoTunerCenter />
+        </TabsContent>
+        <TabsContent value="copycat" className="flex-1 overflow-hidden mt-0">
+          <CopycatCenter />
         </TabsContent>
       </Tabs>
     </div>
