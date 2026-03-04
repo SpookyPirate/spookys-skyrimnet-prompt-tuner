@@ -51,15 +51,15 @@ export function CopycatReport() {
   const profiles = useProfileStore((s) => s.profiles);
   const activePromptSet = useAppStore((s) => s.activePromptSet);
 
-  type SaveMode = "existing" | "new";
-  const [saveMode, setSaveMode] = useState<SaveMode>("new");
+  type SaveMode = "copy" | "other";
+  const [saveMode, setSaveMode] = useState<SaveMode>("copy");
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingPrompts, setSavingPrompts] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [promptsSaved, setPromptsSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [existingProfileId, setExistingProfileId] = useState(() => profiles[0]?.id || "");
-  const [newProfileName, setNewProfileName] = useState("Copycat Tuned");
+  const [copyName, setCopyName] = useState("Copycat Tuned");
+  const [otherProfileId, setOtherProfileId] = useState(() => profiles[0]?.id || "");
   const [promptSetTarget, setPromptSetTarget] = useState(activePromptSet || "copycat-v1");
 
   const hasChanges = rounds.length > 0;
@@ -81,10 +81,10 @@ export function CopycatReport() {
     setSavingSettings(true);
     setSaveError(null);
     try {
-      if (saveMode === "existing") {
-        saveCopycatToExistingProfile(existingProfileId, workingSettings);
+      if (saveMode === "copy") {
+        saveCopycatToNewProfile(copyName, targetModelId, workingSettings);
       } else {
-        saveCopycatToNewProfile(newProfileName, targetModelId, workingSettings);
+        saveCopycatToExistingProfile(otherProfileId, workingSettings);
       }
       setSettingsSaved(true);
     } catch (err) {
@@ -92,7 +92,7 @@ export function CopycatReport() {
     } finally {
       setSavingSettings(false);
     }
-  }, [workingSettings, saveMode, existingProfileId, newProfileName, targetModelId]);
+  }, [workingSettings, saveMode, copyName, otherProfileId, targetModelId]);
 
   const handleSavePrompts = useCallback(async () => {
     if (!workingPromptSet) return;
@@ -310,49 +310,51 @@ export function CopycatReport() {
                   <div className="space-y-2 px-1">
                     <div className="text-[10px] text-muted-foreground">Save settings to:</div>
 
-                    {/* Option: Save to existing profile */}
+                    {/* Option: Save as copy */}
                     <SaveModeOption
-                      selected={saveMode === "existing"}
-                      onSelect={() => setSaveMode("existing")}
+                      selected={saveMode === "copy"}
+                      onSelect={() => setSaveMode("copy")}
                       disabled={settingsSaved}
-                      label="Apply to existing profile"
-                      description="Update a profile's default agent settings"
-                      icon={<Save className="h-3 w-3" />}
-                    >
-                      {saveMode === "existing" && (
-                        <select
-                          value={existingProfileId}
-                          onChange={(e) => setExistingProfileId(e.target.value)}
-                          className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1 [&>option]:bg-background [&>option]:text-foreground"
-                        >
-                          {profiles.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </SaveModeOption>
-
-                    {/* Option: Create new profile */}
-                    <SaveModeOption
-                      selected={saveMode === "new"}
-                      onSelect={() => setSaveMode("new")}
-                      disabled={settingsSaved}
-                      label="Create new profile"
-                      description={`New profile with ${targetModelId} and tuned settings`}
+                      label="Save as new profile"
+                      description="Create a copy with the tuned settings"
                       icon={<Copy className="h-3 w-3" />}
                     >
-                      {saveMode === "new" && (
+                      {saveMode === "copy" && (
                         <input
                           type="text"
-                          value={newProfileName}
-                          onChange={(e) => setNewProfileName(e.target.value)}
+                          value={copyName}
+                          onChange={(e) => setCopyName(e.target.value)}
                           className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
                           placeholder="New profile name"
                         />
                       )}
                     </SaveModeOption>
+
+                    {/* Option: Save to another profile */}
+                    {profiles.length > 0 && (
+                      <SaveModeOption
+                        selected={saveMode === "other"}
+                        onSelect={() => setSaveMode("other")}
+                        disabled={settingsSaved}
+                        label="Apply to another profile"
+                        description="Update a different profile's agent settings"
+                        icon={<Save className="h-3 w-3" />}
+                      >
+                        {saveMode === "other" && (
+                          <select
+                            value={otherProfileId}
+                            onChange={(e) => setOtherProfileId(e.target.value)}
+                            className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1 [&>option]:bg-background [&>option]:text-foreground"
+                          >
+                            {profiles.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </SaveModeOption>
+                    )}
 
                     <Button
                       variant="outline"
@@ -360,8 +362,8 @@ export function CopycatReport() {
                       className="w-full gap-1.5 text-xs"
                       disabled={
                         savingSettings || settingsSaved ||
-                        (saveMode === "new" && !newProfileName.trim()) ||
-                        (saveMode === "existing" && !existingProfileId)
+                        (saveMode === "copy" && !copyName.trim()) ||
+                        (saveMode === "other" && !otherProfileId)
                       }
                       onClick={handleSaveSettings}
                     >

@@ -47,19 +47,44 @@ interface FileEntry {
 }
 
 /**
+ * Resolve a prompt set name (e.g. "__tuner_temp__", "Test_3", "")
+ * to an absolute base path via the server-side resolve API.
+ */
+async function resolveBasePath(promptSetName: string): Promise<string> {
+  const resp = await fetch(
+    `/api/files/resolve-prompt-set?name=${encodeURIComponent(promptSetName)}`,
+  );
+  if (!resp.ok) {
+    throw new Error(`Failed to resolve prompt set "${promptSetName}": HTTP ${resp.status}`);
+  }
+  const { basePath } = await resp.json();
+  return basePath;
+}
+
+/**
  * Fetch relevant prompt file contents for a category.
- * Uses the prompt set base path (resolved server-side) via the children + read APIs.
+ * Resolves the prompt set name to an absolute path server-side,
+ * then reads files via the children + read APIs.
  * Returns a formatted string with file paths and contents suitable for the tuner LLM.
  */
 export async function fetchPromptContent(
   category: BenchmarkCategory,
-  promptSetBasePath: string,
+  promptSetName: string,
 ): Promise<{ content: string; files: { path: string; name: string; content: string }[] }> {
   const catDef = getCategoryDef(category);
   if (!catDef) return { content: "", files: [] };
 
   const agent = catDef.agent;
   const paths = AGENT_PROMPT_PATHS[agent] || ["submodules/system_head"];
+
+  // Resolve the set name to an absolute base path on disk
+  let basePath: string;
+  try {
+    basePath = await resolveBasePath(promptSetName);
+  } catch {
+    console.error(`[fetchPromptContent] Could not resolve prompt set "${promptSetName}"`);
+    return { content: "", files: [] };
+  }
 
   const allFiles: { path: string; name: string; content: string }[] = [];
   let totalLength = 0;
@@ -68,7 +93,7 @@ export async function fetchPromptContent(
   for (const entry of paths) {
     if (totalLength > MAX_TOTAL) break;
 
-    const fullPath = `${promptSetBasePath}/${entry}`.replace(/\\/g, "/");
+    const fullPath = `${basePath}/${entry}`.replace(/\\/g, "/");
 
     try {
       if (entry.endsWith(".prompt")) {
@@ -112,12 +137,13 @@ export async function fetchPromptContent(
     }
   }
 
-  // Format for the tuner LLM
+  // Format for the tuner LLM — use f.path in headers so the LLM knows the
+  // exact file path to use in search/replace prompt_changes proposals
   const sections = allFiles.map((f) => {
     const truncated = f.content.length > 3000
       ? f.content.substring(0, 3000) + "\n... (truncated)"
       : f.content;
-    return `### ${f.name}\n\`\`\`\n${truncated}\n\`\`\``;
+    return `### \`${f.path}\`\n\`\`\`\n${truncated}\n\`\`\``;
   });
 
   if (totalLength > MAX_TOTAL) {

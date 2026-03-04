@@ -64,11 +64,21 @@ You may propose changes to any UNLOCKED settings.${lockedSettings.length > 0 ? `
     : "";
 
   // Build prompts section
-  const promptsSection = canModifyPrompts && promptContent
-    ? `## Current Prompt Files
+  let promptsSection = "";
+  if (canModifyPrompts) {
+    if (promptContent) {
+      promptsSection = `## Current Prompt Files
 
-${promptContent}`
-    : "";
+The following prompt files are used by this agent. You can propose search/replace changes to modify them.
+**IMPORTANT:** The file_path in each section header is the exact path you must use in your prompt_changes proposals. Copy it exactly.
+
+${promptContent}`;
+    } else {
+      promptsSection = `## Prompt Files
+
+No prompt files could be loaded for this prompt set. You cannot propose prompt changes this round.`;
+    }
+  }
 
   // Previous rounds summary with tried settings ledger
   const triedSettings = new Map<string, Set<string>>();
@@ -105,8 +115,12 @@ ${previousRounds.map((r) => {
   const settingsChanges = r.proposal?.settingsChanges?.length
     ? `Settings changes: ${r.proposal.settingsChanges.map((c) => `${c.parameter}: ${JSON.stringify(c.oldValue)} → ${JSON.stringify(c.newValue)}`).join(", ")}`
     : "No settings changes";
+  const promptChanges = r.proposal?.promptChanges?.length
+    ? `Prompt changes: ${r.proposal.promptChanges.map((c) => `${c.filePath}: ${c.reason}`).join("; ")}`
+    : "No prompt changes";
   return `### Round ${r.roundNumber} (Score: ${score})
 - ${settingsChanges}
+- ${promptChanges}
 - Reasoning: ${r.proposal?.reasoning || "N/A"}
 - Comparison: ${r.comparisonText.substring(0, 800)}${r.comparisonText.length > 800 ? "..." : ""}`;
 }).join("\n\n")}`
@@ -144,7 +158,9 @@ Focus on STYLE matching, not absolute quality:
 3. **NEVER repeat a failed approach.** Check previous rounds before proposing.
 4. **Stop when matched.** If the target closely matches the reference (score >= 90), set stop_tuning to true.
 5. **Know your limits.** If style differences can't be fixed with your available levers, set stop_tuning to true and explain.
-${canModifyPrompts ? `6. **For prompt changes:** Use exact search/replace text. Make targeted changes.` : ""}
+${canModifyPrompts ? `6. **For prompt changes:** Use exact search/replace text. The search_text must exist EXACTLY in the file. The file_path must be the exact path shown in the "Current Prompt Files" section headers. Make targeted changes — don't rewrite entire files.
+7. **Prompt changes are persistent.** Changes you make in one round carry forward to the next. The target model runs with the modified prompts each round.
+8. **Prefer prompt changes for style issues.** Settings like temperature/maxTokens control randomness and length, but prompt instructions are the most effective lever for controlling formatting (action tags, paragraph structure), emotional register, and response style.` : ""}
 
 ## Response Format
 
@@ -160,7 +176,7 @@ Respond with a JSON object (no markdown fences):
     { "parameter": "temperature", "old_value": 1.0, "new_value": 0.8, "reason": "reduce creativity to match reference's more measured tone" }
   ]${canModifyPrompts ? `,
   "prompt_changes": [
-    { "file_path": "/path/to/file.prompt", "search_text": "exact text", "replace_text": "replacement", "reason": "why" }
+    { "file_path": "exact/path/from/section/header", "search_text": "exact text to find in file", "replace_text": "replacement text", "reason": "why this change helps" }
   ]` : ""},
   "verification_requests": ["custom dialogue line to test"]
 }

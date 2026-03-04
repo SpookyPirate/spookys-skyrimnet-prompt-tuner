@@ -75,13 +75,21 @@ You may propose changes to any UNLOCKED settings. Use the parameter name exactly
     : "";
 
   // Build prompts section
-  const promptsSection = canModifyPrompts && promptContent
-    ? `## Current Prompt Files
+  let promptsSection = "";
+  if (canModifyPrompts) {
+    if (promptContent) {
+      promptsSection = `## Current Prompt Files
 
 The following prompt files are used by this agent. You can propose search/replace changes to modify them.
+**IMPORTANT:** The file_path in each section header is the exact path you must use in your prompt_changes proposals. Copy it exactly.
 
-${promptContent}`
-    : "";
+${promptContent}`;
+    } else {
+      promptsSection = `## Prompt Files
+
+No prompt files could be loaded for this prompt set. You cannot propose prompt changes this round.`;
+    }
+  }
 
   // Previous rounds summary — include assessment so the tuner can see what improved/regressed
   // Also build a concise "tried settings" ledger so the tuner can see at a glance what was tested
@@ -158,8 +166,9 @@ Your job is to analyze benchmark results and assessments, then propose specific 
 4. **NEVER repeat a failed approach.** Before proposing any change, check the previous rounds. If a setting value was already tried and produced poor results, do NOT set it back to that value. Each round must try something meaningfully new — not a combination that is logically equivalent to a prior failure.
 5. **Be specific in reasoning.** Explain why each change should help and how it differs from what was already tried.
 6. **Know your limits.** If the assessment identifies issues that CANNOT be fixed with your available tuning levers (e.g. the prompt needs format changes but you can only tune settings), set stop_tuning to true and explain what changes are needed in stop_reason. Do not waste rounds re-testing settings when the problem is clearly in the prompt.
-${canModifyPrompts ? `7. **For prompt changes:** Use exact search/replace text. The search text must exist exactly in the file. Make targeted changes — don't rewrite entire files.` : ""}
+${canModifyPrompts ? `7. **For prompt changes:** Use exact search/replace text. The search text must exist exactly in the file. The file_path must be the exact path shown in the "Current Prompt Files" section headers. Make targeted changes — don't rewrite entire files.` : ""}
 8. **Avoid enabling reasoning.** For SkyrimNet roleplay agents, \`allowReasoning: false\` produces better results 9 times out of 10. Reasoning adds latency and token cost without improving dialogue quality. Only enable it if the task requires complex multi-step logical analysis (not creative text generation).
+9. **Ignore self-explanation quality.** The model's self-explanation is generated in a separate diagnostic call with its own token budget. Changing inference settings (especially maxTokens) will NOT affect explanation verbosity. Focus only on the actual benchmark response quality.
 
 ## Response Format
 
