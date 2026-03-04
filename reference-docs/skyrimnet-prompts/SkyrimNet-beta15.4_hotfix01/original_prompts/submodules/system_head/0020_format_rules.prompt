@@ -1,3 +1,4 @@
+{% if render_mode != "diary" %}
 {{ render_subcomponent("guidelines", render_mode) }}
 
 ## Length
@@ -23,4 +24,5 @@ Combat: 1 sentence, maximum 14 words. Urgent and brief.
 ## Grounding
 Base thoughts only on: your character profile, listed memories, scene description, and recent events.
 Do not: invent new facts, assume specific outcomes, retell past events, or drift into unrelated worries.
+{% endif %}
 {% endif %}
