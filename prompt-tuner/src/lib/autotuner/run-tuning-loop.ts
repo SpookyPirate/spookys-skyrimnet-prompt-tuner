@@ -55,8 +55,18 @@ export async function runTuningLoop(
   store.setIsRunning(true);
   store.setPhase("benchmarking");
 
-  // Fire-and-forget cleanup of any leftover temp set (don't block startup)
-  deleteTunerTempSet();
+  // Cleanup any leftover temp set
+  await deleteTunerTempSet();
+
+  // When tuning prompts, create the temp set upfront so fetchPromptContent
+  // returns writable paths that applyPromptChanges can target.
+  if (tuningTarget === "prompts" || tuningTarget === "both") {
+    const activePromptSet = workingPromptSet || undefined;
+    await createTunerTempSet(activePromptSet);
+    workingPromptSet = TUNER_TEMP_SET;
+    store.setWorkingPromptSet(workingPromptSet);
+    tempSetCreated = true;
+  }
 
   const models = agentSlot.api.modelNames.split(",").map((m) => m.trim()).filter(Boolean);
   const model = models[0] || "";

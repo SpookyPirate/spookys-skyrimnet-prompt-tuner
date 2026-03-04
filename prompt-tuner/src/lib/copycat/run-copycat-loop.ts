@@ -153,7 +153,16 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
   store.setPhase("running_reference");
 
   // Cleanup any leftover temp set
-  deleteTunerTempSet();
+  await deleteTunerTempSet();
+
+  // When tuning prompts, create the temp set upfront so fetchPromptContent
+  // returns writable paths that applyPromptChanges can target.
+  if (tuningTarget === "prompts" || tuningTarget === "both") {
+    await createTunerTempSet(workingPromptSet || undefined);
+    workingPromptSet = TUNER_TEMP_SET;
+    store.setWorkingPromptSet(workingPromptSet);
+    tempSetCreated = true;
+  }
 
   try {
     let frozenReference: CopycatDialogueTurn[] | null = null;
