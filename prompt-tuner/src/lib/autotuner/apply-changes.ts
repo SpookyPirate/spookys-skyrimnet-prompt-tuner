@@ -34,8 +34,28 @@ export function applySettingsChanges(
 }
 
 /**
+ * Escape special regex characters in a string.
+ */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Build a regex from search text that allows flexible whitespace matching.
+ * Splits the text into non-whitespace tokens and joins them with \s+ patterns,
+ * so "foo  bar\nbaz" matches "foo bar\n  baz" etc.
+ */
+function buildFlexibleRegex(searchText: string): RegExp | null {
+  const tokens = searchText.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const pattern = tokens.map(escapeRegex).join("\\s+");
+  return new RegExp(pattern, "s");
+}
+
+/**
  * Apply prompt changes by writing modified files via the API.
  * Each change is a search/replace within a file.
+ * Tries exact match first, then falls back to flexible whitespace matching.
  * Returns the changes with originalContent and modifiedContent filled in.
  */
 export async function applyPromptChanges(
@@ -51,11 +71,19 @@ export async function applyPromptChanges(
     }
     const { content: originalContent } = await readResp.json();
 
-    if (!originalContent.includes(change.searchText)) {
-      throw new Error(`Search text not found in ${change.filePath}: "${change.searchText.substring(0, 50)}..."`);
-    }
+    let modifiedContent: string;
 
-    const modifiedContent = originalContent.replace(change.searchText, change.replaceText);
+    if (originalContent.includes(change.searchText)) {
+      // Exact match
+      modifiedContent = originalContent.replace(change.searchText, change.replaceText);
+    } else {
+      // Fallback: flexible whitespace matching
+      const flexRegex = buildFlexibleRegex(change.searchText);
+      if (!flexRegex || !flexRegex.test(originalContent)) {
+        throw new Error(`Search text not found in ${change.filePath}: "${change.searchText.substring(0, 80)}..."`);
+      }
+      modifiedContent = originalContent.replace(flexRegex, change.replaceText);
+    }
 
     // Write modified content
     const writeResp = await fetch("/api/files/write", {
