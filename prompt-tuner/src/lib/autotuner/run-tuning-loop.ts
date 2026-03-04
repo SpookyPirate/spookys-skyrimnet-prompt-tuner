@@ -511,7 +511,7 @@ export async function runTuningLoop(
           store.setRoundAppliedSettings(roundIdx, workingSettings);
         }
 
-        // Apply prompt changes (skip when tuning settings only)
+        // Apply prompt changes (non-fatal — bad search text shouldn't kill the loop)
         if (proposal.promptChanges.length > 0 && tuningTarget !== "settings") {
           // Create temp set if not already created
           if (!tempSetCreated) {
@@ -522,14 +522,20 @@ export async function runTuningLoop(
             tempSetCreated = true;
           }
 
-          const appliedPrompts = await applyPromptChanges(proposal.promptChanges);
-          // Update proposal with actual content
-          const currentProposal = useAutoTunerStore.getState().rounds[roundIdx]?.proposal;
-          if (currentProposal) {
-            store.setRoundProposal(roundIdx, {
-              ...currentProposal,
-              promptChanges: appliedPrompts,
-            }, proposalLog.response);
+          try {
+            const appliedPrompts = await applyPromptChanges(proposal.promptChanges);
+            // Update proposal with actual content
+            const currentProposal = useAutoTunerStore.getState().rounds[roundIdx]?.proposal;
+            if (currentProposal) {
+              store.setRoundProposal(roundIdx, {
+                ...currentProposal,
+                promptChanges: appliedPrompts,
+              }, proposalLog.response);
+            }
+          } catch (promptErr: unknown) {
+            const msg = promptErr instanceof Error ? promptErr.message : "Prompt change failed";
+            console.warn(`[tuner] Prompt change failed in round ${round}: ${msg}`);
+            store.setRoundError(roundIdx, msg);
           }
         }
 

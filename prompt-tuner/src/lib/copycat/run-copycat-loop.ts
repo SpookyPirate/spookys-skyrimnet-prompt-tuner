@@ -320,7 +320,7 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
           store.setRoundAppliedSettings(roundIdx, workingSettings);
         }
 
-        // Apply prompt changes
+        // Apply prompt changes (non-fatal — bad search text shouldn't kill the loop)
         if (parsed.proposal.promptChanges.length > 0 && tuningTarget !== "settings") {
           if (!tempSetCreated) {
             await createTunerTempSet(workingPromptSet || undefined);
@@ -329,13 +329,19 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
             tempSetCreated = true;
           }
 
-          const appliedPrompts = await applyPromptChanges(parsed.proposal.promptChanges);
-          const currentProposal = useCopycatStore.getState().rounds[roundIdx]?.proposal;
-          if (currentProposal) {
-            store.setRoundProposal(roundIdx, {
-              ...currentProposal,
-              promptChanges: appliedPrompts,
-            }, copycatLog.response);
+          try {
+            const appliedPrompts = await applyPromptChanges(parsed.proposal.promptChanges);
+            const currentProposal = useCopycatStore.getState().rounds[roundIdx]?.proposal;
+            if (currentProposal) {
+              store.setRoundProposal(roundIdx, {
+                ...currentProposal,
+                promptChanges: appliedPrompts,
+              }, copycatLog.response);
+            }
+          } catch (promptErr: unknown) {
+            const msg = promptErr instanceof Error ? promptErr.message : "Prompt change failed";
+            console.warn(`[copycat] Prompt change failed in round ${round}: ${msg}`);
+            store.setRoundError(roundIdx, msg);
           }
         }
 
