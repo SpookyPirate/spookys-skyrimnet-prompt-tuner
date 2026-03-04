@@ -390,8 +390,7 @@ export function buildMultiTurnRenderBody(
   return {
     player: scenario.player,
     scene: scenario.scene,
-    // Builtin scenarios force original prompts (no promptSetBase)
-    promptSetBase: scenario.isBuiltin ? undefined : promptSetBase,
+    promptSetBase,
     npc: respondingNpc,
     selectedNpcs: npcs,
     chatHistory: chat,

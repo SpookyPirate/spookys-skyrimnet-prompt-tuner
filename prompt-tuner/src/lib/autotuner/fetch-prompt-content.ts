@@ -2,16 +2,42 @@ import type { BenchmarkCategory } from "@/types/benchmark";
 import { getCategoryDef } from "@/lib/benchmark/categories";
 
 /**
- * Maps agent types to the most relevant prompt submodule directories for tuning.
+ * Maps agent types to prompt paths for tuning.
+ * Entries ending in .prompt are individual files; others are directories to list.
  */
-const AGENT_PROMPT_DIRS: Record<string, string[]> = {
-  default: ["submodules/system_head", "submodules/system_tail", "submodules/user_head"],
-  game_master: ["submodules/system_head", "submodules/gm"],
-  memory_gen: ["submodules/system_head", "submodules/memory"],
-  profile_gen: ["submodules/system_head", "submodules/profile"],
-  action_eval: ["submodules/system_head", "submodules/action"],
-  meta_eval: ["submodules/system_head", "submodules/meta"],
-  diary: ["submodules/system_head", "submodules/diary"],
+const AGENT_PROMPT_PATHS: Record<string, string[]> = {
+  default: [
+    "submodules/system_head",
+    "submodules/user_final_instructions",
+    "dialogue_response.prompt",
+  ],
+  game_master: [
+    "submodules/system_head",
+    "gamemaster_action_selector.prompt",
+    "gamemaster_scene_planner.prompt",
+  ],
+  memory_gen: [
+    "submodules/system_head",
+    "memory",
+  ],
+  profile_gen: [
+    "submodules/system_head",
+    "character_profile_update.prompt",
+    "dynamic_bio_update.prompt",
+    "helpers/generate_profile.prompt",
+  ],
+  action_eval: [
+    "submodules/system_head",
+    "native_action_selector.prompt",
+  ],
+  meta_eval: [
+    "submodules/system_head",
+    "target_selectors",
+  ],
+  diary: [
+    "submodules/system_head",
+    "diary_entry.prompt",
+  ],
 };
 
 interface FileEntry {
@@ -33,50 +59,63 @@ export async function fetchPromptContent(
   if (!catDef) return { content: "", files: [] };
 
   const agent = catDef.agent;
-  const dirs = AGENT_PROMPT_DIRS[agent] || ["submodules/system_head"];
+  const paths = AGENT_PROMPT_PATHS[agent] || ["submodules/system_head"];
 
   const allFiles: { path: string; name: string; content: string }[] = [];
   let totalLength = 0;
-  const MAX_TOTAL = 8000;
+  const MAX_TOTAL = 12000;
 
-  for (const dir of dirs) {
-    const dirPath = `${promptSetBasePath}/${dir}`.replace(/\\/g, "/");
+  for (const entry of paths) {
+    if (totalLength > MAX_TOTAL) break;
+
+    const fullPath = `${promptSetBasePath}/${entry}`.replace(/\\/g, "/");
 
     try {
-      const listResp = await fetch(
-        `/api/files/children?path=${encodeURIComponent(dirPath)}&limit=50`,
-      );
-      if (!listResp.ok) continue;
+      if (entry.endsWith(".prompt")) {
+        // Individual file — read directly
+        const readResp = await fetch(`/api/files/read?path=${encodeURIComponent(fullPath)}`);
+        if (!readResp.ok) continue;
+        const { content } = await readResp.json();
 
-      const data = await listResp.json();
-      const entries: FileEntry[] = data.children || [];
-      const promptFiles = entries
-        .filter((e) => e.type === "file" && e.name.endsWith(".prompt"))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        allFiles.push({ path: fullPath, name: entry, content });
+        totalLength += content.length;
+      } else {
+        // Directory — list children and read .prompt files
+        const listResp = await fetch(
+          `/api/files/children?path=${encodeURIComponent(fullPath)}&limit=50`,
+        );
+        if (!listResp.ok) continue;
 
-      for (const file of promptFiles) {
-        if (totalLength > MAX_TOTAL) break;
+        const data = await listResp.json();
+        const entries: FileEntry[] = data.children || [];
+        const promptFiles = entries
+          .filter((e) => e.type === "file" && e.name.endsWith(".prompt"))
+          .sort((a, b) => a.name.localeCompare(b.name));
 
-        try {
-          const readResp = await fetch(`/api/files/read?path=${encodeURIComponent(file.path)}`);
-          if (!readResp.ok) continue;
-          const { content } = await readResp.json();
+        for (const file of promptFiles) {
+          if (totalLength > MAX_TOTAL) break;
 
-          allFiles.push({ path: file.path, name: `${dir}/${file.name}`, content });
-          totalLength += content.length;
-        } catch {
-          // Skip unreadable files
+          try {
+            const readResp = await fetch(`/api/files/read?path=${encodeURIComponent(file.path)}`);
+            if (!readResp.ok) continue;
+            const { content } = await readResp.json();
+
+            allFiles.push({ path: file.path, name: `${entry}/${file.name}`, content });
+            totalLength += content.length;
+          } catch {
+            // Skip unreadable files
+          }
         }
       }
     } catch {
-      // Skip inaccessible directories
+      // Skip inaccessible paths
     }
   }
 
   // Format for the tuner LLM
   const sections = allFiles.map((f) => {
-    const truncated = f.content.length > 2000
-      ? f.content.substring(0, 2000) + "\n... (truncated)"
+    const truncated = f.content.length > 3000
+      ? f.content.substring(0, 3000) + "\n... (truncated)"
       : f.content;
     return `### ${f.name}\n\`\`\`\n${truncated}\n\`\`\``;
   });

@@ -27,7 +27,7 @@ function loadPersisted(): {
     selectedProfileId: "",
     selectedCategory: null as BenchmarkCategory | null,
     selectedScenarioId: "",
-    selectedPromptSet: "",
+    selectedPromptSet: "__active__",
     tuningTarget: "settings" as TuningTarget,
     maxRounds: 5,
     lockedSettings: [] as (keyof AiTuningSettingsType)[],
@@ -42,7 +42,7 @@ function loadPersisted(): {
         selectedProfileId: data.selectedProfileId ?? "",
         selectedCategory: data.selectedCategory ?? null,
         selectedScenarioId: data.selectedScenarioId ?? "",
-        selectedPromptSet: data.selectedPromptSet ?? "",
+        selectedPromptSet: data.selectedPromptSet ?? "__active__",
         tuningTarget: data.tuningTarget ?? "settings",
         maxRounds: data.maxRounds ?? 5,
         lockedSettings: data.lockedSettings ?? [],
@@ -160,7 +160,7 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
     get().persist();
   },
   setSelectedCategory: (cat) => {
-    set({ selectedCategory: cat });
+    set({ selectedCategory: cat, selectedScenarioId: "" });
     get().persist();
   },
   setSelectedScenarioId: (id) => {

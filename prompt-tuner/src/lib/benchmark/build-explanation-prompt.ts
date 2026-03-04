@@ -3,7 +3,7 @@ import type { ChatMessage } from "@/types/llm";
 import type { TunerTurnResult } from "@/types/autotuner";
 
 const MAX_PROMPT_CHARS = 6000;
-const MAX_MULTI_PROMPT_CHARS = 4000;
+const MAX_MULTI_PROMPT_CHARS = 8000;
 
 /** Categories where the model generates dialogue/creative text */
 const DIALOGUE_CATEGORIES: BenchmarkCategory[] = ["dialogue", "diary", "bio_update", "memory_gen"];

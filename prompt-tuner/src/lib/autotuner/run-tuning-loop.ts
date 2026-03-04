@@ -28,6 +28,9 @@ export async function runTuningLoop(
   lockedSettings?: (keyof import("@/types/config").AiTuningSettings)[],
   customInstructions?: string,
 ) {
+  const _t = (label: string) => console.log(`[tuner] ${label} @ ${Date.now()}`);
+  _t("runTuningLoop START");
+
   const store = useAutoTunerStore.getState();
   const catDef = getCategoryDef(category);
   if (!catDef) throw new Error(`Unknown category: ${category}`);
@@ -35,6 +38,8 @@ export async function runTuningLoop(
   const activeScenario = scenario || getDefaultScenario(category);
   const agent = catDef.agent;
   const agentSlot = profile.slots[agent];
+
+  _t(`agent=${agent} model=${agentSlot.api.modelNames}`);
 
   // Snapshot original settings
   const originalSettings = { ...agentSlot.tuning };
@@ -50,12 +55,13 @@ export async function runTuningLoop(
   store.setIsRunning(true);
   store.setPhase("benchmarking");
 
-  // Clean up any existing temp set
-  await deleteTunerTempSet();
+  // Fire-and-forget cleanup of any leftover temp set (don't block startup)
+  deleteTunerTempSet();
 
   const models = agentSlot.api.modelNames.split(",").map((m) => m.trim()).filter(Boolean);
   const model = models[0] || "";
   const apiKey = agentSlot.api.apiKey || profile.globalApiKey;
+  _t(`resolved model=${model} apiKey=${apiKey ? "set" : "MISSING"}`);
 
   try {
     for (let round = 1; round <= maxRounds; round++) {
@@ -65,6 +71,7 @@ export async function runTuningLoop(
       const roundIdx = round - 1;
 
       // ── BENCHMARK PHASE ──
+      _t(`round ${round} START`);
       store.setPhase("benchmarking");
       store.setRoundPhase(roundIdx, "benchmarking");
 
@@ -180,6 +187,7 @@ export async function runTuningLoop(
             if (abortController.signal.aborted) break;
 
             const subtask = catDef.subtasks[stIdx];
+            _t(`subtask ${stIdx} "${subtask.label}" render START`);
             const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
 
             const renderResponse = await fetch(subtask.renderEndpoint, {
@@ -188,6 +196,7 @@ export async function runTuningLoop(
               body: JSON.stringify(renderBody),
               signal: abortController.signal,
             });
+            _t(`subtask ${stIdx} render DONE (${renderResponse.status})`);
 
             if (!renderResponse.ok) {
               const errData = await renderResponse.json().catch(() => ({}));
@@ -198,6 +207,7 @@ export async function runTuningLoop(
             const subtaskMessages: ChatMessage[] = renderData.messages;
             if (stIdx === 0) renderedText = renderData.renderedText || "";
 
+            _t(`subtask ${stIdx} LLM START (model=${model})`);
             const log = await sendLlmRequestWithSlot({
               messages: subtaskMessages,
               agent,
@@ -207,6 +217,7 @@ export async function runTuningLoop(
               onChunk: () => {},
               signal: abortController.signal,
             });
+            _t(`subtask ${stIdx} LLM DONE (${log.latencyMs}ms, ${log.totalTokens}tok)`);
 
             if (log.error) throw new Error(log.error);
 
@@ -272,6 +283,7 @@ export async function runTuningLoop(
       if (abortController.signal.aborted) break;
 
       // ── EXPLAIN PHASE ──
+      _t("EXPLAIN START");
       store.setPhase("explaining");
       store.setRoundPhase(roundIdx, "explaining");
       store.clearStreams();
@@ -287,10 +299,20 @@ export async function runTuningLoop(
           roundTurnResults.length > 1 ? roundTurnResults : undefined,
         );
 
+        // Store explanation input messages
+        store.updateCurrentRound({ explanationMessages: [...explanationMessages] });
+
+        // Use a slot with a guaranteed minimum token budget for the explanation,
+        // so that low maxTokens being tuned (e.g. 100) doesn't truncate diagnostics.
+        const explanationSlot = {
+          api: { ...workingSlot.api },
+          tuning: { ...workingSlot.tuning, maxTokens: Math.max(workingSlot.tuning.maxTokens, 1024) },
+        };
+
         const explanationLog = await sendLlmRequestWithSlot({
           messages: explanationMessages,
           agent,
-          slot: workingSlot,
+          slot: explanationSlot,
           model,
           apiKey,
           onChunk: (chunk) => {
@@ -299,6 +321,7 @@ export async function runTuningLoop(
           signal: abortController.signal,
         });
 
+        _t("EXPLAIN DONE");
         explanationText = explanationLog.response;
         if (explanationLog.error) {
           // Non-fatal — continue without explanation
@@ -329,6 +352,7 @@ export async function runTuningLoop(
       if (abortController.signal.aborted) break;
 
       // ── ASSESS PHASE ──
+      _t("ASSESS START");
       store.setPhase("assessing");
       store.setRoundPhase(roundIdx, "assessing");
       store.clearStreams();
@@ -345,7 +369,7 @@ export async function runTuningLoop(
             ? `MULTI-TURN DIALOGUE TEST — ${roundTurnResults.length} turns`
             : `MULTI-SUBTASK TEST — ${roundTurnResults.length} subtasks`;
           const typeExplanation = isDialogueTurns
-            ? `Each turn below was sent as a SEPARATE prompt to the model. The model responded once per turn, not all at once. Evaluate each response individually.`
+            ? `Each turn below was sent as a SEPARATE prompt to the model with its own system prompt. Different turns may have DIFFERENT NPCs responding — check each turn's system prompt header ("You are X") to see which character the model was asked to roleplay. The model responded once per turn, not all at once. Evaluate each response individually for the character it was assigned.`
             : `Each subtask below was sent as a SEPARATE prompt to the model. Evaluate each response individually for its specific task.`;
 
           assessRenderedText = `[${typeLabel}]\n${typeExplanation}\n\n` +
@@ -353,12 +377,14 @@ export async function runTuningLoop(
               const promptSummary = turn.messages
                 .map((m) => `[${m.role}] ${m.content}`)
                 .join("\n\n");
-              const truncated = promptSummary.length > 2000
-                ? promptSummary.substring(0, 2000) + "\n... (truncated)"
+              const truncated = promptSummary.length > 3000
+                ? promptSummary.substring(0, 3000) + "\n... (truncated)"
                 : promptSummary;
               return `--- ${turn.label} ---\n\nPrompt:\n${truncated}\n\nModel Response:\n${turn.response}`;
             }).join("\n\n===\n\n");
         }
+
+        const assessPreviousRounds = useAutoTunerStore.getState().rounds.slice(0, roundIdx);
 
         const assessmentMessages = buildTunerAssessmentMessages({
           category,
@@ -371,7 +397,11 @@ export async function runTuningLoop(
           promptTokens: benchPromptTokens,
           completionTokens: benchCompletionTokens,
           turnResults: isMultiPart ? roundTurnResults : undefined,
+          previousRounds: assessPreviousRounds,
         });
+
+        // Store assessment input messages
+        store.updateCurrentRound({ assessmentMessages: [...assessmentMessages] });
 
         const assessLog = await sendLlmRequest({
           messages: assessmentMessages,
@@ -382,6 +412,7 @@ export async function runTuningLoop(
           signal: abortController.signal,
         });
 
+        _t("ASSESS DONE");
         assessmentText = assessLog.response;
         if (assessLog.error) {
           throw new Error(assessLog.error);
@@ -398,11 +429,13 @@ export async function runTuningLoop(
       if (abortController.signal.aborted) break;
 
       // ── PROPOSE PHASE ──
+      _t("PROPOSE START");
       store.setPhase("proposing");
       store.setRoundPhase(roundIdx, "proposing");
 
       let promptContent = "";
       if (tuningTarget === "prompts" || tuningTarget === "both") {
+        _t("fetchPromptContent START");
         // Fetch prompt file contents for the tuner LLM to analyze
         const promptSetPath = workingPromptSet || "";
         const fetched = await fetchPromptContent(category, promptSetPath);
@@ -427,6 +460,10 @@ export async function runTuningLoop(
           customInstructions,
         });
 
+        // Store proposal input messages
+        store.updateCurrentRound({ proposalMessages: [...proposalMessages] });
+
+        _t("PROPOSE LLM START");
         const proposalLog = await sendLlmRequest({
           messages: proposalMessages,
           agent: "tuner",
@@ -436,6 +473,7 @@ export async function runTuningLoop(
           signal: abortController.signal,
         });
 
+        _t("PROPOSE LLM DONE");
         if (proposalLog.error) {
           throw new Error(proposalLog.error);
         }
@@ -463,8 +501,8 @@ export async function runTuningLoop(
           store.setRoundAppliedSettings(roundIdx, workingSettings);
         }
 
-        // Apply prompt changes
-        if (proposal.promptChanges.length > 0) {
+        // Apply prompt changes (skip when tuning settings only)
+        if (proposal.promptChanges.length > 0 && tuningTarget !== "settings") {
           // Create temp set if not already created
           if (!tempSetCreated) {
             const activePromptSet = workingPromptSet || undefined;

@@ -113,6 +113,8 @@ export function buildNpcObject(npc: NpcConfig): Record<string, InjaValue> {
     isVirtualPrivate: npc.isVirtualPrivate || false,
     universalTranslatorSpeechPattern: "",
     distance: npc.distance || 200,
+    isFollowing: false,
+    furniture: "None",
     // Default empty collections
     factions: [] as InjaValue,
     keywords: [] as InjaValue,

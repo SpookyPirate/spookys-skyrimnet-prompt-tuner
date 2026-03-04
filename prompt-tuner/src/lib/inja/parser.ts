@@ -227,7 +227,7 @@ class Parser {
 
   private parseIf(conditionText: string): IfNode {
     const condition = parseExpr(conditionText);
-    const body = this.parseNodes(["else if", "else", "endif"]);
+    const body = this.parseNodes(["else if", "elif", "else", "endif"]);
 
     const branches: { condition: Expr; body: AstNode[] }[] = [
       { condition, body },
@@ -242,10 +242,11 @@ class Parser {
       if (ctrlText === "endif") {
         this.consumeControl();
         break;
-      } else if (ctrlText.startsWith("else if ")) {
+      } else if (ctrlText.startsWith("else if ") || ctrlText.startsWith("elif ")) {
         this.consumeControl();
-        const nextCondition = parseExpr(ctrlText.slice(8).trim());
-        const nextBody = this.parseNodes(["else if", "else", "endif"]);
+        const condStr = ctrlText.startsWith("elif ") ? ctrlText.slice(5).trim() : ctrlText.slice(8).trim();
+        const nextCondition = parseExpr(condStr);
+        const nextBody = this.parseNodes(["else if", "elif", "else", "endif"]);
         branches.push({ condition: nextCondition, body: nextBody });
       } else if (ctrlText === "else") {
         this.consumeControl();
