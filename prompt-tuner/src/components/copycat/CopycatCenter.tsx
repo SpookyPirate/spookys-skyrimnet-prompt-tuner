@@ -74,7 +74,7 @@ export function CopycatCenter() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col min-w-0 overflow-hidden">
       {/* Progress header */}
       <div className="flex items-center gap-2 border-b px-4 py-2">
         <PhaseIcon phase={phase} />
@@ -122,15 +122,15 @@ function CopycatRoundCard({
   const showComparisonStream = isCurrentRound && !round.comparisonText;
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card overflow-hidden min-w-0">
       {/* Round header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b">
+      <div className="flex items-center gap-2 px-3 py-2 border-b min-w-0">
         <PhaseIcon phase={round.phase} />
-        <span className="text-xs font-medium">Round {round.roundNumber}</span>
+        <span className="text-xs font-medium shrink-0">Round {round.roundNumber}</span>
         {round.effectivenessScore !== null && (
           <Badge
             variant="outline"
-            className={`text-[9px] px-1.5 py-0 ml-auto ${
+            className={`text-[9px] px-1.5 py-0 ml-auto shrink-0 ${
               round.effectivenessScore >= 80
                 ? "border-green-500/30 text-green-400"
                 : round.effectivenessScore >= 50
@@ -142,7 +142,7 @@ function CopycatRoundCard({
           </Badge>
         )}
         {round.error && (
-          <span className="text-xs text-red-500 ml-auto">{round.error}</span>
+          <span className="text-xs text-red-500 ml-auto truncate">{round.error}</span>
         )}
       </div>
 
@@ -177,20 +177,20 @@ function CopycatRoundCard({
             open={sideBySideOpen}
             onToggle={() => setSideBySideOpen(!sideBySideOpen)}
           >
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               {round.referenceDialogue.map((refTurn, i) => {
                 const targetTurn = round.targetDialogue[i];
                 return (
-                  <div key={i} className="space-y-1">
+                  <div key={i} className="space-y-1 min-w-0">
                     <div className="text-[10px] font-medium text-muted-foreground">{refTurn.label}</div>
-                    <div className="grid grid-cols-2 gap-1">
-                      <div className="rounded bg-blue-500/5 p-2">
+                    <div className="grid grid-cols-2 gap-1 min-w-0">
+                      <div className="rounded bg-blue-500/5 p-2 min-w-0 overflow-hidden">
                         <div className="text-[9px] font-medium text-blue-400 mb-0.5">Reference</div>
-                        <pre className="whitespace-pre-wrap text-xs max-h-32 overflow-auto">{refTurn.response}</pre>
+                        <pre className="whitespace-pre-wrap break-words text-xs max-h-32 overflow-auto">{refTurn.response}</pre>
                       </div>
-                      <div className="rounded bg-amber-500/5 p-2">
+                      <div className="rounded bg-amber-500/5 p-2 min-w-0 overflow-hidden">
                         <div className="text-[9px] font-medium text-amber-400 mb-0.5">Target</div>
-                        <pre className="whitespace-pre-wrap text-xs max-h-32 overflow-auto">{targetTurn?.response || "(no response)"}</pre>
+                        <pre className="whitespace-pre-wrap break-words text-xs max-h-32 overflow-auto">{targetTurn?.response || "(no response)"}</pre>
                       </div>
                     </div>
                   </div>
@@ -208,7 +208,7 @@ function CopycatRoundCard({
             onToggle={() => setComparisonOpen(!comparisonOpen)}
             streaming={showComparisonStream && !!comparisonStream}
           >
-            <pre className="whitespace-pre-wrap text-xs max-h-64 overflow-auto">
+            <pre className="whitespace-pre-wrap break-words text-xs max-h-64 overflow-auto">
               {round.comparisonText || comparisonStream || "Analyzing styles..."}
             </pre>
           </CollapsibleSection>
@@ -265,7 +265,7 @@ function DialogueTurns({
           <div className={`text-[10px] font-medium uppercase tracking-wider ${colorClass}`}>
             {turn.label}
           </div>
-          <pre className={`whitespace-pre-wrap text-xs ${bgClass} rounded p-2 max-h-48 overflow-auto`}>
+          <pre className={`whitespace-pre-wrap break-words text-xs ${bgClass} rounded p-2 max-h-48 overflow-auto`}>
             {turn.response || "(no response)"}
           </pre>
           {turn.latencyMs != null && (
@@ -313,7 +313,7 @@ function CollapsibleSection({
           <span className="ml-auto text-[10px] text-muted-foreground">{badge}</span>
         )}
       </button>
-      {open && <div className="px-3 pb-2">{children}</div>}
+      {open && <div className="px-3 pb-2 min-w-0 overflow-hidden">{children}</div>}
     </div>
   );
 }
