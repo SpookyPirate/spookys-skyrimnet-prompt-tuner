@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
 import { getCategoryDef } from "@/lib/benchmark/categories";
@@ -130,8 +129,8 @@ export function BenchmarkCenter() {
         </span>
       </div>
 
-      {/* Body — vertical scroll of subtask/turn blocks */}
-      <ScrollArea className="flex-1 overflow-hidden">
+      {/* Body — vertical + horizontal scroll of subtask/turn blocks */}
+      <div className="flex-1 overflow-auto min-h-0">
         <div className="flex flex-col">
           {subtaskGroups.map((group, i) => (
             <div key={group.subtaskId}>
@@ -153,7 +152,7 @@ export function BenchmarkCenter() {
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
