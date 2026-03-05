@@ -107,7 +107,7 @@ export function PromptReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !saving && onClose()}>
-      <DialogContent className="max-w-5xl h-[80vh] flex flex-col gap-0 p-0">
+      <DialogContent className="w-[90vw] max-w-[90vw] h-[85vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-4 pt-4 pb-2 border-b shrink-0">
           <DialogTitle className="text-sm">
             Review Prompt Changes — saving to &quot;{targetSetName}&quot;
