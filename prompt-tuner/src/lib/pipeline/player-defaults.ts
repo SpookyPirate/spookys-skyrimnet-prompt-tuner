@@ -1,7 +1,7 @@
 import type { PlayerConfig } from "@/types/simulation";
 
 export const DEFAULT_PLAYER_CONFIG: PlayerConfig = {
-  name: "Player",
+  name: "Dragonborn-Bill",
   gender: "Male",
   race: "Nord",
   level: 25,
