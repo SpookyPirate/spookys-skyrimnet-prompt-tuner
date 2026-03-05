@@ -141,7 +141,9 @@ export function ScenePresetManager() {
           ))}
         </select>
         {isDefaultActive && (
-          <Lock className="h-3 w-3 shrink-0 text-muted-foreground/50" title="Built-in preset — read only" />
+          <span title="Built-in preset — read only">
+            <Lock className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+          </span>
         )}
         <Button
           variant="ghost"

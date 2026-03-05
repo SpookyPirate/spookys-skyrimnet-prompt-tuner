@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useFileStore } from "@/stores/fileStore";
 import type { FileNode } from "@/types/files";
 import {
@@ -14,6 +14,8 @@ import {
   FileCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FileContextMenu } from "./FileContextMenu";
+import { toast } from "sonner";
 
 interface FileTreeNodeProps {
   node: FileNode;
@@ -35,11 +37,16 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
   const [isLoadingChildren, setIsLoadingChildren] = useState(false);
   const [lazyTotal, setLazyTotal] = useState(0);
 
+  // Context menu
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // Drag & drop
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounter = useRef(0);
+
   const handleClick = useCallback(async () => {
     if (node.type === "directory") {
       toggleExpanded(node.path);
-
-      // Lazy load children if not already loaded
       if (!node.isLoaded && !isExpanded && lazyChildren.length === 0) {
         setIsLoadingChildren(true);
         try {
@@ -61,43 +68,34 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
     }
   }, [node, isExpanded, lazyChildren.length, toggleExpanded, setSelectedPath]);
 
-  const handleOpenFile = useCallback(
-    async (fileNode: FileNode) => {
-      const store = useFileStore.getState();
-
-      // Already open? Just switch to it
-      if (store.openFiles.some((f) => f.path === fileNode.path)) {
-        store.setActiveFile(fileNode.path);
-        return;
-      }
-
-      store.setLoadingFile(true);
-      try {
-        const res = await fetch(
-          `/api/files/read?path=${encodeURIComponent(fileNode.path)}`
-        );
-        const data = await res.json();
-        if (data.error) {
-          console.error(data.error);
-          return;
-        }
-        store.openFile({
-          path: fileNode.path,
-          name: fileNode.name,
-          displayName: fileNode.displayName || fileNode.name,
-          content: data.content,
-          originalContent: data.content,
-          isDirty: false,
-          isReadOnly: data.isReadOnly,
-        });
-      } catch (error) {
-        console.error("Failed to open file:", error);
-      } finally {
-        store.setLoadingFile(false);
-      }
-    },
-    []
-  );
+  const handleOpenFile = useCallback(async (fileNode: FileNode) => {
+    const store = useFileStore.getState();
+    if (store.openFiles.some((f) => f.path === fileNode.path)) {
+      store.setActiveFile(fileNode.path);
+      return;
+    }
+    store.setLoadingFile(true);
+    try {
+      const res = await fetch(
+        `/api/files/read?path=${encodeURIComponent(fileNode.path)}`
+      );
+      const data = await res.json();
+      if (data.error) { console.error(data.error); return; }
+      store.openFile({
+        path: fileNode.path,
+        name: fileNode.name,
+        displayName: fileNode.displayName || fileNode.name,
+        content: data.content,
+        originalContent: data.content,
+        isDirty: false,
+        isReadOnly: data.isReadOnly,
+      });
+    } catch (error) {
+      console.error("Failed to open file:", error);
+    } finally {
+      store.setLoadingFile(false);
+    }
+  }, []);
 
   const loadMore = useCallback(async () => {
     setIsLoadingChildren(true);
@@ -115,10 +113,84 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
     }
   }, [node.path, lazyChildren.length]);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  // ── Drag & drop ──────────────────────────────────────────────────────
+
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    if (node.isReadOnly || node.type === "directory") {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/x-file-path", node.path);
+    e.dataTransfer.setData("text/plain", node.name);
+  }, [node]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (node.type !== "directory") return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+  }, [node.type]);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    if (node.type !== "directory") return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    setIsDragOver(true);
+  }, [node.type]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (node.type !== "directory") return;
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragOver(false);
+  }, [node.type]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    if (node.type !== "directory") return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragOver(false);
+
+    const sourcePath = e.dataTransfer.getData("application/x-file-path");
+    if (!sourcePath || sourcePath === node.path) return;
+
+    const fileName = sourcePath.split(/[\\/]/).pop()!;
+    const destPath = `${node.path.replace(/\\/g, "/")}/${fileName}`;
+
+    if (destPath === sourcePath.replace(/\\/g, "/")) return;
+
+    const res = await fetch("/api/files/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourcePath, destPath }),
+    });
+
+    if (res.ok) {
+      // Close the old file if open, it's been moved
+      const store = useFileStore.getState();
+      if (store.openFiles.some((f) => f.path === sourcePath)) {
+        store.closeFile(sourcePath);
+      }
+      await store.refreshTree();
+      toast.success(`Moved "${fileName}"`);
+    } else {
+      const d = await res.json();
+      toast.error(d.error || "Move failed");
+    }
+  }, [node]);
+
   const displayLabel = node.displayName || node.name;
   const children = node.isLoaded ? node.children : lazyChildren;
   const isCharactersDir = node.name === "characters" && node.type === "directory";
-
   const isYamlFile = node.type === "file" && (node.name.endsWith(".yaml") || node.name.endsWith(".yml"));
 
   const icon =
@@ -126,9 +198,9 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
       isCharactersDir ? (
         <Users className="h-4 w-4 shrink-0 text-amber-500" />
       ) : isExpanded ? (
-        <FolderOpen className="h-4 w-4 shrink-0 text-blue-400" />
+        <FolderOpen className={cn("h-4 w-4 shrink-0", isDragOver ? "text-green-400" : "text-blue-400")} />
       ) : (
-        <Folder className="h-4 w-4 shrink-0 text-blue-400" />
+        <Folder className={cn("h-4 w-4 shrink-0", isDragOver ? "text-green-400" : "text-blue-400")} />
       )
     ) : isYamlFile ? (
       <FileCog className="h-4 w-4 shrink-0 text-orange-400" />
@@ -139,10 +211,18 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
   return (
     <div>
       <button
+        draggable={node.type === "file" && !node.isReadOnly}
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className={cn(
           "flex w-full items-center gap-1 rounded-sm px-1 py-0.5 text-left text-xs hover:bg-accent",
-          isSelected && "bg-accent text-accent-foreground"
+          isSelected && "bg-accent text-accent-foreground",
+          isDragOver && "bg-green-500/20 outline outline-1 outline-green-500/50"
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
@@ -192,6 +272,14 @@ export function FileTreeNode({ node, depth }: FileTreeNodeProps) {
             </button>
           )}
         </div>
+      )}
+
+      {contextMenu && (
+        <FileContextMenu
+          node={node}
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </div>
   );

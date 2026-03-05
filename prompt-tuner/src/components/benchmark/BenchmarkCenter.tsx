@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
 import { getCategoryDef } from "@/lib/benchmark/categories";

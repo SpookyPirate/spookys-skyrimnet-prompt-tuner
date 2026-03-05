@@ -1,39 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-import { ORIGINAL_PROMPTS_DIR, EDITED_PROMPTS_DIR, parseCharacterName } from "@/lib/files/paths";
+import { ORIGINAL_PROMPTS_DIR, EDITED_PROMPTS_DIR, parseCharacterName, isReadOnly } from "@/lib/files/paths";
 import type { FileNode } from "@/types/files";
 
-// In-memory character index built on first request
-let characterIndex: FileNode[] | null = null;
+const SEARCHABLE_EXTENSIONS = new Set([".prompt", ".yaml", ".yml", ".txt", ".md"]);
 
-async function buildCharacterIndex(): Promise<FileNode[]> {
-  if (characterIndex) return characterIndex;
-
-  const nodes: FileNode[] = [];
-
-  // Index original characters
-  const charDir = path.join(ORIGINAL_PROMPTS_DIR, "characters");
+/** Walk a directory recursively and collect all searchable file nodes. */
+async function walkDir(dir: string, readOnly: boolean, nodes: FileNode[]): Promise<void> {
+  let entries: string[];
   try {
-    const entries = await fs.readdir(charDir);
-    for (const entry of entries) {
-      if (entry.endsWith(".prompt")) {
-        const { displayName, id } = parseCharacterName(entry);
+    entries = await fs.readdir(dir);
+  } catch {
+    return;
+  }
+
+  await Promise.all(
+    entries.map(async (entry) => {
+      const fullPath = path.join(dir, entry);
+      let stat;
+      try {
+        stat = await fs.stat(fullPath);
+      } catch {
+        return;
+      }
+
+      if (stat.isDirectory()) {
+        await walkDir(fullPath, readOnly, nodes);
+      } else if (SEARCHABLE_EXTENSIONS.has(path.extname(entry).toLowerCase())) {
+        const isChar = entry.endsWith(".prompt") && dir.includes("characters");
+        const displayName = isChar ? parseCharacterName(entry).displayName : entry;
         nodes.push({
           name: entry,
-          path: path.join(charDir, entry),
+          path: fullPath,
           type: "file",
-          isReadOnly: true,
+          isReadOnly: readOnly || isReadOnly(fullPath),
           displayName,
         });
       }
-    }
+    })
+  );
+}
+
+// Cache: [timestamp, nodes]
+let fileIndex: FileNode[] | null = null;
+let fileIndexBuiltAt = 0;
+const INDEX_TTL_MS = 30_000; // rebuild every 30 s
+
+async function getFileIndex(): Promise<FileNode[]> {
+  if (fileIndex && Date.now() - fileIndexBuiltAt < INDEX_TTL_MS) return fileIndex;
+
+  const nodes: FileNode[] = [];
+
+  // Original prompts (read-only)
+  await walkDir(ORIGINAL_PROMPTS_DIR, true, nodes);
+
+  // All edited prompt sets
+  try {
+    const sets = await fs.readdir(EDITED_PROMPTS_DIR);
+    await Promise.all(
+      sets.map(async (setName) => {
+        const setPath = path.join(EDITED_PROMPTS_DIR, setName);
+        const stat = await fs.stat(setPath).catch(() => null);
+        if (stat?.isDirectory()) {
+          await walkDir(setPath, false, nodes);
+        }
+      })
+    );
   } catch {
-    // Characters directory may not exist
+    // Edited dir may not exist yet
   }
 
-  characterIndex = nodes;
+  fileIndex = nodes;
+  fileIndexBuiltAt = Date.now();
   return nodes;
+}
+
+/** Invalidate the index (called after writes/deletes) */
+export function invalidateFileIndex() {
+  fileIndex = null;
 }
 
 export async function GET(request: NextRequest) {
@@ -44,17 +89,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const index = await buildCharacterIndex();
+    const index = await getFileIndex();
     const lowerQuery = query.toLowerCase();
 
-    // Simple substring matching (Fuse.js will be used on the client for fuzzy)
     const results = index
-      .filter(
-        (node) =>
-          (node.displayName || node.name).toLowerCase().includes(lowerQuery) ||
-          node.name.toLowerCase().includes(lowerQuery)
-      )
-      .slice(0, 50);
+      .filter((node) => {
+        const label = (node.displayName || node.name).toLowerCase();
+        const name = node.name.toLowerCase();
+        // Also search relative path segments
+        const rel = node.path.toLowerCase();
+        return label.includes(lowerQuery) || name.includes(lowerQuery) || rel.includes(lowerQuery);
+      })
+      .slice(0, 100);
 
     return NextResponse.json({ results });
   } catch (error) {

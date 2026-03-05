@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FileText, Loader2, GitCompare, Code, Eye } from "lucide-react";
+import { FileText, Loader2, GitCompare, Eye, Save } from "lucide-react";
 import { toast } from "sonner";
 import { YamlValidationBadge } from "./YamlValidationBadge";
 
@@ -229,6 +229,21 @@ export function EditorPanel() {
             <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-mono">
               {activeFile.content.split("\n").length} lines
             </Badge>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={activeFile.isDirty ? "default" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleSave}
+                  disabled={!activeFile.isDirty || activeFile.isReadOnly}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save (Ctrl+S)</TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Content area */}
