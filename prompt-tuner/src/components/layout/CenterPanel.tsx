@@ -15,11 +15,11 @@ export function CenterPanel() {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col min-w-0">
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-        className="flex h-full flex-col"
+        className="flex h-full flex-col min-w-0"
       >
         <div className="border-b bg-card px-2">
           <TabsList className="h-8 bg-transparent">

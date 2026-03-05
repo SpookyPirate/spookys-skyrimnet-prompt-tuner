@@ -12,20 +12,26 @@ import {
   Save,
   Download,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 
 export function ProfileManager() {
   const [showSave, setShowSave] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const [showRename, setShowRename] = useState(false);
+  const [renameName, setRenameName] = useState("");
 
   const profiles = useProfileStore((s) => s.profiles);
   const activeProfileId = useProfileStore((s) => s.activeProfileId);
   const setActiveProfileId = useProfileStore((s) => s.setActiveProfileId);
   const addProfile = useProfileStore((s) => s.addProfile);
+  const renameProfile = useProfileStore((s) => s.renameProfile);
   const deleteProfile = useProfileStore((s) => s.deleteProfile);
   const getProfile = useProfileStore((s) => s.getProfile);
   const exportToMarkdown = useProfileStore((s) => s.exportToMarkdown);
+
+  const isDefaultProfile = profiles.length > 0 && profiles[0].id === activeProfileId;
 
   const globalApiKey = useConfigStore((s) => s.globalApiKey);
   const slots = useConfigStore((s) => s.slots);
@@ -79,6 +85,25 @@ export function ProfileManager() {
     toast.success(`Duplicated as "${newProfile.name}"`);
   };
 
+  const handleStartRename = () => {
+    const profile = getProfile(activeProfileId);
+    if (!profile) return;
+    setRenameName(profile.name);
+    setShowRename(true);
+  };
+
+  const handleRename = () => {
+    const name = renameName.trim();
+    if (!name) {
+      toast.error("Profile name is required");
+      return;
+    }
+    renameProfile(activeProfileId, name);
+    toast.success(`Profile renamed to "${name}"`);
+    setShowRename(false);
+    setRenameName("");
+  };
+
   const handleDelete = () => {
     if (profiles.length <= 1) {
       toast.error("Cannot delete the last profile");
@@ -100,49 +125,97 @@ export function ProfileManager() {
     <div className="border-b px-4 py-2 space-y-2">
       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Profiles</span>
       {/* Profile selector + actions */}
-      <div className="flex items-center gap-1.5">
-        <select
-          value={activeProfileId}
-          onChange={(e) => handleSelect(e.target.value)}
-          className="h-7 flex-1 rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
-        >
-          {profiles.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={handleExport}
-          disabled={!activeProfileId}
-          title="Copy as markdown"
-        >
-          <Download className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={handleDuplicate}
-          disabled={!activeProfileId}
-          title="Duplicate profile"
-        >
-          <Copy className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-          onClick={handleDelete}
-          disabled={profiles.length <= 1}
-          title="Delete profile"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+      {showRename ? (
+        <div className="flex items-center gap-1.5">
+          <Input
+            value={renameName}
+            onChange={(e) => setRenameName(e.target.value)}
+            placeholder="Profile name..."
+            className="h-7 text-xs flex-1"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleRename();
+              if (e.key === "Escape") {
+                setShowRename(false);
+                setRenameName("");
+              }
+            }}
+            autoFocus
+          />
+          <Button
+            variant="default"
+            size="sm"
+            className="h-7 text-xs px-2.5"
+            onClick={handleRename}
+          >
+            Save
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs px-2"
+            onClick={() => {
+              setShowRename(false);
+              setRenameName("");
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <select
+            value={activeProfileId}
+            onChange={(e) => handleSelect(e.target.value)}
+            className="h-7 flex-1 rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
+          >
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={handleStartRename}
+            disabled={!activeProfileId || isDefaultProfile}
+            title={isDefaultProfile ? "Cannot rename the default profile" : "Rename profile"}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={handleExport}
+            disabled={!activeProfileId}
+            title="Copy as markdown"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={handleDuplicate}
+            disabled={!activeProfileId}
+            title="Duplicate profile"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+            onClick={handleDelete}
+            disabled={profiles.length <= 1}
+            title="Delete profile"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
 
       {/* Save section */}
       {showSave ? (

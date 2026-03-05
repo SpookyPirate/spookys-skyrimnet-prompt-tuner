@@ -41,7 +41,7 @@ export function SavePromptSetDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          sourceSet: currentSetName,
+          sourceSet: currentSetName || "__original__",
         }),
       });
       const data = await res.json();
@@ -69,7 +69,7 @@ export function SavePromptSetDialog({
           <DialogDescription>
             {currentSetName
               ? `Copy "${currentSetName}" to a new named version.`
-              : "Create a new empty prompt set."}
+              : "Copy the original prompts to a new named version."}
           </DialogDescription>
         </DialogHeader>
 

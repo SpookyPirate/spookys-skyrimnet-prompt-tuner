@@ -68,7 +68,7 @@ export function EventSimulator() {
         <select
           value={eventType}
           onChange={(e) => setEventType(e.target.value as TriggerEventType)}
-          className="w-full h-6 rounded border bg-background px-1.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full h-6 rounded border bg-background text-foreground px-1.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
         >
           {Object.values(TriggerEventType).map((t) => (
             <option key={t} value={t}>

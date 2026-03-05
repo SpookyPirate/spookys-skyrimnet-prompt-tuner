@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assemblePrompt } from "@/lib/pipeline/assembler";
-import { resolvePromptSetBase } from "@/lib/files/paths";
+import { resolvePromptSetBaseServer } from "@/lib/files/paths-server";
 import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
 import { createFileLoader, readTemplate } from "@/lib/pipeline/file-loader-factory";
 import type { InjaValue } from "@/lib/inja/renderer";
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       player,
     } = body;
 
-    const baseDir = resolvePromptSetBase(promptSetBase);
+    const baseDir = resolvePromptSetBaseServer(promptSetBase);
     const fileLoader = createFileLoader(baseDir);
 
     let templateSource: string;

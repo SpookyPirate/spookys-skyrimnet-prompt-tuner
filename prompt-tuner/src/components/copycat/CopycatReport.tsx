@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -9,8 +9,9 @@ import { useCopycatStore } from "@/stores/copycatStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useAppStore } from "@/stores/appStore";
 import { saveCopycatToExistingProfile, saveCopycatToNewProfile } from "@/lib/copycat/save-copycat-results";
-import { savePromptsToSet, deleteTunerTempSet } from "@/lib/autotuner/save-results";
+import { deleteTunerTempSet } from "@/lib/autotuner/save-results";
 import { buildCopycatReport } from "@/lib/copycat/export-copycat-report";
+import { PromptReviewDialog } from "@/components/shared/PromptReviewDialog";
 import type { AiTuningSettings } from "@/types/config";
 import type { CopycatPhase } from "@/types/copycat";
 import {
@@ -21,6 +22,7 @@ import {
   Trash2,
   Copy,
   Download,
+  FolderOpen,
 } from "lucide-react";
 
 const PHASE_LABELS: Record<CopycatPhase, string> = {
@@ -49,18 +51,6 @@ export function CopycatReport() {
   const effectivenessSummary = useCopycatStore((s) => s.effectivenessSummary);
 
   const profiles = useProfileStore((s) => s.profiles);
-  const activePromptSet = useAppStore((s) => s.activePromptSet);
-
-  type SaveMode = "copy" | "other";
-  const [saveMode, setSaveMode] = useState<SaveMode>("copy");
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [savingPrompts, setSavingPrompts] = useState(false);
-  const [settingsSaved, setSettingsSaved] = useState(false);
-  const [promptsSaved, setPromptsSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [copyName, setCopyName] = useState("Copycat Tuned");
-  const [otherProfileId, setOtherProfileId] = useState(() => profiles[0]?.id || "");
-  const [promptSetTarget, setPromptSetTarget] = useState(activePromptSet || "copycat-v1");
 
   const hasChanges = rounds.length > 0;
   const hasSettingsChanges = rounds.some(
@@ -69,6 +59,50 @@ export function CopycatReport() {
   const hasPromptChanges = rounds.some(
     (r) => r.proposal?.promptChanges && r.proposal.promptChanges.length > 0
   );
+
+  type SaveMode = "copy" | "other";
+  type PromptSaveMode = "new" | "existing";
+  const [saveMode, setSaveMode] = useState<SaveMode>("copy");
+  const [promptSaveMode, setPromptSaveMode] = useState<PromptSaveMode>("new");
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [promptsSaved, setPromptsSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [copyName, setCopyName] = useState("Copycat Tuned");
+  const [otherProfileId, setOtherProfileId] = useState(() => profiles[0]?.id || "");
+  const [promptSetTarget, setPromptSetTarget] = useState("copycat-v1");
+  const [existingSets, setExistingSets] = useState<string[]>([]);
+  const [existingSetTarget, setExistingSetTarget] = useState("");
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+
+  // Collect unique modified file paths from all rounds
+  const modifiedFilePaths = useMemo(() => {
+    const seen = new Set<string>();
+    for (const round of rounds) {
+      for (const pc of round.proposal?.promptChanges ?? []) {
+        seen.add(pc.filePath);
+      }
+    }
+    return Array.from(seen);
+  }, [rounds]);
+
+  // Fetch existing prompt sets for the "save to existing" dropdown
+  useEffect(() => {
+    if (!hasPromptChanges) return;
+    fetch("/api/export/list-sets")
+      .then((r) => r.json())
+      .then((data) => {
+        const sets: string[] = (data.sets ?? []).filter(
+          (s: string) => s !== "__tuner_temp__"
+        );
+        setExistingSets(sets);
+        if (sets.length > 0 && !existingSetTarget) {
+          setExistingSetTarget(sets[0]);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPromptChanges]);
 
   // Effectiveness score display
   const scores = rounds
@@ -94,19 +128,21 @@ export function CopycatReport() {
     }
   }, [workingSettings, saveMode, copyName, otherProfileId, targetModelId]);
 
-  const handleSavePrompts = useCallback(async () => {
-    if (!workingPromptSet) return;
-    setSavingPrompts(true);
-    setSaveError(null);
-    try {
-      await savePromptsToSet(promptSetTarget);
-      setPromptsSaved(true);
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save prompts");
-    } finally {
-      setSavingPrompts(false);
+  const effectivePromptSetTarget =
+    promptSaveMode === "existing" ? existingSetTarget : promptSetTarget;
+
+  const handleOpenReview = useCallback(() => {
+    if (modifiedFilePaths.length === 0) {
+      setSaveError("No prompt changes to save.");
+      return;
     }
-  }, [workingPromptSet, promptSetTarget]);
+    setSaveError(null);
+    setReviewDialogOpen(true);
+  }, [modifiedFilePaths]);
+
+  const handlePromptsSaved = useCallback(() => {
+    setPromptsSaved(true);
+  }, []);
 
   const handleDiscardTemp = useCallback(async () => {
     await deleteTunerTempSet();
@@ -381,30 +417,74 @@ export function CopycatReport() {
 
                 {/* Save Prompts */}
                 {hasPromptChanges && workingPromptSet && tuningTarget !== "settings" && (
-                  <div className="space-y-1 px-1">
+                  <div className="space-y-2 px-1">
                     <div className="text-[10px] text-muted-foreground">Save prompts to set:</div>
-                    <input
-                      type="text"
-                      value={promptSetTarget}
-                      onChange={(e) => setPromptSetTarget(e.target.value)}
-                      className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground"
-                      placeholder="Prompt set name"
-                    />
+
+                    {/* Option: New set */}
+                    <SaveModeOption
+                      selected={promptSaveMode === "new"}
+                      onSelect={() => setPromptSaveMode("new")}
+                      disabled={promptsSaved}
+                      label="Save as new set"
+                      description="Create a new prompt set with these changes"
+                      icon={<Save className="h-3 w-3" />}
+                    >
+                      {promptSaveMode === "new" && (
+                        <input
+                          type="text"
+                          value={promptSetTarget}
+                          onChange={(e) => setPromptSetTarget(e.target.value)}
+                          className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
+                          placeholder="New set name"
+                        />
+                      )}
+                    </SaveModeOption>
+
+                    {/* Option: Existing set */}
+                    <SaveModeOption
+                      selected={promptSaveMode === "existing"}
+                      onSelect={() => setPromptSaveMode("existing")}
+                      disabled={promptsSaved}
+                      label="Overwrite existing set"
+                      description="Apply changes to prompts in an existing set"
+                      icon={<FolderOpen className="h-3 w-3" />}
+                    >
+                      {promptSaveMode === "existing" && (
+                        existingSets.length > 0 ? (
+                          <select
+                            value={existingSetTarget}
+                            onChange={(e) => setExistingSetTarget(e.target.value)}
+                            className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1 [&>option]:bg-background [&>option]:text-foreground"
+                          >
+                            {existingSets.map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="text-[10px] text-muted-foreground mt-1 pl-1">
+                            No existing prompt sets found.
+                          </div>
+                        )
+                      )}
+                    </SaveModeOption>
+
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full gap-1.5 text-xs"
-                      disabled={savingPrompts || promptsSaved || !promptSetTarget}
-                      onClick={handleSavePrompts}
+                      disabled={
+                        promptsSaved ||
+                        (promptSaveMode === "new" && !promptSetTarget.trim()) ||
+                        (promptSaveMode === "existing" && !existingSetTarget)
+                      }
+                      onClick={handleOpenReview}
                     >
-                      {savingPrompts ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : promptsSaved ? (
+                      {promptsSaved ? (
                         <CheckCircle2 className="h-3 w-3 text-green-500" />
                       ) : (
                         <Save className="h-3 w-3" />
                       )}
-                      {promptsSaved ? "Prompts Saved" : "Save Prompts"}
+                      {promptsSaved ? "Prompts Saved" : "Review & Save Prompts"}
                     </Button>
                   </div>
                 )}
@@ -446,6 +526,16 @@ export function CopycatReport() {
           )}
         </div>
       </ScrollArea>
+
+      {reviewDialogOpen && (
+        <PromptReviewDialog
+          open={reviewDialogOpen}
+          onClose={() => setReviewDialogOpen(false)}
+          targetSetName={effectivePromptSetTarget}
+          tempFilePaths={modifiedFilePaths}
+          onSaved={handlePromptsSaved}
+        />
+      )}
     </div>
   );
 }

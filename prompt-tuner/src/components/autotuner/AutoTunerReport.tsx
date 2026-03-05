@@ -9,6 +9,7 @@ import { useAutoTunerStore } from "@/stores/autoTunerStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useAppStore } from "@/stores/appStore";
 import { saveSettingsToProfile, saveSettingsToNewProfile, savePromptsToSet, deleteTunerTempSet } from "@/lib/autotuner/save-results";
+import { buildTuningReport } from "@/lib/autotuner/export-tuning-report";
 import type { AiTuningSettings } from "@/types/config";
 import type { TunerPhase } from "@/types/autotuner";
 import {
@@ -18,6 +19,7 @@ import {
   Save,
   Trash2,
   Copy,
+  Download,
 } from "lucide-react";
 
 const PHASE_LABELS: Record<TunerPhase, string> = {
@@ -111,6 +113,27 @@ export function AutoTunerReport() {
   const handleDiscardTemp = useCallback(async () => {
     await deleteTunerTempSet();
   }, []);
+
+  const handleExport = useCallback(() => {
+    const md = buildTuningReport({
+      category: selectedCategory,
+      tuningTarget,
+      customInstructions: useAutoTunerStore.getState().customInstructions,
+      profileName: tunedProfile?.name || "Unknown",
+      rounds,
+      originalSettings,
+      workingSettings,
+    });
+    const date = new Date().toISOString().slice(0, 10);
+    const slug = (selectedCategory || "tuning").replace(/\s+/g, "-");
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tuning-report-${slug}-${date}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [selectedCategory, tuningTarget, tunedProfile, rounds, originalSettings, workingSettings]);
 
   if (phase === "idle" && rounds.length === 0) {
     return (
@@ -281,7 +304,7 @@ export function AutoTunerReport() {
                           <select
                             value={otherProfileId}
                             onChange={(e) => setOtherProfileId(e.target.value)}
-                            className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
+                            className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1 [&>option]:bg-background [&>option]:text-foreground"
                           >
                             {otherProfiles.map((p) => (
                               <option key={p.id} value={p.id}>
@@ -359,6 +382,22 @@ export function AutoTunerReport() {
                   <div className="text-xs text-destructive px-1">{saveError}</div>
                 )}
               </div>
+            </>
+          )}
+
+          {/* Export */}
+          {rounds.length > 0 && (
+            <>
+              <Separator />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5 text-xs"
+                onClick={handleExport}
+              >
+                <Download className="h-3 w-3" />
+                Export Report
+              </Button>
             </>
           )}
         </div>

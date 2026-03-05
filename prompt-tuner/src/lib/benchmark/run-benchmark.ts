@@ -6,7 +6,6 @@ import { getCategoryDef } from "./categories";
 import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody } from "./default-scenarios";
 import { buildExplanationMessages } from "./build-explanation-prompt";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
-import { useAppStore } from "@/stores/appStore";
 import { sendLlmRequestWithSlot } from "@/lib/llm/client";
 
 /**
@@ -80,19 +79,18 @@ export async function runBenchmark(
   category: BenchmarkCategory,
   profiles: SettingsProfile[],
   scenario?: BenchmarkScenario,
+  promptSetBase?: string,
 ) {
   const activeScenario = scenario || getDefaultScenario(category);
 
   // Dispatch to multi-turn runner when turns are defined
   if (activeScenario.turns && activeScenario.turns.length > 0) {
-    return runMultiTurnBenchmark(category, profiles, activeScenario);
+    return runMultiTurnBenchmark(category, profiles, activeScenario, promptSetBase);
   }
 
   const store = useBenchmarkStore.getState();
   const catDef = getCategoryDef(category);
   if (!catDef) throw new Error(`Unknown category: ${category}`);
-
-  const activePromptSet = useAppStore.getState().activePromptSet;
 
   const abortController = new AbortController();
   store.setAbortController(abortController);
@@ -146,7 +144,7 @@ export async function runBenchmark(
       const renderBody = buildRenderBody(
         subtask.id,
         activeScenario,
-        activePromptSet || undefined,
+        promptSetBase,
       );
 
       const renderResponse = await fetch(subtask.renderEndpoint, {
@@ -275,6 +273,7 @@ async function runMultiTurnBenchmark(
   category: BenchmarkCategory,
   profiles: SettingsProfile[],
   scenario: BenchmarkScenario,
+  promptSetBase?: string,
 ) {
   const store = useBenchmarkStore.getState();
   const catDef = getCategoryDef(category);
@@ -357,6 +356,7 @@ async function runMultiTurnBenchmark(
           turn,
           scenario,
           accumulatedChat,
+          promptSetBase,
         );
 
         try {

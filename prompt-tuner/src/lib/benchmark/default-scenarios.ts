@@ -40,11 +40,16 @@ const SHARED_CHAT_HISTORY: BenchmarkChatEntry[] = [
 ];
 
 const DEFAULT_ELIGIBLE_ACTIONS = [
-  { name: "None", description: "No action" },
   { name: "Gesture", description: "Perform a gesture or animation", parameterSchema: '{"gesture": "string"}' },
-  { name: "Trade", description: "Open trade dialogue", parameterSchema: "{}" },
-  { name: "Follow", description: "Follow the player", parameterSchema: "{}" },
-  { name: "Wait", description: "Wait at current location", parameterSchema: "{}" },
+  { name: "Trade", description: "Open trade dialogue" },
+  { name: "Follow", description: "Follow the player" },
+  { name: "Wait", description: "Wait at current location" },
+];
+
+const DEFAULT_GM_ELIGIBLE_ACTIONS = [
+  { name: "StartConversation", description: "Initiate a new NPC interaction", parameterSchema: '{"speaker": "string", "target": "string"}' },
+  { name: "ContinueConversation", description: "Maintain an ongoing exchange", parameterSchema: '{"speaker": "string", "target": "string", "topic": "string"}' },
+  { name: "Narrate", description: "Environmental narration", parameterSchema: '{"text": "string"}' },
 ];
 
 // ── Multi-turn dialogue data ────────────────────────────────────────
@@ -148,8 +153,8 @@ export const DEFAULT_SCENARIOS: BenchmarkScenario[] = [
     scene: DEFAULT_SCENE,
     npcs: DEFAULT_NPCS,
     chatHistory: SHARED_CHAT_HISTORY,
-    playerMessage: "Can I get a room for the night?",
-    npcResponse: "Of course. That'll be ten gold. Your room is upstairs, second door on the right.",
+    playerMessage: "Show me what you have for sale.",
+    npcResponse: "Of course! Take a look at what I have.",
     npcName: "Hulda",
     eligibleActions: DEFAULT_ELIGIBLE_ACTIONS,
   },
@@ -175,6 +180,7 @@ export const DEFAULT_SCENARIOS: BenchmarkScenario[] = [
       ],
     }),
     isContinuousMode: true,
+    eligibleActions: DEFAULT_GM_ELIGIBLE_ACTIONS,
   },
   {
     id: "default-memory-gen",
@@ -325,7 +331,7 @@ export function buildRenderBody(
         eventHistory: "",
         scenePlan: scenario.scenePlan || "",
         isContinuousMode: scenario.isContinuousMode ?? false,
-        eligibleActions: scenario.eligibleActions || [],
+        eligibleActions: scenario.eligibleActions || DEFAULT_GM_ELIGIBLE_ACTIONS,
         gameEvents: [],
       };
 

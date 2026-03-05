@@ -275,7 +275,7 @@ Guidelines:
             <select
               value={scene.weather}
               onChange={(e) => setScene({ weather: e.target.value })}
-              className="h-6 w-full rounded-md border bg-transparent px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              className="h-6 w-full rounded-md border bg-background text-foreground px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
             >
               {WEATHER_OPTIONS.map((w) => (
                 <option key={w} value={w}>{w}</option>
@@ -287,7 +287,7 @@ Guidelines:
             <select
               value={scene.timeOfDay}
               onChange={(e) => setScene({ timeOfDay: e.target.value })}
-              className="h-6 w-full rounded-md border bg-transparent px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              className="h-6 w-full rounded-md border bg-background text-foreground px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
             >
               {TIME_OPTIONS.map((t) => (
                 <option key={t} value={t}>{t}</option>

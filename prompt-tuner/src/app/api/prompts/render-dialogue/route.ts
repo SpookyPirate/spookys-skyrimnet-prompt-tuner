@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assemblePrompt } from "@/lib/pipeline/assembler";
-import { resolvePromptSetBase } from "@/lib/files/paths";
+import { resolvePromptSetBaseServer } from "@/lib/files/paths-server";
 import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
 import { createFileLoader, readTemplate } from "@/lib/pipeline/file-loader-factory";
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       dialogueRequest: bodyDialogueRequest,
     } = body;
 
-    const baseDir = resolvePromptSetBase(promptSetBase);
+    const baseDir = resolvePromptSetBaseServer(promptSetBase);
     const fileLoader = createFileLoader(baseDir);
 
     let templateSource: string;

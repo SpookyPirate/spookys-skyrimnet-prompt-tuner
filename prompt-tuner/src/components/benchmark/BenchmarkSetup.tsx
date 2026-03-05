@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { useAppStore } from "@/stores/appStore";
 import { BENCHMARK_CATEGORIES } from "@/lib/benchmark/categories";
 import { getDefaultScenario, getBuiltinScenarios, findBuiltinScenario } from "@/lib/benchmark/default-scenarios";
 import { runBenchmark, stopBenchmark } from "@/lib/benchmark/run-benchmark";
@@ -39,15 +40,30 @@ export function BenchmarkSetup() {
   const profiles = useProfileStore((s) => s.profiles);
   const selectedProfileIds = useBenchmarkStore((s) => s.selectedProfileIds);
   const toggleProfileId = useBenchmarkStore((s) => s.toggleProfileId);
+  const selectedPromptSet = useBenchmarkStore((s) => s.selectedPromptSet);
+  const setSelectedPromptSet = useBenchmarkStore((s) => s.setSelectedPromptSet);
   const isRunning = useBenchmarkStore((s) => s.isRunning);
   const activeCategory = useBenchmarkStore((s) => s.activeCategory);
   const activeScenarioIds = useBenchmarkStore((s) => s.activeScenarioIds);
   const setActiveScenarioId = useBenchmarkStore((s) => s.setActiveScenarioId);
   const customScenarios = useBenchmarkStore((s) => s.customScenarios);
+  const activePromptSet = useAppStore((s) => s.activePromptSet);
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<BenchmarkCategory | null>(null);
+  const [promptSets, setPromptSets] = useState<string[]>([]);
 
   const setActiveCategory = useBenchmarkStore((s) => s.setActiveCategory);
+
+  useEffect(() => {
+    fetch("/api/export/list-sets")
+      .then((res) => res.json())
+      .then((data) => setPromptSets(data.sets ?? []))
+      .catch(() => {});
+  }, []);
+
+  const allPromptSets = selectedPromptSet && !promptSets.includes(selectedPromptSet)
+    ? [selectedPromptSet, ...promptSets]
+    : promptSets;
 
   const handleSelectCategory = (category: BenchmarkCategory) => {
     if (isRunning) return;
@@ -68,7 +84,11 @@ export function BenchmarkSetup() {
         || getDefaultScenario(activeCategory)
       : getDefaultScenario(activeCategory);
 
-    runBenchmark(activeCategory, selectedProfiles, scenario);
+    const resolvedPromptSet = selectedPromptSet === "__active__"
+      ? useAppStore.getState().activePromptSet || ""
+      : selectedPromptSet;
+
+    runBenchmark(activeCategory, selectedProfiles, scenario, resolvedPromptSet || undefined);
   };
 
   const noProfilesSelected = selectedProfileIds.length === 0;
@@ -132,6 +152,32 @@ export function BenchmarkSetup() {
                 })}
               </div>
             )}
+          </div>
+
+          <Separator />
+
+          {/* Prompt Set */}
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
+              Prompt Set
+            </div>
+            <select
+              value={selectedPromptSet}
+              onChange={(e) => setSelectedPromptSet(e.target.value)}
+              disabled={isRunning}
+              className="h-7 w-full rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+              style={{ color: selectedPromptSet === "__active__" ? "#22c55e" : selectedPromptSet === "" ? "#60a5fa" : undefined }}
+            >
+              <option value="__active__" style={{ color: "#22c55e" }}>
+                Active: {activePromptSet || "Original Prompts"}
+              </option>
+              <option value="" style={{ color: "#60a5fa" }}>Default (Original Prompts)</option>
+              {allPromptSets.map((name) => (
+                <option key={name} value={name} className="text-foreground">
+                  {name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <Separator />
@@ -268,7 +314,7 @@ function ScenarioSelector({
       value={effectiveId}
       onChange={(e) => onSelect(e.target.value)}
       disabled={disabled}
-      className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground disabled:opacity-50"
+      className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground disabled:opacity-50 [&>option]:bg-background [&>option]:text-foreground"
     >
       {builtinScenarios.map((s, i) => (
         <option key={s.id} value={s.id}>

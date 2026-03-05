@@ -75,7 +75,7 @@ export function AutoTunerCenter() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col min-w-0 overflow-hidden">
       {/* Progress header */}
       <div className="flex items-center gap-2 border-b px-4 py-2">
         <PhaseIcon phase={phase} />
@@ -89,7 +89,7 @@ export function AutoTunerCenter() {
 
       {/* Rounds */}
       <ScrollArea className="flex-1 overflow-hidden">
-        <div ref={scrollRef} className="p-4 space-y-3">
+        <div ref={scrollRef} className="p-4 space-y-3 min-w-0">
           {rounds.map((round, idx) => (
             <TunerRoundCard
               key={round.roundNumber}
@@ -141,9 +141,9 @@ function TunerRoundCard({
     setTurnsOpen((prev) => ({ ...prev, [idx]: !prev[idx] }));
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card overflow-hidden min-w-0">
       {/* Round header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b">
+      <div className="flex items-center gap-2 px-3 py-2 border-b min-w-0">
         <PhaseIcon phase={round.phase} />
         <span className="text-xs font-medium">Round {round.roundNumber}</span>
         {benchResult && (
@@ -344,7 +344,7 @@ function CollapsibleSection({
           <span className="ml-auto text-[10px] text-muted-foreground">{badge}</span>
         )}
       </button>
-      {open && <div className="px-3 pb-2">{children}</div>}
+      {open && <div className="px-3 pb-2 min-w-0 overflow-hidden">{children}</div>}
     </div>
   );
 }

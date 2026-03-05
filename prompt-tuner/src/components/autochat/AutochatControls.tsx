@@ -118,7 +118,7 @@ export function AutochatControls() {
             value={isPresetValue ? autochatDuration : "custom"}
             onChange={handleSelectChange}
             disabled={autochatEnabled}
-            className="h-5 rounded border bg-background px-1 text-[10px] flex-1 min-w-0"
+            className="h-5 rounded border bg-background text-foreground px-1 text-[10px] flex-1 min-w-0 [&>option]:bg-background [&>option]:text-foreground"
           >
             {DURATION_PRESETS.map((p) => (
               <option key={p.value} value={p.value}>

@@ -73,9 +73,11 @@ export async function POST(request: NextRequest) {
       payload.provider = provider;
 
       // Reasoning is a top-level parameter, not inside provider.
-      // Non-reasoning models silently ignore it.
+      // Must explicitly disable for models that reason by default (e.g. grok).
       if (allowReasoning) {
-        payload.reasoning = { effort: "minimal" };
+        payload.reasoning = { effort: "medium" };
+      } else {
+        payload.reasoning = { effort: "none" };
       }
     }
 

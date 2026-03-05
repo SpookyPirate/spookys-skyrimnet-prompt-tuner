@@ -25,3 +25,7 @@ pnpm-debug.log*
 # IDE
 .vscode/
 .idea/
+
+# Misc
+temp/
+edited-prompts/

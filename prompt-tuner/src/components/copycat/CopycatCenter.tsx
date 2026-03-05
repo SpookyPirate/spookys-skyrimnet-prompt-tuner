@@ -88,7 +88,7 @@ export function CopycatCenter() {
 
       {/* Rounds */}
       <ScrollArea className="flex-1 overflow-hidden">
-        <div ref={scrollRef} className="p-4 space-y-3">
+        <div ref={scrollRef} className="p-4 space-y-3 min-w-0">
           {rounds.map((round, idx) => (
             <CopycatRoundCard
               key={round.roundNumber}

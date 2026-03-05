@@ -80,12 +80,9 @@ Rate the response on these dimensions (1-10 scale):
 - Correct format as specified in the instructions
 - Appropriate length and structure
 
-**Efficiency** — Token usage relative to output quality
-- Did the model use tokens wisely or waste them on unnecessary verbosity?
-
-**Self-Awareness** — Quality of the model's self-explanation (when available)
-- Does the model accurately identify what it did and why?
-- Does it demonstrate understanding of the prompt constraints?
+**Efficiency** — Token usage of the benchmark response relative to output quality
+- Did the model's actual response use tokens wisely?
+- Note: completion token count reflects only the benchmark response, not the self-explanation.
 
 ## Output Format
 
@@ -117,7 +114,7 @@ ${renderedText.substring(0, 8000)}${renderedText.length > 8000 ? "\n... (truncat
 ## Model Response${hasMultipleParts ? "s" : ""}
 
 ${responseSection}
-${explanation ? `\n## Model's Self-Explanation\n\`\`\`\n${explanation}\n\`\`\`\n\nFactor this self-explanation into your Self-Awareness evaluation.` : ""}
+${explanation ? `\n## Diagnostic Context: Model's Self-Explanation\n(This was generated in a separate API call for diagnostic purposes only.\nIt is NOT part of the model's actual response and is NOT affected by inference settings.\nUse it only as background context to understand the model's reasoning — do NOT score or critique it.)\n\n\`\`\`\n${explanation}\n\`\`\`` : ""}
 ${previousRounds.length > 0 ? `
 ## Previous Rounds
 

@@ -15,8 +15,9 @@ function loadPersisted(): {
   selectedProfileIds: string[];
   customScenarios: BenchmarkScenario[];
   activeScenarioIds: Record<string, string>;
+  selectedPromptSet: string;
 } {
-  if (typeof window === "undefined") return { selectedProfileIds: [], customScenarios: [], activeScenarioIds: {} };
+  if (typeof window === "undefined") return { selectedProfileIds: [], customScenarios: [], activeScenarioIds: {}, selectedPromptSet: "__active__" };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -25,14 +26,16 @@ function loadPersisted(): {
         selectedProfileIds: data.selectedProfileIds ?? [],
         customScenarios: data.customScenarios ?? [],
         activeScenarioIds: data.activeScenarioIds ?? {},
+        selectedPromptSet: data.selectedPromptSet ?? "__active__",
       };
     }
   } catch { /* ignore */ }
-  return { selectedProfileIds: [], customScenarios: [], activeScenarioIds: {} };
+  return { selectedProfileIds: [], customScenarios: [], activeScenarioIds: {}, selectedPromptSet: "__active__" };
 }
 
 interface BenchmarkState {
   selectedProfileIds: string[];
+  selectedPromptSet: string;
   activeCategory: BenchmarkCategory | null;
   activeScenarioIds: Record<string, string>;
   results: Record<string, BenchmarkResult>;
@@ -46,6 +49,7 @@ interface BenchmarkState {
 
   setActiveTurns: (turns: BenchmarkDialogueTurn[] | null) => void;
   setSelectedProfileIds: (ids: string[]) => void;
+  setSelectedPromptSet: (name: string) => void;
   toggleProfileId: (id: string) => void;
   setActiveCategory: (cat: BenchmarkCategory | null) => void;
   setActiveScenarioId: (category: BenchmarkCategory, scenarioId: string) => void;
@@ -71,6 +75,7 @@ const _persisted = loadPersisted();
 
 export const useBenchmarkStore = create<BenchmarkState>((set, get) => ({
   selectedProfileIds: _persisted.selectedProfileIds,
+  selectedPromptSet: _persisted.selectedPromptSet,
   activeCategory: null,
   activeScenarioIds: _persisted.activeScenarioIds,
   results: {},
@@ -95,6 +100,11 @@ export const useBenchmarkStore = create<BenchmarkState>((set, get) => ({
       ? current.filter((x) => x !== id)
       : [...current, id];
     set({ selectedProfileIds: next });
+    get().persist();
+  },
+
+  setSelectedPromptSet: (name) => {
+    set({ selectedPromptSet: name });
     get().persist();
   },
 
@@ -239,11 +249,11 @@ export const useBenchmarkStore = create<BenchmarkState>((set, get) => ({
 
   persist: () => {
     if (typeof window === "undefined") return;
-    const { selectedProfileIds, customScenarios, activeScenarioIds } = get();
+    const { selectedProfileIds, customScenarios, activeScenarioIds, selectedPromptSet } = get();
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ selectedProfileIds, customScenarios, activeScenarioIds })
+        JSON.stringify({ selectedProfileIds, customScenarios, activeScenarioIds, selectedPromptSet })
       );
     } catch { /* ignore */ }
   },

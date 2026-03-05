@@ -20,6 +20,7 @@ interface ProfileState {
     globalApiKey: string,
     slots: Record<SkyrimNetAgentType, ModelSlot>
   ) => SettingsProfile;
+  renameProfile: (id: string, name: string) => void;
   deleteProfile: (id: string) => void;
   getProfile: (id: string) => SettingsProfile | undefined;
   setActiveProfileId: (id: string) => void;
@@ -102,6 +103,16 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     }));
     get().save();
     return profile;
+  },
+
+  renameProfile: (id, name) => {
+    const { profiles } = get();
+    const idx = profiles.findIndex((p) => p.id === id);
+    if (idx === -1) return;
+    const updated = [...profiles];
+    updated[idx] = { ...updated[idx], name };
+    set({ profiles: updated });
+    get().save();
   },
 
   deleteProfile: (id) => {

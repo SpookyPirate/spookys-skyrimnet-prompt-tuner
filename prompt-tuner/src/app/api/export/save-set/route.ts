@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-import { EDITED_PROMPTS_DIR, MO2_PROMPTS_SUBPATH, isPathAllowed } from "@/lib/files/paths";
+import { EDITED_PROMPTS_DIR, ORIGINAL_PROMPTS_DIR, MO2_PROMPTS_SUBPATH, isPathAllowed } from "@/lib/files/paths";
 
 /**
  * POST /api/export/save-set
@@ -38,7 +38,15 @@ export async function POST(request: Request) {
     // Target always uses MO2 hierarchy: {set}/SKSE/Plugins/SkyrimNet/prompts/
     const targetPrompts = path.join(targetPath, MO2_PROMPTS_SUBPATH);
 
-    if (sourceSet) {
+    if (sourceSet === "__original__") {
+      // Copy from the original prompts directory
+      try {
+        await fs.access(ORIGINAL_PROMPTS_DIR);
+        await copyDirectory(ORIGINAL_PROMPTS_DIR, targetPrompts);
+      } catch {
+        await fs.mkdir(targetPrompts, { recursive: true });
+      }
+    } else if (sourceSet) {
       const sourcePath = path.join(EDITED_PROMPTS_DIR, sourceSet);
       if (!isPathAllowed(sourcePath)) {
         return NextResponse.json({ error: "Source path not allowed" }, { status: 403 });

@@ -148,9 +148,9 @@ export async function createTunerTempSet(sourceSet?: string): Promise<string> {
   await deleteTunerTempSet();
 
   const body: Record<string, string> = { name: TUNER_TEMP_SET };
-  if (sourceSet) {
-    body.sourceSet = sourceSet;
-  }
+  // Always copy from a source — use "__original__" to copy from the
+  // original prompts directory when no edited set is selected.
+  body.sourceSet = sourceSet || "__original__";
 
   const resp = await fetch("/api/export/save-set", {
     method: "POST",

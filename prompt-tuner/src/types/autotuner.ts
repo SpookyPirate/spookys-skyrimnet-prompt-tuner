@@ -53,7 +53,10 @@ export interface TunerRound {
   roundNumber: number;
   benchmarkResult: BenchmarkSubtaskResult | null;
   turnResults?: TunerTurnResult[];
+  explanationMessages?: ChatMessage[];
+  assessmentMessages?: ChatMessage[];
   assessmentText: string;
+  proposalMessages?: ChatMessage[];
   proposal: TunerProposal | null;
   proposalRaw: string;
   appliedSettings: AiTuningSettings | null;

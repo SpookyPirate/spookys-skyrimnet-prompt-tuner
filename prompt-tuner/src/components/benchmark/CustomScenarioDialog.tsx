@@ -262,9 +262,21 @@ export function CustomScenarioDialog({
   ) => {
     setForm((f) => ({
       ...f,
-      chatHistory: f.chatHistory.map((c, i) =>
-        i === idx ? { ...c, [field]: value } : c
-      ),
+      chatHistory: f.chatHistory.map((c, i) => {
+        if (i !== idx) return c;
+        const updated = { ...c, [field]: value };
+        // Auto-set speaker when type changes
+        if (field === "type") {
+          if (value === "narration") {
+            updated.speaker = "Narrator";
+          } else if (value === "npc") {
+            updated.speaker = f.npcs[0]?.displayName ?? "";
+          } else if (value === "player") {
+            updated.speaker = f.player.name;
+          }
+        }
+        return updated;
+      }),
     }));
   };
 
@@ -824,14 +836,41 @@ export function CustomScenarioDialog({
                         <option value="npc">NPC</option>
                         <option value="narration">Narration</option>
                       </select>
-                      <Input
-                        value={entry.speaker}
-                        onChange={(e) =>
-                          handleUpdateChat(i, "speaker", e.target.value)
-                        }
-                        placeholder="Speaker"
-                        className="h-6 text-xs"
-                      />
+                      {entry.type === "narration" ? (
+                        <span className="text-xs text-muted-foreground px-2 italic truncate">Narrator</span>
+                      ) : entry.type === "npc" ? (
+                        <select
+                          value={entry.speaker}
+                          onChange={(e) =>
+                            handleUpdateChat(i, "speaker", e.target.value)
+                          }
+                          className={selectClass}
+                        >
+                          {form.npcs.length === 0 ? (
+                            <option value="">No NPCs</option>
+                          ) : (
+                            <>
+                              {!form.npcs.some((n) => n.displayName === entry.speaker) && entry.speaker && (
+                                <option value={entry.speaker}>{entry.speaker}</option>
+                              )}
+                              {form.npcs.map((npc, ni) => (
+                                <option key={ni} value={npc.displayName}>
+                                  {npc.displayName}
+                                </option>
+                              ))}
+                            </>
+                          )}
+                        </select>
+                      ) : (
+                        <Input
+                          value={entry.speaker}
+                          onChange={(e) =>
+                            handleUpdateChat(i, "speaker", e.target.value)
+                          }
+                          placeholder="Speaker"
+                          className="h-6 text-xs"
+                        />
+                      )}
                       <Input
                         value={entry.content}
                         onChange={(e) =>

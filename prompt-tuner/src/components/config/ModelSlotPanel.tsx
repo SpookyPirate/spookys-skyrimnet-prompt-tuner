@@ -186,7 +186,7 @@ export function ModelSlotPanel({ agent }: ModelSlotPanelProps) {
                       providerSorting: e.target.value as "latency" | "price" | "throughput",
                     })
                   }
-                  className="h-7 w-full rounded-md border bg-transparent px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="h-7 w-full rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
                 >
                   <option value="latency">Latency</option>
                   <option value="price">Price</option>

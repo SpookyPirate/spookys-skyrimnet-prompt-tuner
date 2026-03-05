@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 import { assemblePrompt, type SimulationState } from "@/lib/pipeline/assembler";
-import { ORIGINAL_PROMPTS_DIR, resolvePromptSetBase, isPathAllowed } from "@/lib/files/paths";
+import { ORIGINAL_PROMPTS_DIR, isPathAllowed } from "@/lib/files/paths";
+import { resolvePromptSetBaseServer } from "@/lib/files/paths-server";
 import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
 import { createFileLoader } from "@/lib/pipeline/file-loader-factory";
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseDir = resolvePromptSetBase(promptSetBase);
+    const baseDir = resolvePromptSetBaseServer(promptSetBase);
 
     // Read the template
     let templateSource: string;
