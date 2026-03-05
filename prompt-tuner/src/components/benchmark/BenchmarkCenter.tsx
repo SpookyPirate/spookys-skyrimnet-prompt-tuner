@@ -290,15 +290,17 @@ function TurnBlock({
         <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-0.5">
           Model Outputs
         </div>
-        <div className="flex gap-2">
-          {group.outputs.map((out) => (
-            <OutputColumn
-              key={out.key}
-              profileName={out.profileName}
-              model={out.model}
-              subtask={out.subtask}
-            />
-          ))}
+        <div className="overflow-x-auto">
+          <div className="flex gap-2 min-w-0" style={{ minWidth: `${group.outputs.length * 288}px` }}>
+            {group.outputs.map((out) => (
+              <OutputColumn
+                key={out.key}
+                profileName={out.profileName}
+                model={out.model}
+                subtask={out.subtask}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -398,15 +400,17 @@ function SubtaskBlock({
         <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-0.5">
           Model Outputs
         </div>
-        <div className="flex gap-2">
-          {group.outputs.map((out) => (
-            <OutputColumn
-              key={out.key}
-              profileName={out.profileName}
-              model={out.model}
-              subtask={out.subtask}
-            />
-          ))}
+        <div className="overflow-x-auto">
+          <div className="flex gap-2" style={{ minWidth: `${group.outputs.length * 288}px` }}>
+            {group.outputs.map((out) => (
+              <OutputColumn
+                key={out.key}
+                profileName={out.profileName}
+                model={out.model}
+                subtask={out.subtask}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -480,7 +484,7 @@ function OutputColumn({
       : subtask.response || subtask.streamedText;
 
   return (
-    <div className="flex flex-1 flex-col rounded-md border min-w-0">
+    <div className="flex flex-1 flex-col rounded-md border min-w-[280px]">
       {/* Column header */}
       <div className="px-2 py-1.5 border-b space-y-0.5">
         <div className="text-xs font-semibold truncate">{profileName}</div>
