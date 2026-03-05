@@ -16,7 +16,7 @@ const STORAGE_KEY = "skyrimnet-copycat";
 /** Neutral baseline defaults — designed to give the Copycat LLM maximum tuning room */
 export const COPYCAT_DEFAULT_SETTINGS: AiTuningSettings = {
   temperature: 1.0,
-  maxTokens: 256,
+  maxTokens: 4096,
   topP: 1.0,
   topK: 0,
   frequencyPenalty: 0.0,
