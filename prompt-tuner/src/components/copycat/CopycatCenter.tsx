@@ -112,12 +112,32 @@ function CopycatRoundCard({
   isCurrentRound: boolean;
   comparisonStream: string;
 }) {
-  const [refOpen, setRefOpen] = useState(round.roundNumber === 1);
-  const [targetOpen, setTargetOpen] = useState(true);
-  const [sideBySideOpen, setSideBySideOpen] = useState(true);
-  const [comparisonOpen, setComparisonOpen] = useState(true);
-  const [proposalOpen, setProposalOpen] = useState(true);
-  const [verificationOpen, setVerificationOpen] = useState(true);
+  // Which section is currently active — drives auto-expand/collapse.
+  // Only the active section is open; others collapse when the phase moves on.
+  const activeSection: string | null = !isCurrentRound ? null :
+    round.phase === "running_reference" ? "reference" :
+    round.phase === "running_target" ? "target" :
+    (round.phase === "comparing" || round.phase === "proposing") ? "comparison" :
+    round.phase === "verifying" ? "verification" :
+    round.phase === "applying" ? "proposal" :
+    null;
+
+  const [refOpen, setRefOpen] = useState(activeSection === "reference");
+  const [targetOpen, setTargetOpen] = useState(activeSection === "target");
+  const [sideBySideOpen, setSideBySideOpen] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(activeSection === "comparison");
+  const [proposalOpen, setProposalOpen] = useState(activeSection === "proposal");
+  const [verificationOpen, setVerificationOpen] = useState(activeSection === "verification");
+
+  // Auto-expand the active section and collapse others when the phase advances.
+  useEffect(() => {
+    setRefOpen(activeSection === "reference");
+    setTargetOpen(activeSection === "target");
+    setSideBySideOpen(false);
+    setComparisonOpen(activeSection === "comparison");
+    setProposalOpen(activeSection === "proposal");
+    setVerificationOpen(activeSection === "verification");
+  }, [activeSection]);
 
   const showComparisonStream = isCurrentRound && !round.comparisonText;
 

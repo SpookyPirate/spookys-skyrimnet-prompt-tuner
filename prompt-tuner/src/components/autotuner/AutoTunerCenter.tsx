@@ -119,12 +119,29 @@ function TunerRoundCard({
   assessmentStream: string;
   proposalStream: string;
 }) {
+  // Which section is currently active — drives auto-expand/collapse.
+  // Only the active section is open; others collapse when the phase moves on.
+  const activeSection: string | null = !isCurrentRound ? null :
+    round.phase === "benchmarking" ? "response" :
+    round.phase === "explaining" ? "explanation" :
+    round.phase === "assessing" ? "assessment" :
+    (round.phase === "proposing" || round.phase === "applying") ? "proposal" :
+    null;
+
   const [promptOpen, setPromptOpen] = useState(false);
   const [turnsOpen, setTurnsOpen] = useState<Record<number, boolean>>({});
-  const [responseOpen, setResponseOpen] = useState(true);
-  const [explanationOpen, setExplanationOpen] = useState(true);
-  const [assessOpen, setAssessOpen] = useState(true);
-  const [proposalOpen, setProposalOpen] = useState(true);
+  const [responseOpen, setResponseOpen] = useState(activeSection === "response");
+  const [explanationOpen, setExplanationOpen] = useState(activeSection === "explanation");
+  const [assessOpen, setAssessOpen] = useState(activeSection === "assessment");
+  const [proposalOpen, setProposalOpen] = useState(activeSection === "proposal");
+
+  // Auto-expand the active section and collapse others when the phase advances.
+  useEffect(() => {
+    setResponseOpen(activeSection === "response");
+    setExplanationOpen(activeSection === "explanation");
+    setAssessOpen(activeSection === "assessment");
+    setProposalOpen(activeSection === "proposal");
+  }, [activeSection]);
 
   const benchResult = round.benchmarkResult;
   const turnResults = round.turnResults;
