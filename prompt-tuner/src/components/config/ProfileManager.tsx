@@ -81,6 +81,8 @@ export function ProfileManager() {
       profile.globalApiKey,
       profile.slots,
     );
+    // Explicitly switch to the duplicate (addProfile no longer auto-switches)
+    setActiveProfileId(newProfile.id);
     applyProfile(newProfile.globalApiKey, newProfile.slots);
     toast.success(`Duplicated as "${newProfile.name}"`);
   };

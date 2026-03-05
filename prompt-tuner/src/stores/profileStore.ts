@@ -99,7 +99,6 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     };
     set((state) => ({
       profiles: [...state.profiles, profile],
-      activeProfileId: profile.id,
     }));
     get().save();
     return profile;
