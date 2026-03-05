@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCopycatStore } from "@/stores/copycatStore";
 import { useProfileStore } from "@/stores/profileStore";
-import { useAppStore } from "@/stores/appStore";
 import { saveCopycatToExistingProfile, saveCopycatToNewProfile } from "@/lib/copycat/save-copycat-results";
 import { deleteTunerTempSet } from "@/lib/autotuner/save-results";
 import { buildCopycatReport } from "@/lib/copycat/export-copycat-report";
-import { PromptReviewDialog } from "@/components/shared/PromptReviewDialog";
+import { PromptSaveSection } from "@/components/shared/PromptSaveSection";
+import { SaveModeOption } from "@/components/shared/SaveModeOption";
 import type { AiTuningSettings } from "@/types/config";
 import type { CopycatPhase } from "@/types/copycat";
 import {
@@ -22,7 +22,6 @@ import {
   Trash2,
   Copy,
   Download,
-  FolderOpen,
 } from "lucide-react";
 
 const PHASE_LABELS: Record<CopycatPhase, string> = {
@@ -56,53 +55,14 @@ export function CopycatReport() {
   const hasSettingsChanges = rounds.some(
     (r) => r.proposal?.settingsChanges && r.proposal.settingsChanges.length > 0
   );
-  const hasPromptChanges = rounds.some(
-    (r) => r.proposal?.promptChanges && r.proposal.promptChanges.length > 0
-  );
 
   type SaveMode = "copy" | "other";
-  type PromptSaveMode = "new" | "existing";
   const [saveMode, setSaveMode] = useState<SaveMode>("copy");
-  const [promptSaveMode, setPromptSaveMode] = useState<PromptSaveMode>("new");
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
-  const [promptsSaved, setPromptsSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [copyName, setCopyName] = useState("Copycat Tuned");
+  const [copyName, setCopyName] = useState("");
   const [otherProfileId, setOtherProfileId] = useState(() => profiles[0]?.id || "");
-  const [promptSetTarget, setPromptSetTarget] = useState("copycat-v1");
-  const [existingSets, setExistingSets] = useState<string[]>([]);
-  const [existingSetTarget, setExistingSetTarget] = useState("");
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-
-  // Collect unique modified file paths from all rounds
-  const modifiedFilePaths = useMemo(() => {
-    const seen = new Set<string>();
-    for (const round of rounds) {
-      for (const pc of round.proposal?.promptChanges ?? []) {
-        seen.add(pc.filePath);
-      }
-    }
-    return Array.from(seen);
-  }, [rounds]);
-
-  // Fetch existing prompt sets for the "save to existing" dropdown
-  useEffect(() => {
-    if (!hasPromptChanges) return;
-    fetch("/api/export/list-sets")
-      .then((r) => r.json())
-      .then((data) => {
-        const sets: string[] = (data.sets ?? []).filter(
-          (s: string) => s !== "__tuner_temp__"
-        );
-        setExistingSets(sets);
-        if (sets.length > 0 && !existingSetTarget) {
-          setExistingSetTarget(sets[0]);
-        }
-      })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPromptChanges]);
 
   // Effectiveness score display
   const scores = rounds
@@ -111,13 +71,18 @@ export function CopycatReport() {
   const latestScore = effectivenessSummary ?? (scores.length > 0 ? scores[scores.length - 1] : null);
 
   const handleSaveSettings = useCallback(async () => {
-    if (!workingSettings) return;
+    if (!workingSettings) {
+      setSaveError("No tuned settings available. Run the copycat first.");
+      return;
+    }
     setSavingSettings(true);
     setSaveError(null);
     try {
       if (saveMode === "copy") {
-        saveCopycatToNewProfile(copyName, targetModelId, workingSettings);
+        if (!copyName.trim()) throw new Error("Enter a profile name.");
+        saveCopycatToNewProfile(copyName.trim(), targetModelId, workingSettings);
       } else {
+        if (!otherProfileId) throw new Error("Select a profile.");
         saveCopycatToExistingProfile(otherProfileId, workingSettings);
       }
       setSettingsSaved(true);
@@ -127,22 +92,6 @@ export function CopycatReport() {
       setSavingSettings(false);
     }
   }, [workingSettings, saveMode, copyName, otherProfileId, targetModelId]);
-
-  const effectivePromptSetTarget =
-    promptSaveMode === "existing" ? existingSetTarget : promptSetTarget;
-
-  const handleOpenReview = useCallback(() => {
-    if (modifiedFilePaths.length === 0) {
-      setSaveError("No prompt changes to save.");
-      return;
-    }
-    setSaveError(null);
-    setReviewDialogOpen(true);
-  }, [modifiedFilePaths]);
-
-  const handlePromptsSaved = useCallback(() => {
-    setPromptsSaved(true);
-  }, []);
 
   const handleDiscardTemp = useCallback(async () => {
     await deleteTunerTempSet();
@@ -247,7 +196,6 @@ export function CopycatReport() {
                       style={{ width: `${latestScore}%` }}
                     />
                   </div>
-                  {/* Per-round mini chart */}
                   {scores.length > 1 && (
                     <div className="flex items-end gap-0.5 mt-2 h-8">
                       {scores.map((score, i) => (
@@ -346,13 +294,12 @@ export function CopycatReport() {
                   <div className="space-y-2 px-1">
                     <div className="text-[10px] text-muted-foreground">Save settings to:</div>
 
-                    {/* Option: Save as copy */}
                     <SaveModeOption
                       selected={saveMode === "copy"}
                       onSelect={() => setSaveMode("copy")}
                       disabled={settingsSaved}
                       label="Save as new profile"
-                      description="Create a copy with the tuned settings"
+                      description="Create a new profile with the tuned settings"
                       icon={<Copy className="h-3 w-3" />}
                     >
                       {saveMode === "copy" && (
@@ -361,19 +308,19 @@ export function CopycatReport() {
                           value={copyName}
                           onChange={(e) => setCopyName(e.target.value)}
                           className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
-                          placeholder="New profile name"
+                          placeholder="Enter new profile name…"
+                          autoFocus
                         />
                       )}
                     </SaveModeOption>
 
-                    {/* Option: Save to another profile */}
                     {profiles.length > 0 && (
                       <SaveModeOption
                         selected={saveMode === "other"}
                         onSelect={() => setSaveMode("other")}
                         disabled={settingsSaved}
-                        label="Apply to another profile"
-                        description="Update a different profile's agent settings"
+                        label="Apply to existing profile"
+                        description="Update an existing profile's agent settings"
                         icon={<Save className="h-3 w-3" />}
                       >
                         {saveMode === "other" && (
@@ -383,9 +330,7 @@ export function CopycatReport() {
                             className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1 [&>option]:bg-background [&>option]:text-foreground"
                           >
                             {profiles.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
+                              <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
                           </select>
                         )}
@@ -415,79 +360,12 @@ export function CopycatReport() {
                   </div>
                 )}
 
-                {/* Save Prompts */}
-                {hasPromptChanges && workingPromptSet && tuningTarget !== "settings" && (
-                  <div className="space-y-2 px-1">
-                    <div className="text-[10px] text-muted-foreground">Save prompts to set:</div>
-
-                    {/* Option: New set */}
-                    <SaveModeOption
-                      selected={promptSaveMode === "new"}
-                      onSelect={() => setPromptSaveMode("new")}
-                      disabled={promptsSaved}
-                      label="Save as new set"
-                      description="Create a new prompt set with these changes"
-                      icon={<Save className="h-3 w-3" />}
-                    >
-                      {promptSaveMode === "new" && (
-                        <input
-                          type="text"
-                          value={promptSetTarget}
-                          onChange={(e) => setPromptSetTarget(e.target.value)}
-                          className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
-                          placeholder="New set name"
-                        />
-                      )}
-                    </SaveModeOption>
-
-                    {/* Option: Existing set */}
-                    <SaveModeOption
-                      selected={promptSaveMode === "existing"}
-                      onSelect={() => setPromptSaveMode("existing")}
-                      disabled={promptsSaved}
-                      label="Overwrite existing set"
-                      description="Apply changes to prompts in an existing set"
-                      icon={<FolderOpen className="h-3 w-3" />}
-                    >
-                      {promptSaveMode === "existing" && (
-                        existingSets.length > 0 ? (
-                          <select
-                            value={existingSetTarget}
-                            onChange={(e) => setExistingSetTarget(e.target.value)}
-                            className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1 [&>option]:bg-background [&>option]:text-foreground"
-                          >
-                            {existingSets.map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div className="text-[10px] text-muted-foreground mt-1 pl-1">
-                            No existing prompt sets found.
-                          </div>
-                        )
-                      )}
-                    </SaveModeOption>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full gap-1.5 text-xs"
-                      disabled={
-                        promptsSaved ||
-                        (promptSaveMode === "new" && !promptSetTarget.trim()) ||
-                        (promptSaveMode === "existing" && !existingSetTarget)
-                      }
-                      onClick={handleOpenReview}
-                    >
-                      {promptsSaved ? (
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <Save className="h-3 w-3" />
-                      )}
-                      {promptsSaved ? "Prompts Saved" : "Review & Save Prompts"}
-                    </Button>
-                  </div>
-                )}
+                {/* Save Prompts — shared component */}
+                <PromptSaveSection
+                  rounds={rounds}
+                  workingPromptSet={workingPromptSet}
+                  tuningTarget={tuningTarget}
+                />
 
                 {/* Discard temp prompt set */}
                 {workingPromptSet && tuningTarget !== "settings" && (
@@ -526,63 +404,6 @@ export function CopycatReport() {
           )}
         </div>
       </ScrollArea>
-
-      {reviewDialogOpen && (
-        <PromptReviewDialog
-          open={reviewDialogOpen}
-          onClose={() => setReviewDialogOpen(false)}
-          targetSetName={effectivePromptSetTarget}
-          tempFilePaths={modifiedFilePaths}
-          onSaved={handlePromptsSaved}
-        />
-      )}
-    </div>
-  );
-}
-
-function SaveModeOption({
-  selected,
-  onSelect,
-  disabled,
-  label,
-  description,
-  icon,
-  children,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  disabled: boolean;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`rounded border p-2 transition-colors ${
-        selected
-          ? "bg-primary/10 border-primary/30"
-          : "border-transparent hover:bg-accent/30"
-      } ${disabled ? "opacity-50" : "cursor-pointer"}`}
-      onClick={() => !disabled && onSelect()}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className={`h-3 w-3 rounded-full border flex items-center justify-center shrink-0 ${
-            selected ? "bg-primary border-primary" : "border-muted-foreground/30"
-          }`}
-        >
-          {selected && (
-            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
-          )}
-        </span>
-        <span className="text-muted-foreground">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium">{label}</div>
-          <div className="text-[10px] text-muted-foreground truncate">{description}</div>
-        </div>
-      </div>
-      {children && <div className="pl-5 mt-1">{children}</div>}
     </div>
   );
 }

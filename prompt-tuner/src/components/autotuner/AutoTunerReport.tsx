@@ -7,9 +7,10 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAutoTunerStore } from "@/stores/autoTunerStore";
 import { useProfileStore } from "@/stores/profileStore";
-import { useAppStore } from "@/stores/appStore";
-import { saveSettingsToProfile, saveSettingsToNewProfile, savePromptsToSet, deleteTunerTempSet } from "@/lib/autotuner/save-results";
+import { saveSettingsToProfile, saveSettingsToNewProfile, deleteTunerTempSet } from "@/lib/autotuner/save-results";
 import { buildTuningReport } from "@/lib/autotuner/export-tuning-report";
+import { PromptSaveSection } from "@/components/shared/PromptSaveSection";
+import { SaveModeOption } from "@/components/shared/SaveModeOption";
 import type { AiTuningSettings } from "@/types/config";
 import type { TunerPhase } from "@/types/autotuner";
 import {
@@ -46,46 +47,41 @@ export function AutoTunerReport() {
   const tuningTarget = useAutoTunerStore((s) => s.tuningTarget);
 
   const profiles = useProfileStore((s) => s.profiles);
-  const activePromptSet = useAppStore((s) => s.activePromptSet);
-
-  type SaveMode = "overwrite" | "copy" | "other";
-  const [saveMode, setSaveMode] = useState<SaveMode>("overwrite");
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [savingPrompts, setSavingPrompts] = useState(false);
-  const [settingsSaved, setSettingsSaved] = useState(false);
-  const [promptsSaved, setPromptsSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [otherProfileId, setOtherProfileId] = useState(() => {
-    const other = profiles.find((p) => p.id !== selectedProfileId);
-    return other?.id || "";
-  });
-  const [copyName, setCopyName] = useState(() => {
-    const source = profiles.find((p) => p.id === selectedProfileId);
-    return source ? `${source.name} (Tuned)` : "Tuned Copy";
-  });
-  const [promptSetTarget, setPromptSetTarget] = useState(activePromptSet || "tuned-v1");
 
   const hasChanges = rounds.length > 0;
   const hasSettingsChanges = rounds.some(
     (r) => r.proposal?.settingsChanges && r.proposal.settingsChanges.length > 0
   );
-  const hasPromptChanges = rounds.some(
-    (r) => r.proposal?.promptChanges && r.proposal.promptChanges.length > 0
-  );
 
   const tunedProfile = profiles.find((p) => p.id === selectedProfileId);
   const otherProfiles = profiles.filter((p) => p.id !== selectedProfileId);
 
+  type SaveMode = "overwrite" | "copy" | "other";
+  const [saveMode, setSaveMode] = useState<SaveMode>("overwrite");
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [copyName, setCopyName] = useState("");
+  const [otherProfileId, setOtherProfileId] = useState(() => {
+    const other = profiles.find((p) => p.id !== selectedProfileId);
+    return other?.id || "";
+  });
+
   const handleSaveSettings = useCallback(async () => {
-    if (!selectedCategory || !workingSettings) return;
+    if (!selectedCategory || !workingSettings) {
+      setSaveError("No tuned settings to save.");
+      return;
+    }
     setSavingSettings(true);
     setSaveError(null);
     try {
       if (saveMode === "overwrite") {
         saveSettingsToProfile(selectedProfileId, selectedCategory, workingSettings);
       } else if (saveMode === "copy") {
-        saveSettingsToNewProfile(selectedProfileId, copyName, selectedCategory, workingSettings);
+        if (!copyName.trim()) throw new Error("Enter a profile name.");
+        saveSettingsToNewProfile(selectedProfileId, copyName.trim(), selectedCategory, workingSettings);
       } else {
+        if (!otherProfileId) throw new Error("Select a profile.");
         saveSettingsToProfile(otherProfileId, selectedCategory, workingSettings);
       }
       setSettingsSaved(true);
@@ -95,20 +91,6 @@ export function AutoTunerReport() {
       setSavingSettings(false);
     }
   }, [selectedCategory, workingSettings, saveMode, selectedProfileId, copyName, otherProfileId]);
-
-  const handleSavePrompts = useCallback(async () => {
-    if (!workingPromptSet) return;
-    setSavingPrompts(true);
-    setSaveError(null);
-    try {
-      await savePromptsToSet(promptSetTarget);
-      setPromptsSaved(true);
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save prompts");
-    } finally {
-      setSavingPrompts(false);
-    }
-  }, [workingPromptSet, promptSetTarget]);
 
   const handleDiscardTemp = useCallback(async () => {
     await deleteTunerTempSet();
@@ -260,17 +242,15 @@ export function AutoTunerReport() {
                   <div className="space-y-2 px-1">
                     <div className="text-[10px] text-muted-foreground">Save settings to:</div>
 
-                    {/* Option: Overwrite tuned profile */}
                     <SaveModeOption
                       selected={saveMode === "overwrite"}
                       onSelect={() => setSaveMode("overwrite")}
                       disabled={settingsSaved}
-                      label={`Update "${tunedProfile?.name || "Unknown"}"`}
+                      label={`Update "${tunedProfile?.name || "current profile"}"`}
                       description="Overwrite the profile that was tuned"
                       icon={<Save className="h-3 w-3" />}
                     />
 
-                    {/* Option: Save as copy */}
                     <SaveModeOption
                       selected={saveMode === "copy"}
                       onSelect={() => setSaveMode("copy")}
@@ -285,12 +265,12 @@ export function AutoTunerReport() {
                           value={copyName}
                           onChange={(e) => setCopyName(e.target.value)}
                           className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1"
-                          placeholder="New profile name"
+                          placeholder="Enter new profile name…"
+                          autoFocus
                         />
                       )}
                     </SaveModeOption>
 
-                    {/* Option: Save to another profile */}
                     {otherProfiles.length > 0 && (
                       <SaveModeOption
                         selected={saveMode === "other"}
@@ -307,9 +287,7 @@ export function AutoTunerReport() {
                             className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground mt-1 [&>option]:bg-background [&>option]:text-foreground"
                           >
                             {otherProfiles.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
+                              <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
                           </select>
                         )}
@@ -320,7 +298,11 @@ export function AutoTunerReport() {
                       variant="outline"
                       size="sm"
                       className="w-full gap-1.5 text-xs"
-                      disabled={savingSettings || settingsSaved || (saveMode === "copy" && !copyName.trim()) || (saveMode === "other" && !otherProfileId)}
+                      disabled={
+                        savingSettings || settingsSaved ||
+                        (saveMode === "copy" && !copyName.trim()) ||
+                        (saveMode === "other" && !otherProfileId)
+                      }
                       onClick={handleSaveSettings}
                     >
                       {savingSettings ? (
@@ -335,35 +317,12 @@ export function AutoTunerReport() {
                   </div>
                 )}
 
-                {/* Save Prompts */}
-                {hasPromptChanges && workingPromptSet && tuningTarget !== "settings" && (
-                  <div className="space-y-1 px-1">
-                    <div className="text-[10px] text-muted-foreground">Save prompts to set:</div>
-                    <input
-                      type="text"
-                      value={promptSetTarget}
-                      onChange={(e) => setPromptSetTarget(e.target.value)}
-                      className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground"
-                      placeholder="Prompt set name"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full gap-1.5 text-xs"
-                      disabled={savingPrompts || promptsSaved || !promptSetTarget}
-                      onClick={handleSavePrompts}
-                    >
-                      {savingPrompts ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : promptsSaved ? (
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <Save className="h-3 w-3" />
-                      )}
-                      {promptsSaved ? "Prompts Saved" : "Save Prompts"}
-                    </Button>
-                  </div>
-                )}
+                {/* Save Prompts — shared component */}
+                <PromptSaveSection
+                  rounds={rounds}
+                  workingPromptSet={workingPromptSet}
+                  tuningTarget={tuningTarget}
+                />
 
                 {/* Discard temp prompt set */}
                 {workingPromptSet && tuningTarget !== "settings" && (
@@ -402,53 +361,6 @@ export function AutoTunerReport() {
           )}
         </div>
       </ScrollArea>
-    </div>
-  );
-}
-
-function SaveModeOption({
-  selected,
-  onSelect,
-  disabled,
-  label,
-  description,
-  icon,
-  children,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  disabled: boolean;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`rounded border p-2 transition-colors ${
-        selected
-          ? "bg-primary/10 border-primary/30"
-          : "border-transparent hover:bg-accent/30"
-      } ${disabled ? "opacity-50" : "cursor-pointer"}`}
-      onClick={() => !disabled && onSelect()}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className={`h-3 w-3 rounded-full border flex items-center justify-center shrink-0 ${
-            selected ? "bg-primary border-primary" : "border-muted-foreground/30"
-          }`}
-        >
-          {selected && (
-            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
-          )}
-        </span>
-        <span className="text-muted-foreground">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium">{label}</div>
-          <div className="text-[10px] text-muted-foreground">{description}</div>
-        </div>
-      </div>
-      {children && <div className="pl-5 mt-1">{children}</div>}
     </div>
   );
 }
