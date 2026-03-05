@@ -60,9 +60,11 @@ export async function runTuningLoop(
 
   // When tuning prompts, create the temp set upfront so fetchPromptContent
   // returns writable paths that applyPromptChanges can target.
+  // The original selectedPromptSet (before being replaced by temp) is kept as
+  // sourceSetName so applyPromptChanges can seed files from it on first modification.
+  const sourceSetName = workingPromptSet || undefined;
   if (tuningTarget === "prompts" || tuningTarget === "both") {
-    const activePromptSet = workingPromptSet || undefined;
-    await createTunerTempSet(activePromptSet);
+    await createTunerTempSet();
     workingPromptSet = TUNER_TEMP_SET;
     store.setWorkingPromptSet(workingPromptSet);
     tempSetCreated = true;
@@ -515,15 +517,14 @@ export async function runTuningLoop(
         if (proposal.promptChanges.length > 0 && tuningTarget !== "settings") {
           // Create temp set if not already created
           if (!tempSetCreated) {
-            const activePromptSet = workingPromptSet || undefined;
-            await createTunerTempSet(activePromptSet || undefined);
+            await createTunerTempSet();
             workingPromptSet = TUNER_TEMP_SET;
             store.setWorkingPromptSet(workingPromptSet);
             tempSetCreated = true;
           }
 
           try {
-            const appliedPrompts = await applyPromptChanges(proposal.promptChanges);
+            const appliedPrompts = await applyPromptChanges(proposal.promptChanges, sourceSetName);
             // Update proposal with actual content
             const currentProposal = useAutoTunerStore.getState().rounds[roundIdx]?.proposal;
             if (currentProposal) {

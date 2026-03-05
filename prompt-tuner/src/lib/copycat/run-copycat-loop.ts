@@ -157,8 +157,10 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
 
   // When tuning prompts, create the temp set upfront so fetchPromptContent
   // returns writable paths that applyPromptChanges can target.
+  // Preserve the original set name for use as a fallback when seeding files.
+  const sourceSetName = workingPromptSet || undefined;
   if (tuningTarget === "prompts" || tuningTarget === "both") {
-    await createTunerTempSet(workingPromptSet || undefined);
+    await createTunerTempSet();
     workingPromptSet = TUNER_TEMP_SET;
     store.setWorkingPromptSet(workingPromptSet);
     tempSetCreated = true;
@@ -323,14 +325,14 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
         // Apply prompt changes (non-fatal — bad search text shouldn't kill the loop)
         if (parsed.proposal.promptChanges.length > 0 && tuningTarget !== "settings") {
           if (!tempSetCreated) {
-            await createTunerTempSet(workingPromptSet || undefined);
+            await createTunerTempSet();
             workingPromptSet = TUNER_TEMP_SET;
             store.setWorkingPromptSet(workingPromptSet);
             tempSetCreated = true;
           }
 
           try {
-            const appliedPrompts = await applyPromptChanges(parsed.proposal.promptChanges);
+            const appliedPrompts = await applyPromptChanges(parsed.proposal.promptChanges, sourceSetName);
             const currentProposal = useCopycatStore.getState().rounds[roundIdx]?.proposal;
             if (currentProposal) {
               store.setRoundProposal(roundIdx, {

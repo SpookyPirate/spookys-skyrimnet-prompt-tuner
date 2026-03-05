@@ -143,24 +143,39 @@ You are comparing dialogue output from a **reference model** (\`${referenceModel
 
 ## What to Compare
 
-Focus on STYLE matching, not absolute quality:
-- **Vocabulary** — word choice complexity, formality, archaic vs modern English
-- **Sentence rhythm** — length, cadence, punctuation patterns
-- **Character voice** — how well each model captures the NPC's personality
-- **Emotional range** — subtlety vs directness of emotional expression
-- **Response length** — conciseness vs verbosity
-- **Formatting** — action tags, emotes, narration style
+Focus on STYLE matching, not absolute quality. Prioritize **substantive** differences over surface ones:
+
+### HIGH PRIORITY (substantive style — these are worth rounds of tuning):
+- **Character voice & personality** — does the target capture the NPC's wit, edge, warmth, stoicism, etc. as well as the reference?
+- **Sentence structure** — short punchy vs. long flowing, declarative vs. questioning, direct vs. roundabout
+- **Vocabulary depth** — word choice complexity, lore-specific language, formality, archaic vs modern English
+- **Emotional register** — how subtly or directly emotion is expressed; whether the reference model uses humor/sarcasm/irony the target misses
+- **Response style habits** — does the reference frequently end with questions? Use action tags? Narrate internal thoughts? The target should match these patterns
+- **Response length** — consistent conciseness vs verbosity relative to the reference
+
+### LOW PRIORITY (surface formatting — do NOT waste rounds on these):
+- Em dash spacing (" — " vs "—") — trivial formatting difference, ignore it
+- Period vs comma inside quotation marks — ignore
+- Capitalization conventions in action tags — ignore
+- Pronoun vs character name in action tags — ignore
+- Other punctuation micro-preferences — ignore
 
 ## Guidelines
 
 1. **Score objectively.** The effectiveness_score (0-100) measures how closely the target matches the reference style. 100 = indistinguishable. 0 = completely different.
-2. **Make incremental changes.** Don't change everything at once.
+2. **Make incremental changes.** Don't change everything at once. Focus on the most impactful substantive difference first.
 3. **NEVER repeat a failed approach.** Check previous rounds before proposing.
-4. **Stop when matched.** If the target closely matches the reference (score >= 90), set stop_tuning to true.
-5. **Know your limits.** If style differences can't be fixed with your available levers, set stop_tuning to true and explain.
-${canModifyPrompts ? `6. **For prompt changes:** Use exact search/replace text. The search_text must exist EXACTLY in the file. The file_path must be the exact path shown in the "Current Prompt Files" section headers. Make targeted changes — don't rewrite entire files.
-7. **Prompt changes are persistent.** Changes you make in one round carry forward to the next. The target model runs with the modified prompts each round.
-8. **Prefer prompt changes for style issues.** Settings like temperature/maxTokens control randomness and length, but prompt instructions are the most effective lever for controlling formatting (action tags, paragraph structure), emotional register, and response style.` : ""}
+4. **NEVER spend a round on surface formatting.** If the only remaining differences are punctuation style, spacing, or minor formatting conventions, consider the job done — set stop_tuning to true. These are not worth tuning.
+5. **Stop when matched.** If the target closely matches the reference on substance (score >= 85), set stop_tuning to true.
+6. **Know your limits.** If style differences can't be fixed with your available levers, set stop_tuning to true and explain.
+${canModifyPrompts ? `7. **For prompt changes: prefer adding over replacing.** The existing prompt files contain carefully crafted instructions tested across thousands of SkyrimNet NPC dialogues. Your default approach should be:
+   - ADD new paragraphs or instructions after existing content
+   - Make surgical wording changes to existing lines when a specific phrase is causing the problem
+   - Only replace or rewrite a section if it directly conflicts with the style you're trying to achieve and a smaller edit won't fix it — and even then, preserve as much of the original intent as possible
+   - Your \`search_text\` should be a SHORT, specific portion where possible; avoid replacing entire files or large blocks unnecessarily
+8. **Prompt changes must be universal.** These prompts are used for THOUSANDS of different NPC dialogues across all of Skyrim — guards, merchants, innkeepers, quest characters, companions, etc. Proposed changes must improve dialogue quality for ANY NPC in ANY context. NEVER propose changes that are specific to the current test scenario (e.g., "don't mention Dragonstone", "always reference fire magic", "avoid dungeon locations"). Test your proposed instruction mentally: would it help a blacksmith AND a jarl AND a bard? If not, don't propose it.
+9. **Prompt changes are persistent.** Changes you make in one round carry forward to the next. The target model runs with the modified prompts each round.
+10. **Prefer prompt changes for style issues.** Settings like temperature/maxTokens control randomness and length, but prompt instructions are the most effective lever for controlling response style, personality expression, and dialogue habits.` : ""}
 
 ## Response Format
 

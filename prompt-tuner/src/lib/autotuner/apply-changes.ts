@@ -56,16 +56,32 @@ function buildFlexibleRegex(searchText: string): RegExp | null {
  * Apply prompt changes by writing modified files via the API.
  * Each change is a search/replace within a file.
  * Tries exact match first, then falls back to flexible whitespace matching.
+ *
+ * @param changes - The proposed prompt changes to apply.
+ * @param sourceSetName - Optional: name of the original source prompt set the temp set
+ *   was derived from. When a file doesn't exist in the temp set yet (because the temp
+ *   set is now empty by default), it is seeded from this set, falling back to the
+ *   original prompts if the source set doesn't have it either.
+ *
  * Returns the changes with originalContent and modifiedContent filled in.
  */
 export async function applyPromptChanges(
   changes: PromptChange[],
+  sourceSetName?: string,
 ): Promise<PromptChange[]> {
   const applied: PromptChange[] = [];
 
   for (const change of changes) {
+    // Build the read URL with optional fallbacks so that if the file doesn't exist in
+    // the temp set yet, we seed it from the source set (or the original prompts).
+    let readUrl = `/api/files/read?path=${encodeURIComponent(change.filePath)}`;
+    if (sourceSetName && sourceSetName !== "__tuner_temp__") {
+      readUrl += `&fallback=${encodeURIComponent(sourceSetName)}`;
+    }
+    readUrl += `&fallback=__original__`;
+
     // Read current content
-    const readResp = await fetch(`/api/files/read?path=${encodeURIComponent(change.filePath)}`);
+    const readResp = await fetch(readUrl);
     if (!readResp.ok) {
       throw new Error(`Failed to read ${change.filePath}: HTTP ${readResp.status}`);
     }

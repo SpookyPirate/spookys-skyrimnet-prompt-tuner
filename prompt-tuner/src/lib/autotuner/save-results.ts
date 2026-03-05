@@ -141,21 +141,23 @@ export async function deleteTunerTempSet(): Promise<void> {
 }
 
 /**
- * Create the temp tuner set, optionally copying from an existing prompt set.
+ * Create the temp tuner set as an empty directory.
+ *
+ * We no longer copy the source set into temp upfront. The render pipeline's
+ * file loader already falls back to ORIGINAL_PROMPTS_DIR for any file not
+ * present in the active set, so a full copy is unnecessary.
+ * applyPromptChanges() handles seeding individual files from the source set
+ * (via fallback query params) the first time each file is modified.
  */
-export async function createTunerTempSet(sourceSet?: string): Promise<string> {
+export async function createTunerTempSet(): Promise<string> {
   // Clean up any existing temp set first
   await deleteTunerTempSet();
 
-  const body: Record<string, string> = { name: TUNER_TEMP_SET };
-  // Always copy from a source — use "__original__" to copy from the
-  // original prompts directory when no edited set is selected.
-  body.sourceSet = sourceSet || "__original__";
-
+  // Create an empty MO2-layout directory (no source copy)
   const resp = await fetch("/api/export/save-set", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ name: TUNER_TEMP_SET }),
   });
 
   if (!resp.ok) {

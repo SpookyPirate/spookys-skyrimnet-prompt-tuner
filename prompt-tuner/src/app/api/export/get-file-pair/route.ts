@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-import { isPathAllowed } from "@/lib/files/paths";
+import { isPathAllowed, EDITED_PROMPTS_DIR, MO2_PROMPTS_SUBPATH } from "@/lib/files/paths";
 import { resolvePromptSetBaseServer } from "@/lib/files/paths-server";
 
 /**
@@ -26,10 +26,22 @@ export async function POST(request: NextRequest) {
     }
 
     const tempBase = resolvePromptSetBaseServer("__tuner_temp__");
-    // For the target, use MO2 layout as the canonical new-set path.
-    // resolvePromptSetBaseServer returns the MO2 path if the set uses MO2, or
-    // legacy path if it exists that way. For brand-new sets, it returns MO2.
-    const targetBase = resolvePromptSetBaseServer(targetSetName || undefined);
+
+    // For the target: if the set already exists on disk, use its resolved layout
+    // (MO2 or legacy). If it's brand-new, always use MO2 so the saved files work
+    // as a SkyrimNet MO2 mod folder out of the box.
+    const safeName = (targetSetName || "").replace(/[^a-zA-Z0-9._-]/g, "_");
+    let targetBase: string;
+    if (!safeName) {
+      targetBase = resolvePromptSetBaseServer(undefined);
+    } else {
+      const resolved = resolvePromptSetBaseServer(safeName);
+      let resolvedExists = false;
+      try { await fs.access(resolved); resolvedExists = true; } catch {}
+      targetBase = resolvedExists
+        ? resolved
+        : path.join(EDITED_PROMPTS_DIR, safeName, MO2_PROMPTS_SUBPATH);
+    }
 
     const normalizedTempBase = tempBase.replace(/\\/g, "/").replace(/\/$/, "");
 
