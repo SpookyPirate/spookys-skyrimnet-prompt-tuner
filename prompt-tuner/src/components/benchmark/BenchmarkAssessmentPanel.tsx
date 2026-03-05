@@ -5,17 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
 import { getCategoryDef } from "@/lib/benchmark/categories";
 import { buildAssessmentMessages } from "@/lib/benchmark/build-assessment-prompt";
 import { sendLlmRequest } from "@/lib/llm/client";
-import { Copy, Check, Loader2, Sparkles, Maximize2, Download } from "lucide-react";
+import { Copy, Check, Loader2, Sparkles, Maximize2, Download, X } from "lucide-react";
 
 export function BenchmarkAssessmentPanel() {
   const results = useBenchmarkStore((s) => s.results);
@@ -159,19 +153,8 @@ export function BenchmarkAssessmentPanel() {
 
           {/* Assessment Section */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                Quality Assessment
-              </span>
-              {assessment.streamedText && (
-                <button
-                  onClick={() => setModalOpen(true)}
-                  className="p-0.5 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground"
-                  title="Open in full view"
-                >
-                  <Maximize2 className="h-3 w-3" />
-                </button>
-              )}
+            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
+              Quality Assessment
             </div>
             <Button
               variant="outline"
@@ -197,9 +180,20 @@ export function BenchmarkAssessmentPanel() {
                       <Loader2 className="inline h-2.5 w-2.5 animate-spin ml-1" />
                     )}
                   </span>
-                  {assessment.streamedText && (
-                    <CopyButton text={assessment.streamedText} />
-                  )}
+                  <div className="flex items-center gap-1">
+                    {assessment.streamedText && (
+                      <>
+                        <CopyButton text={assessment.streamedText} />
+                        <button
+                          onClick={() => setModalOpen(true)}
+                          className="p-0.5 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                          title="Expand"
+                        >
+                          <Maximize2 className="h-3 w-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <pre
                   ref={scrollRef}
@@ -219,14 +213,14 @@ export function BenchmarkAssessmentPanel() {
             )}
           </div>
 
-          {/* Full-view Modal */}
-          <AssessmentModal
-            open={modalOpen}
-            onClose={() => setModalOpen(false)}
-            text={assessment.streamedText}
-            isStreaming={assessment.status === "streaming"}
-            categoryLabel={catDef?.label}
-          />
+          {modalOpen && (
+            <AssessmentModal
+              onClose={() => setModalOpen(false)}
+              text={assessment.streamedText}
+              isStreaming={assessment.status === "streaming"}
+              categoryLabel={catDef?.label}
+            />
+          )}
 
           {/* Empty state */}
           {categoryResults.length === 0 && (
@@ -241,18 +235,20 @@ export function BenchmarkAssessmentPanel() {
 }
 
 function AssessmentModal({
-  open,
   onClose,
   text,
   isStreaming,
   categoryLabel,
 }: {
-  open: boolean;
   onClose: () => void;
   text: string;
   isStreaming: boolean;
   categoryLabel?: string;
 }) {
+  const title = categoryLabel
+    ? `Quality Assessment — ${categoryLabel}`
+    : "Quality Assessment";
+
   const handleExport = useCallback(() => {
     const date = new Date().toISOString().slice(0, 10);
     const category = categoryLabel || "benchmark";
@@ -268,40 +264,48 @@ function AssessmentModal({
   }, [text, categoryLabel]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl h-[80vh] flex flex-col gap-0 p-0">
-        <DialogHeader className="flex-row items-center justify-between px-4 py-3 border-b shrink-0">
-          <DialogTitle className="text-sm font-medium">
-            Quality Assessment
-            {categoryLabel && (
-              <span className="text-muted-foreground font-normal ml-1.5">— {categoryLabel}</span>
-            )}
-            {isStreaming && <Loader2 className="inline h-3.5 w-3.5 animate-spin ml-2 text-blue-500" />}
-          </DialogTitle>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="relative mx-4 flex max-h-[80vh] w-full max-w-4xl flex-col rounded-lg border bg-card shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-2">
+          <span className="text-sm font-semibold">
+            {title}
+            {isStreaming && <Loader2 className="inline h-3 w-3 animate-spin ml-2 text-blue-500" />}
+          </span>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs"
+            <button
               onClick={handleExport}
               disabled={!text || isStreaming}
+              className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs hover:bg-accent/50 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Export as Markdown"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3 w-3" />
               Export Markdown
-            </Button>
+            </button>
             <CopyButton text={text} />
+            <button
+              onClick={onClose}
+              className="p-0.5 rounded hover:bg-accent/50"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        </DialogHeader>
-        <ScrollArea className="flex-1 overflow-hidden">
-          <pre className="whitespace-pre-wrap break-words p-4 text-xs font-mono leading-relaxed">
+        </div>
+        <ScrollArea className="flex-1 overflow-auto p-4">
+          <pre className="whitespace-pre-wrap break-words text-xs font-mono">
             {text || "(waiting...)"}
             {isStreaming && (
               <span className="inline-block w-1.5 h-3 bg-foreground/70 animate-pulse ml-0.5 align-text-bottom" />
             )}
           </pre>
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
