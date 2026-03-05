@@ -56,4 +56,6 @@ export interface ScenePreset {
   /** Map of action ID → enabled state */
   actionStates?: Record<string, boolean>;
   player?: PlayerConfig;
+  /** Built-in read-only preset — cannot be overwritten or deleted */
+  isDefault?: boolean;
 }

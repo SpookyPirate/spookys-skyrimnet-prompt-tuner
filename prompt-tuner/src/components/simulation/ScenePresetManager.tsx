@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useScenePresetStore } from "@/stores/scenePresetStore";
 import { useSimulationStore } from "@/stores/simulationStore";
 import type { ScenePreset } from "@/types/simulation";
-import { Copy, Save, Trash2 } from "lucide-react";
+import { Copy, Save, Trash2, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 function applyPresetToSimulation(preset: ScenePreset) {
@@ -48,6 +48,9 @@ export function ScenePresetManager() {
   const setPlayerConfig = useSimulationStore((s) => s.setPlayerConfig);
   const toggleAction = useSimulationStore((s) => s.toggleAction);
 
+  const activePreset = presets.find((p) => p.id === activePresetId);
+  const isDefaultActive = !!activePreset?.isDefault;
+
   // Load presets on mount
   useEffect(() => {
     load();
@@ -61,6 +64,14 @@ export function ScenePresetManager() {
     applyPresetToSimulation(preset);
     initialApplied.current = true;
   }, [presets, activePresetId, getPreset]);
+
+  const handleShowSave = () => {
+    // Pre-fill copy name when saving from the default preset
+    if (isDefaultActive && activePreset) {
+      setSaveName(`${activePreset.name.replace(" (Default)", "")} (Copy)`);
+    }
+    setShowSave(true);
+  };
 
   const handleSave = () => {
     const name = saveName.trim();
@@ -129,6 +140,9 @@ export function ScenePresetManager() {
             </option>
           ))}
         </select>
+        {isDefaultActive && (
+          <Lock className="h-3 w-3 shrink-0 text-muted-foreground/50" title="Built-in preset — read only" />
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -143,8 +157,8 @@ export function ScenePresetManager() {
           size="icon"
           className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
           onClick={handleDelete}
-          disabled={presets.length <= 1}
-          title="Delete preset"
+          disabled={presets.length <= 1 || isDefaultActive}
+          title={isDefaultActive ? "Built-in preset cannot be deleted" : "Delete preset"}
         >
           <Trash2 className="h-3 w-3" />
         </Button>
@@ -191,10 +205,10 @@ export function ScenePresetManager() {
           variant="outline"
           size="sm"
           className="h-6 text-[9px] w-full"
-          onClick={() => setShowSave(true)}
+          onClick={handleShowSave}
         >
           <Save className="h-3 w-3 mr-1" />
-          Save Scene as New Preset
+          {isDefaultActive ? "Save as New Preset (Copy)" : "Save Scene as New Preset"}
         </Button>
       )}
     </div>
