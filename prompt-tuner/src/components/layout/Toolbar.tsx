@@ -182,15 +182,9 @@ export function Toolbar() {
 function PromptSetSwitcher() {
   const [sets, setSets] = useState<string[]>([]);
   const activePromptSet = useAppStore((s) => s.activePromptSet);
+  const promptSetListVersion = useAppStore((s) => s.promptSetListVersion);
 
-  const refreshSets = useCallback(() => {
-    fetch("/api/export/list-sets")
-      .then((res) => res.json())
-      .then((data) => setSets(data.sets ?? []))
-      .catch(() => {});
-  }, []);
-
-  // Re-fetch whenever the active prompt set changes (e.g. after saving a new set)
+  // Re-fetch whenever the active prompt set changes, or when any code bumps the version
   // Also reset to default if the stored set no longer exists (e.g. stale localStorage)
   useEffect(() => {
     fetch("/api/export/list-sets")
@@ -203,7 +197,7 @@ function PromptSetSwitcher() {
         }
       })
       .catch(() => {});
-  }, [activePromptSet, refreshSets]);
+  }, [activePromptSet, promptSetListVersion]);
 
   const handleSelect = async (value: string) => {
     if (value === activePromptSet) return;

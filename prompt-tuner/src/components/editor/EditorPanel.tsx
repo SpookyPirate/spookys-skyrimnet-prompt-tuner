@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { useFileStore } from "@/stores/fileStore";
+import { useAppStore } from "@/stores/appStore";
 import { CodeEditor } from "./CodeEditor";
 import { EditorTabs } from "./EditorTabs";
 import { DiffView } from "./DiffView";
@@ -118,6 +119,7 @@ export function EditorPanel() {
     });
     if (res.ok) {
       await useFileStore.getState().refreshTree();
+      useAppStore.getState().bumpPromptSetList();
       toast.success(`Copied to "${targetSetName.trim()}"`);
       setShowCopyMenu(false);
       setNewSetName("");

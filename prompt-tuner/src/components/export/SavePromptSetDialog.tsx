@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Save } from "lucide-react";
 import { useFileStore } from "@/stores/fileStore";
+import { useAppStore } from "@/stores/appStore";
 import { toast } from "sonner";
 
 interface SavePromptSetDialogProps {
@@ -51,6 +52,7 @@ export function SavePromptSetDialog({
       }
       toast.success(`Prompt set "${data.name}" created`);
       await useFileStore.getState().refreshTree();
+      useAppStore.getState().bumpPromptSetList();
       onSaved?.(data.name);
       onOpenChange(false);
       setName("");

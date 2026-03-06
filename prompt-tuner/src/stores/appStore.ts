@@ -40,6 +40,7 @@ interface AppState {
   activePromptSet: string;
   createYamlDialogOpen: boolean;
   createYamlType: "action" | "trigger";
+  promptSetListVersion: number;
 
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
@@ -51,6 +52,7 @@ interface AppState {
   setUpdateOriginalsDialogOpen: (open: boolean) => void;
   setActivePromptSet: (name: string) => void;
   setCreateYamlDialogOpen: (open: boolean, type?: "action" | "trigger") => void;
+  bumpPromptSetList: () => void;
 }
 
 const _persisted = loadPersistedState();
@@ -67,6 +69,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activePromptSet: _persisted.activePromptSet,
   createYamlDialogOpen: false,
   createYamlType: "action" as const,
+  promptSetListVersion: 0,
 
   toggleLeftPanel: () =>
     set((state) => ({ leftPanelOpen: !state.leftPanelOpen })),
@@ -87,4 +90,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setCreateYamlDialogOpen: (open, type) =>
     set({ createYamlDialogOpen: open, ...(type ? { createYamlType: type } : {}) }),
+  bumpPromptSetList: () =>
+    set((s) => ({ promptSetListVersion: s.promptSetListVersion + 1 })),
 }));

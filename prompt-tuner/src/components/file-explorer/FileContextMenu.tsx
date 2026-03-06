@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFileStore } from "@/stores/fileStore";
+import { useAppStore } from "@/stores/appStore";
 import { toast } from "sonner";
 import { ChevronRight } from "lucide-react";
 import type { FileNode } from "@/types/files";
@@ -129,6 +130,7 @@ export function FileContextMenu({ node, position, onClose }: FileContextMenuProp
     });
     if (res.ok) {
       await useFileStore.getState().refreshTree();
+      useAppStore.getState().bumpPromptSetList();
       toast.success(`Copied to "${targetSetName.trim()}"`);
       onClose();
     } else {

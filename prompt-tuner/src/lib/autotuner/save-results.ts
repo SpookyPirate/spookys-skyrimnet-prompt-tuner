@@ -3,6 +3,7 @@ import type { BenchmarkCategory } from "@/types/benchmark";
 import { useProfileStore } from "@/stores/profileStore";
 import { useConfigStore } from "@/stores/configStore";
 import { getCategoryDef } from "@/lib/benchmark/categories";
+import { useAppStore } from "@/stores/appStore";
 
 const TUNER_TEMP_SET = "__tuner_temp__";
 
@@ -97,6 +98,7 @@ export async function savePromptsToSet(targetSetName: string): Promise<void> {
     }
     throw new Error(data.error || `Failed to save prompt set: HTTP ${createResp.status}`);
   }
+  useAppStore.getState().bumpPromptSetList();
 }
 
 /**
