@@ -36,4 +36,6 @@ export interface LlmCallLog {
   totalTokens: number;
   latencyMs: number;
   error?: string;
+  /** The full JSON body sent to the LLM API (OpenRouter-format payload) */
+  rawRequestBody?: Record<string, unknown>;
 }

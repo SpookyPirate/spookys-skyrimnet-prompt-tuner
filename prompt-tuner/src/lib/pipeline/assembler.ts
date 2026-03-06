@@ -44,6 +44,41 @@ export interface SimulationState {
 }
 
 /**
+ * Post-process rendered output to remove token-wasting artifacts:
+ * - Strip whitespace-only lines to true blank lines
+ * - Collapse runs of blank lines to a single blank line
+ * - Remove empty markdown sections
+ * - Remove orphaned list items with no description
+ */
+function cleanupRenderedOutput(text: string): string {
+  // Split into lines for precise processing
+  let lines = text.split("\n");
+
+  // Turn whitespace-only lines into truly empty lines
+  lines = lines.map((l) => (/^\s+$/.test(l) ? "" : l));
+
+  // Trim trailing whitespace from each line
+  lines = lines.map((l) => l.replace(/\s+$/, ""));
+
+  // Remove empty list items like "    . Saadia: " (name with no content after colon)
+  lines = lines.filter((l) => !/^\s*\.\s+\S[^:]*:\s*$/.test(l));
+
+  // Rejoin and collapse 3+ consecutive newlines to 2 (one blank line)
+  let result = lines.join("\n").replace(/\n{3,}/g, "\n\n");
+
+  // Remove empty markdown sections: header followed by only blank line(s) before next header or end
+  // Repeat to handle cascading empty sections
+  for (let i = 0; i < 5; i++) {
+    const before = result;
+    result = result.replace(/^#{1,6} .+\n\n(?=#{1,6} |\s*$)/gm, "");
+    result = result.replace(/\n{3,}/g, "\n\n");
+    if (result === before) break;
+  }
+
+  return result.trim();
+}
+
+/**
  * Build the full set of context variables from SimulationState.
  * Shared between assemblePrompt and inner template rendering.
  */
@@ -102,7 +137,8 @@ export async function assemblePrompt(
     functions: buildDecoratorFunctions(simState, fileLoader),
   };
 
-  const renderedText = await render(templateSource, ctx);
+  const rawText = await render(templateSource, ctx);
+  const renderedText = cleanupRenderedOutput(rawText);
   const messages = parseSections(renderedText);
 
   return { messages, renderedText };

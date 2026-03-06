@@ -123,6 +123,7 @@ export function AutoTunerSetup() {
     if (!profile) return;
 
     reset();
+    useAutoTunerStore.getState().setIsRunning(true);
 
     // Resolve scenario
     const scenarioId = selectedScenarioId;

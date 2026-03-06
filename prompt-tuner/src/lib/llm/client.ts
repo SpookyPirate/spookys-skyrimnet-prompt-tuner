@@ -79,6 +79,7 @@ async function _sendLlmRequestInternal({
   let fullResponse = "";
   let promptTokens = 0;
   let completionTokens = 0;
+  let rawRequestBody: Record<string, unknown> | undefined;
 
   if (slot.api.useSSE && response.body) {
     // Parse SSE stream
@@ -94,10 +95,23 @@ async function _sendLlmRequestInternal({
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
 
+      let currentEvent = "";
       for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7).trim();
+          continue;
+        }
         if (!line.startsWith("data: ")) continue;
         const data = line.slice(6).trim();
         if (data === "[DONE]") break;
+
+        // Capture the request payload event injected by our API route
+        if (currentEvent === "__request_payload") {
+          try { rawRequestBody = JSON.parse(data); } catch {}
+          currentEvent = "";
+          continue;
+        }
+        currentEvent = "";
 
         try {
           const parsed = JSON.parse(data);
@@ -123,6 +137,7 @@ async function _sendLlmRequestInternal({
     fullResponse = data.choices?.[0]?.message?.content || "";
     promptTokens = data.usage?.prompt_tokens || 0;
     completionTokens = data.usage?.completion_tokens || 0;
+    if (data.__requestPayload) rawRequestBody = data.__requestPayload;
     onChunk?.(fullResponse);
   }
 
@@ -139,6 +154,7 @@ async function _sendLlmRequestInternal({
     completionTokens,
     totalTokens: promptTokens + completionTokens,
     latencyMs,
+    rawRequestBody,
   };
 }
 

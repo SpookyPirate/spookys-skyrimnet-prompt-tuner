@@ -3,7 +3,7 @@ import type { ChatMessage } from "@/types/llm";
 import type { TuningTarget } from "@/types/autotuner";
 import type { AiTuningSettings, ModelSlot } from "@/types/config";
 import type { CopycatDialogueTurn } from "@/types/copycat";
-import { buildMultiTurnRenderBody, getDefaultScenario } from "@/lib/benchmark/default-scenarios";
+import { buildMultiTurnRenderBody, getDefaultScenario, resolveScenarioNpcs } from "@/lib/benchmark/default-scenarios";
 import { buildCopycatMessages } from "./build-copycat-prompt";
 import { parseCopycatResponse } from "./parse-copycat-response";
 import { applySettingsChanges, applyPromptChanges } from "@/lib/autotuner/apply-changes";
@@ -129,7 +129,10 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
 
   const store = useCopycatStore.getState();
   const configStore = useConfigStore.getState();
-  const activeScenario = inputScenario || getDefaultScenario("dialogue");
+  const activeScenario = inputScenario
+    ? { ...inputScenario, npcs: [...inputScenario.npcs] }
+    : { ...getDefaultScenario("dialogue"), npcs: [...getDefaultScenario("dialogue").npcs] };
+  await resolveScenarioNpcs(activeScenario);
 
   // Get the copycat slot's API settings (endpoint, apiKey, timeouts)
   const copycatSlot = configStore.slots["copycat"];
@@ -371,6 +374,15 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
       store.setPhase("error");
     }
   } finally {
+    // Sync the last round's phase with the global phase so spinners stop
+    const finalState = useCopycatStore.getState();
+    const lastIdx = finalState.rounds.length - 1;
+    if (lastIdx >= 0) {
+      const roundPhase = finalState.rounds[lastIdx].phase;
+      if (roundPhase !== "complete" && roundPhase !== "error" && roundPhase !== "stopped") {
+        store.setRoundPhase(lastIdx, finalState.phase === "error" ? "error" : "stopped");
+      }
+    }
     store.setIsRunning(false);
     store.setAbortController(null);
   }
@@ -382,6 +394,11 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
 export function stopCopycatLoop() {
   const store = useCopycatStore.getState();
   store.abortController?.abort();
+  // Update the current round's phase so its spinner stops
+  const lastRoundIdx = store.rounds.length - 1;
+  if (lastRoundIdx >= 0 && store.rounds[lastRoundIdx].phase !== "complete") {
+    store.setRoundPhase(lastRoundIdx, "stopped");
+  }
   store.setIsRunning(false);
   store.setAbortController(null);
   store.setPhase("stopped");

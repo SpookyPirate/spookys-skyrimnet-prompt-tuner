@@ -12,7 +12,7 @@ import { SessionAnalysisDialog } from "@/components/analysis/SessionAnalysisDial
 import { AgentTestDialog } from "@/components/analysis/AgentTestDialog";
 import { TriggerMatchResultsContent } from "@/components/triggers/TriggerMatchResults";
 import { ScenePlanDisplayContent } from "@/components/gamemaster/ScenePlanDisplay";
-import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater, Brain, BookOpen, UserCog } from "lucide-react";
+import { ChevronDown, ChevronRight, Zap, Users, BarChart3, Activity, Copy, Check, Maximize2, X, Eye, Target, Theater, Brain, BookOpen, UserCog, FileJson } from "lucide-react";
 import { BenchmarkAssessmentPanel } from "@/components/benchmark/BenchmarkAssessmentPanel";
 import { AutoTunerReport } from "@/components/autotuner/AutoTunerReport";
 import { CopycatReport } from "@/components/copycat/CopycatReport";
@@ -139,6 +139,20 @@ export function RightPanel() {
               <div className="space-y-1">
                 {llmCallLog.map((log) => (
                   <LlmCallEntry key={log.id} log={log} />
+                ))}
+              </div>
+            ) : (
+              <Placeholder text="No LLM calls yet" />
+            )}
+          </Section>
+
+          <Separator />
+
+          <Section title="Raw API Requests" icon={<FileJson className="h-3.5 w-3.5" />} defaultCollapsed>
+            {llmCallLog.length > 0 ? (
+              <div className="space-y-1">
+                {llmCallLog.map((log) => (
+                  <RawRequestEntry key={log.id} log={log} />
                 ))}
               </div>
             ) : (
@@ -358,6 +372,71 @@ function TextModal({
   );
 }
 
+function RawRequestEntry({ log }: { log: LlmCallLog }) {
+  const [expanded, setExpanded] = useState(false);
+  const [modalContent, setModalContent] = useState<{ title: string; text: string } | null>(null);
+
+  const rawJson = log.rawRequestBody
+    ? JSON.stringify(log.rawRequestBody, null, 2)
+    : null;
+
+  return (
+    <>
+      <div className="rounded border text-[10px]">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex w-full items-center gap-1.5 p-1.5 text-left hover:bg-accent/50"
+        >
+          {expanded ? (
+            <ChevronDown className="h-3 w-3 shrink-0" />
+          ) : (
+            <ChevronRight className="h-3 w-3 shrink-0" />
+          )}
+          <Badge variant="secondary" className="text-[9px] px-1 py-0">
+            {log.agent}
+          </Badge>
+          <span className="flex-1 truncate font-mono text-muted-foreground">
+            {log.model}
+          </span>
+        </button>
+        {expanded && (
+          <div className="border-t p-2">
+            {rawJson ? (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold">OpenRouter Payload:</span>
+                  <div className="flex items-center gap-1">
+                    <CopyButton text={rawJson} />
+                    <button
+                      onClick={() => setModalContent({ title: `Raw Request (${log.agent} → ${log.model})`, text: rawJson })}
+                      className="p-0.5 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                      title="Expand"
+                    >
+                      <Maximize2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-background p-1.5 text-[9px] font-mono">
+                  {rawJson}
+                </pre>
+              </>
+            ) : (
+              <span className="text-muted-foreground">Payload not captured for this call</span>
+            )}
+          </div>
+        )}
+      </div>
+      {modalContent && (
+        <TextModal
+          title={modalContent.title}
+          text={modalContent.text}
+          onClose={() => setModalContent(null)}
+        />
+      )}
+    </>
+  );
+}
+
 function LlmCallEntry({ log }: { log: LlmCallLog }) {
   const [expanded, setExpanded] = useState(false);
   const [modalContent, setModalContent] = useState<{ title: string; text: string } | null>(null);
@@ -392,15 +471,10 @@ function LlmCallEntry({ log }: { log: LlmCallLog }) {
           </span>
         </button>
         {expanded && (
-          <div className="border-t p-2 space-y-1.5">
-            <div>
-              <span className="font-semibold">Model:</span>{" "}
-              <span className="font-mono">{log.model}</span>
-            </div>
-            <div>
-              <span className="font-semibold">Tokens:</span>{" "}
-              {log.promptTokens} prompt + {log.completionTokens} completion ={" "}
-              {log.totalTokens}
+          <div className="border-t p-2 space-y-2">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <span><span className="font-semibold text-foreground">Model:</span> <span className="font-mono">{log.model}</span></span>
+              <span><span className="font-semibold text-foreground">Tokens:</span> {log.promptTokens}+{log.completionTokens}={log.totalTokens}</span>
             </div>
             {log.error && (
               <div className="text-destructive">
@@ -408,7 +482,7 @@ function LlmCallEntry({ log }: { log: LlmCallLog }) {
               </div>
             )}
             <div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-1">
                 <span className="font-semibold">Messages ({log.messages.length}):</span>
                 <div className="flex items-center gap-1">
                   <CopyButton text={messagesText} />
@@ -421,14 +495,24 @@ function LlmCallEntry({ log }: { log: LlmCallLog }) {
                   </button>
                 </div>
               </div>
-              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-background p-1.5 text-[9px]">
-                {log.messages
-                  .map((m) => `[${m.role}] ${m.content.substring(0, 300)}${m.content.length > 300 ? "..." : ""}`)
-                  .join("\n\n")}
-              </pre>
+              <div className="space-y-1">
+                {log.messages.map((m, i) => (
+                  <div key={i} className="rounded bg-background">
+                    <div className="flex items-center justify-between px-1.5 py-0.5 border-b border-border/50">
+                      <Badge variant={m.role === "system" ? "outline" : m.role === "user" ? "default" : "secondary"} className="text-[8px] px-1 py-0">
+                        {m.role}
+                      </Badge>
+                      <span className="text-[8px] text-muted-foreground">{m.content.length.toLocaleString()} chars</span>
+                    </div>
+                    <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words p-1.5 text-[9px]">
+                      {m.content}
+                    </pre>
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-1">
                 <span className="font-semibold">Response:</span>
                 <div className="flex items-center gap-1">
                   <CopyButton text={log.response || ""} />
@@ -441,7 +525,7 @@ function LlmCallEntry({ log }: { log: LlmCallLog }) {
                   </button>
                 </div>
               </div>
-              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-background p-1.5 text-[9px]">
+              <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-background p-1.5 text-[9px]">
                 {log.response || "(empty)"}
               </pre>
             </div>

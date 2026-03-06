@@ -102,6 +102,7 @@ export function CopycatSetup() {
     if (!referenceModelId.trim() || !targetModelId.trim()) return;
 
     reset();
+    useCopycatStore.getState().setIsRunning(true);
 
     const scenarioId = selectedScenarioId;
     const scenario = scenarioId

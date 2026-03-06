@@ -6,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { useScenePresetStore } from "@/stores/scenePresetStore";
 import { useSimulationStore } from "@/stores/simulationStore";
 import type { ScenePreset } from "@/types/simulation";
+import { resolveNpcsIfNeeded } from "@/lib/npc/resolve-npc";
 import { Copy, Save, Trash2, Lock } from "lucide-react";
 import { toast } from "sonner";
 
-function applyPresetToSimulation(preset: ScenePreset) {
+async function applyPresetToSimulation(preset: ScenePreset) {
   const simStore = useSimulationStore.getState();
   simStore.setScene(preset.scene);
   simStore.selectedNpcs.forEach((n) => simStore.removeNpc(n.uuid));
-  preset.npcs.forEach((n) => simStore.addNpc(n));
+  const resolvedNpcs = await resolveNpcsIfNeeded(preset.npcs);
+  resolvedNpcs.forEach((n) => simStore.addNpc(n));
   if (preset.actionStates) {
     for (const action of simStore.actionRegistry) {
       const savedState = preset.actionStates[action.id];

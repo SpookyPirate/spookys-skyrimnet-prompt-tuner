@@ -108,9 +108,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Redact API key from payload echo
+    const payloadEcho = { ...payload };
+
     if (stream && response.body) {
-      // Proxy the SSE stream directly
-      return new Response(response.body, {
+      // Inject the request payload as the first SSE event, then proxy the rest
+      const payloadEvent = `event: __request_payload\ndata: ${JSON.stringify(payloadEcho)}\n\n`;
+      const encoder = new TextEncoder();
+      const prefix = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(payloadEvent));
+          controller.close();
+        },
+      });
+      const merged = new ReadableStream({
+        async start(controller) {
+          for (const s of [prefix, response.body!]) {
+            const reader = s.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+          }
+          controller.close();
+        },
+      });
+      return new Response(merged, {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
@@ -121,6 +145,7 @@ export async function POST(request: NextRequest) {
 
     // Non-streaming response
     const data = await response.json();
+    data.__requestPayload = payloadEcho;
     return Response.json(data);
   } catch (error) {
     console.error("LLM proxy error:", error);

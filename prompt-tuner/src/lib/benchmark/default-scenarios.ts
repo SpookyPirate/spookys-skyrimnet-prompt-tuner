@@ -8,6 +8,7 @@ import type {
   BenchmarkNpc,
 } from "@/types/benchmark";
 import { buildEnabledSavesPayload } from "@/lib/pipeline/save-bio-payload";
+import { resolveNpcByName } from "@/lib/npc/resolve-npc";
 
 // ── Shared test data ────────────────────────────────────────────────
 
@@ -228,6 +229,26 @@ export function getBuiltinScenarios(category: BenchmarkCategory): BenchmarkScena
 
 export function findBuiltinScenario(id: string): BenchmarkScenario | undefined {
   return DEFAULT_SCENARIOS.find((s) => s.id === id);
+}
+
+// ── NPC resolution ──────────────────────────────────────────────────
+
+/**
+ * Resolve all NPCs in a scenario to real character files.
+ * Call this once before a benchmark/tuner/copycat run starts.
+ * Mutates the scenario's npcs in-place for simplicity.
+ */
+export async function resolveScenarioNpcs(scenario: BenchmarkScenario): Promise<void> {
+  const resolved = await Promise.all(
+    scenario.npcs.map(async (npc) => {
+      const result = await resolveNpcByName(npc.displayName || npc.name);
+      if (result) {
+        npc.uuid = result.uuid;
+      }
+      return npc;
+    })
+  );
+  scenario.npcs = resolved;
 }
 
 // ── Build the POST body for a subtask's render endpoint ─────────────

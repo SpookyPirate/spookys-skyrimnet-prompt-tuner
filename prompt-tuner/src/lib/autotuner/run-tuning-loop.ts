@@ -3,7 +3,7 @@ import type { SettingsProfile } from "@/types/config";
 import type { ChatMessage } from "@/types/llm";
 import type { TuningTarget, TunerTurnResult } from "@/types/autotuner";
 import { getCategoryDef } from "@/lib/benchmark/categories";
-import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody } from "@/lib/benchmark/default-scenarios";
+import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody, resolveScenarioNpcs } from "@/lib/benchmark/default-scenarios";
 import { buildTunerAssessmentMessages } from "./build-tuner-assessment";
 import { buildExplanationMessages } from "@/lib/benchmark/build-explanation-prompt";
 import { buildProposalMessages } from "./build-proposal-prompt";
@@ -35,7 +35,10 @@ export async function runTuningLoop(
   const catDef = getCategoryDef(category);
   if (!catDef) throw new Error(`Unknown category: ${category}`);
 
-  const activeScenario = scenario || getDefaultScenario(category);
+  const activeScenario = scenario
+    ? { ...scenario, npcs: [...scenario.npcs] }
+    : { ...getDefaultScenario(category), npcs: [...getDefaultScenario(category).npcs] };
+  await resolveScenarioNpcs(activeScenario);
   const agent = catDef.agent;
   const agentSlot = profile.slots[agent];
 
@@ -564,6 +567,15 @@ export async function runTuningLoop(
       store.setPhase("error");
     }
   } finally {
+    // Sync the last round's phase with the global phase so spinners stop
+    const finalState = useAutoTunerStore.getState();
+    const lastIdx = finalState.rounds.length - 1;
+    if (lastIdx >= 0) {
+      const roundPhase = finalState.rounds[lastIdx].phase;
+      if (roundPhase !== "complete" && roundPhase !== "error" && roundPhase !== "stopped") {
+        store.setRoundPhase(lastIdx, finalState.phase === "error" ? "error" : "stopped");
+      }
+    }
     store.setIsRunning(false);
     store.setAbortController(null);
   }
@@ -575,6 +587,11 @@ export async function runTuningLoop(
 export function stopTuningLoop() {
   const store = useAutoTunerStore.getState();
   store.abortController?.abort();
+  // Update the current round's phase so its spinner stops
+  const lastRoundIdx = store.rounds.length - 1;
+  if (lastRoundIdx >= 0 && store.rounds[lastRoundIdx].phase !== "complete") {
+    store.setRoundPhase(lastRoundIdx, "stopped");
+  }
   store.setIsRunning(false);
   store.setAbortController(null);
   store.setPhase("stopped");

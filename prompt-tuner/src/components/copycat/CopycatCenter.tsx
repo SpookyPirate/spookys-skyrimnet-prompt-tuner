@@ -198,7 +198,9 @@ function CopycatRoundCard({
   const [verificationOpen, setVerificationOpen] = useState(activeSection === "verification");
 
   // Auto-expand the active section and collapse others when the phase advances.
+  // When activeSection becomes null (run ended), skip — keeps the last active section open.
   useEffect(() => {
+    if (activeSection === null) return;
     setRefOpen(activeSection === "reference");
     setTargetOpen(activeSection === "target");
     setSideBySideOpen(false);

@@ -7,7 +7,7 @@ import { useFileStore } from "@/stores/fileStore";
 import { useAppStore } from "@/stores/appStore";
 import { FileTreeNode } from "./FileTreeNode";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Archive, Lock, File, RefreshCw, FolderInput } from "lucide-react";
+import { Search, Loader2, Archive, Lock, File, RefreshCw, FolderInput, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -294,8 +294,16 @@ export function FileExplorer() {
             placeholder="Search files..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 pl-7 text-xs"
+            className="h-7 pl-7 pr-7 text-xs"
           />
+          {searchQuery && !isSearching && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
           {isSearching && (
             <Loader2 className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
           )}

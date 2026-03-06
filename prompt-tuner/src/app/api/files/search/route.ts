@@ -88,7 +88,6 @@ export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q");
   const type = request.nextUrl.searchParams.get("type"); // "characters" for NPC search
   const activeSet = request.nextUrl.searchParams.get("activeSet") || "";
-
   if (!query || query.length < 2) {
     return NextResponse.json({ results: [] });
   }

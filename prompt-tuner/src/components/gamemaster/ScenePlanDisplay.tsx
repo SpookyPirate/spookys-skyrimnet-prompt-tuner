@@ -2,17 +2,45 @@
 
 import { useSimulationStore } from "@/stores/simulationStore";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 
 export function ScenePlanDisplayContent() {
   const scenePlan = useSimulationStore((s) => s.scenePlan);
   const gmActionLog = useSimulationStore((s) => s.gmActionLog);
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
+  const gmStatus = useSimulationStore((s) => s.gmStatus);
+  const gmContinuousMode = useSimulationStore((s) => s.gmContinuousMode);
 
-  if (!gmEnabled) return null;
+  if (!gmEnabled) {
+    return (
+      <div className="rounded-md border border-dashed border-purple-500/20 p-2 text-center text-[10px] text-muted-foreground">
+        Enable GameMaster to see scene data
+      </div>
+    );
+  }
 
-  return scenePlan ? (
-        <div className="space-y-2">
-          {/* Scene info */}
+  const hasContent = scenePlan || gmActionLog.length > 0;
+
+  return (
+    <div className="space-y-2">
+      {/* Status indicator */}
+      {gmStatus !== "idle" && (
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          {(gmStatus === "running" || gmStatus === "planning") && (
+            <Loader2 className="h-3 w-3 animate-spin text-purple-400" />
+          )}
+          <span className="capitalize">
+            {gmStatus === "planning" ? "Planning scene..." :
+             gmStatus === "running" ? "Selecting action..." :
+             gmStatus === "cooldown" ? `Cooldown${gmContinuousMode ? " (continuous)" : ""}` :
+             gmStatus}
+          </span>
+        </div>
+      )}
+
+      {/* Scene plan (continuous mode only) */}
+      {scenePlan && (
+        <>
           <div className="rounded border p-1.5 text-[10px]">
             <div className="font-semibold mb-0.5">{scenePlan.summary}</div>
             <div className="flex gap-2 text-[9px] text-muted-foreground">
@@ -73,47 +101,54 @@ export function ScenePlanDisplayContent() {
               </div>
             ))}
           </div>
+        </>
+      )}
 
-          {/* GM Action Log */}
-          {gmActionLog.length > 0 && (
-            <div>
-              <span className="text-[9px] text-muted-foreground font-semibold">
-                GM Actions ({gmActionLog.length})
-              </span>
-              <div className="mt-0.5 max-h-32 overflow-auto space-y-0.5">
-                {gmActionLog.map((entry, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-1 text-[9px] rounded px-1 py-0.5 bg-accent/30"
+      {/* GM Action Log */}
+      {gmActionLog.length > 0 && (
+        <div>
+          <span className="text-[9px] text-muted-foreground font-semibold">
+            GM Actions ({gmActionLog.length})
+          </span>
+          <div className="mt-0.5 max-h-32 overflow-auto space-y-0.5">
+            {gmActionLog.map((entry, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-1 text-[9px] rounded px-1 py-0.5 bg-accent/30"
+              >
+                {scenePlan && (
+                  <Badge
+                    variant="outline"
+                    className="text-[8px] px-1 py-0 shrink-0"
                   >
-                    <Badge
-                      variant="outline"
-                      className="text-[8px] px-1 py-0 shrink-0"
-                    >
-                      B{entry.beatIndex + 1}
-                    </Badge>
-                    <span className="font-mono font-semibold">
-                      {entry.action}
-                    </span>
-                    {entry.params.speaker && (
-                      <span className="text-muted-foreground">
-                        by {entry.params.speaker}
-                      </span>
-                    )}
-                    {entry.params.topic && (
-                      <span className="text-muted-foreground truncate">
-                        re: {entry.params.topic}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                    B{entry.beatIndex + 1}
+                  </Badge>
+                )}
+                <span className="font-mono font-semibold">
+                  {entry.action}
+                </span>
+                {entry.params.speaker && (
+                  <span className="text-muted-foreground">
+                    by {entry.params.speaker}
+                  </span>
+                )}
+                {entry.params.topic && (
+                  <span className="text-muted-foreground truncate">
+                    re: {entry.params.topic}
+                  </span>
+                )}
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
-  ) : (
-    <div className="rounded-md border border-dashed border-purple-500/20 p-2 text-center text-[10px] text-muted-foreground">
-      Enable GameMaster to see scene data
+      )}
+
+      {/* Empty state when GM is enabled but nothing has happened yet */}
+      {!hasContent && gmStatus === "idle" && (
+        <div className="text-[10px] text-muted-foreground text-center py-1">
+          Waiting for first GM tick...
+        </div>
+      )}
     </div>
   );
 }

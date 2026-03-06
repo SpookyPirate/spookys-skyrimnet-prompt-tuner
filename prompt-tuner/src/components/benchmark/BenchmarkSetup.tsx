@@ -88,6 +88,7 @@ export function BenchmarkSetup() {
       ? useAppStore.getState().activePromptSet || ""
       : selectedPromptSet;
 
+    useBenchmarkStore.getState().setIsRunning(true);
     runBenchmark(activeCategory, selectedProfiles, scenario, resolvedPromptSet || undefined);
   };
 

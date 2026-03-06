@@ -3,7 +3,7 @@ import type { ChatMessage } from "@/types/llm";
 import type { SettingsProfile } from "@/types/config";
 import type { AgentType, ModelSlot } from "@/types/config";
 import { getCategoryDef } from "./categories";
-import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody } from "./default-scenarios";
+import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody, resolveScenarioNpcs } from "./default-scenarios";
 import { buildExplanationMessages } from "./build-explanation-prompt";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
 import { sendLlmRequestWithSlot } from "@/lib/llm/client";
@@ -81,7 +81,10 @@ export async function runBenchmark(
   scenario?: BenchmarkScenario,
   promptSetBase?: string,
 ) {
-  const activeScenario = scenario || getDefaultScenario(category);
+  const activeScenario = scenario
+    ? { ...scenario, npcs: [...scenario.npcs] }
+    : { ...getDefaultScenario(category), npcs: [...getDefaultScenario(category).npcs] };
+  await resolveScenarioNpcs(activeScenario);
 
   // Dispatch to multi-turn runner when turns are defined
   if (activeScenario.turns && activeScenario.turns.length > 0) {
