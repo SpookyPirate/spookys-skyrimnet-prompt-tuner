@@ -18,7 +18,7 @@
 
 ## What Is This?
 
-SkyrimNet Prompt Tuner is a standalone desktop app for simulating, benchmarking, and fine-tuning every aspect of [SkyrimNet](https://www.nexusmods.com/skyrimspecialedition/mods/136172) AI NPC behaviour. Run full multi-NPC dialogue scenes outside of Skyrim, compare how different models and settings perform side-by-side, and automatically optimize inference parameters — all without launching the game.
+SkyrimNet Prompt Tuner is a standalone desktop app that helps you find the best AI models and settings for [SkyrimNet](https://www.nexusmods.com/skyrimspecialedition/mods/136172). Run full multi-NPC dialogue simulations outside of Skyrim, benchmark different models and configurations side-by-side, and automatically optimize inference settings to get the best dialogue quality from any model — all without launching the game.
 
 It also doubles as a complete prompt editor: browse all 3,000+ original SkyrimNet prompt files, edit them with syntax highlighting and token counting, and export your changes as a ready-to-install MO2 mod.
 
