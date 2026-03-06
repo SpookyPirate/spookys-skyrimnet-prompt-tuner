@@ -7,6 +7,13 @@ import type { ScenePlan, GmActionEntry } from "@/types/gamemaster";
 import { BUILTIN_ACTIONS, DEFAULT_CUSTOM_ACTIONS } from "@/lib/actions/registry";
 
 const ACTIONS_STORAGE_KEY = "skyrimnet-actions";
+const SCENE_STORAGE_KEY = "skyrimnet-scene";
+
+interface PersistedSceneState {
+  selectedNpcs: NpcConfig[];
+  playerConfig: PlayerConfig;
+  scene: SceneConfig;
+}
 
 function loadPersistedActions(): ActionDefinition[] {
   if (typeof window === "undefined") return [];
@@ -22,6 +29,31 @@ function persistActions(actions: ActionDefinition[]) {
   try {
     localStorage.setItem(ACTIONS_STORAGE_KEY, JSON.stringify(actions));
   } catch {}
+}
+
+function loadPersistedScene(): Partial<PersistedSceneState> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(SCENE_STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as PersistedSceneState;
+  } catch {}
+  return {};
+}
+
+function persistScene(state: PersistedSceneState) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+function syncScenePersistence(get: () => SimulationState) {
+  const state = get();
+  persistScene({
+    selectedNpcs: state.selectedNpcs,
+    playerConfig: state.playerConfig,
+    scene: state.scene,
+  });
 }
 
 function syncScenePreset(get: () => SimulationState) {
@@ -185,6 +217,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   setPlayerConfig: (config) => {
     set((s) => ({ playerConfig: { ...s.playerConfig, ...config } }));
+    syncScenePersistence(get);
     syncScenePreset(get);
   },
 
@@ -194,6 +227,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         ? s.selectedNpcs
         : [...s.selectedNpcs, npc],
     }));
+    syncScenePersistence(get);
     syncScenePreset(get);
   },
 
@@ -201,6 +235,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     set((s) => ({
       selectedNpcs: s.selectedNpcs.filter((n) => n.uuid !== uuid),
     }));
+    syncScenePersistence(get);
     syncScenePreset(get);
   },
 
@@ -210,11 +245,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         n.uuid === uuid ? { ...n, distance } : n
       ),
     }));
+    syncScenePersistence(get);
     syncScenePreset(get);
   },
 
   setScene: (scene) => {
     set((s) => ({ scene: { ...s.scene, ...scene } }));
+    syncScenePersistence(get);
     syncScenePreset(get);
   },
 
@@ -339,3 +376,15 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   setAutochatStartedAt: (timestamp) => set({ autochatStartedAt: timestamp }),
   setAutochatStatus: (status) => set({ autochatStatus: status }),
 }));
+
+// Hydrate persisted scene state on the client
+if (typeof window !== "undefined") {
+  const persisted = loadPersistedScene();
+  if (persisted.selectedNpcs || persisted.playerConfig || persisted.scene) {
+    useSimulationStore.setState({
+      ...(persisted.selectedNpcs && { selectedNpcs: persisted.selectedNpcs }),
+      ...(persisted.playerConfig && { playerConfig: persisted.playerConfig }),
+      ...(persisted.scene && { scene: persisted.scene }),
+    });
+  }
+}

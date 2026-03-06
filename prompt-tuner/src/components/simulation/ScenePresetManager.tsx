@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useScenePresetStore } from "@/stores/scenePresetStore";
@@ -27,10 +27,12 @@ function applyPresetToSimulation(preset: ScenePreset) {
   }
 }
 
+// Track globally so re-mounts (tab switches) don't re-apply the preset
+let globalInitialApplied = false;
+
 export function ScenePresetManager() {
   const [showSave, setShowSave] = useState(false);
   const [saveName, setSaveName] = useState("");
-  const initialApplied = useRef(false);
 
   const presets = useScenePresetStore((s) => s.presets);
   const activePresetId = useScenePresetStore((s) => s.activePresetId);
@@ -56,13 +58,13 @@ export function ScenePresetManager() {
     load();
   }, [load]);
 
-  // Auto-apply active preset on initial load (restores scene after refresh)
+  // Auto-apply active preset on initial page load only (not on tab switches)
   useEffect(() => {
-    if (initialApplied.current || presets.length === 0 || !activePresetId) return;
+    if (globalInitialApplied || presets.length === 0 || !activePresetId) return;
     const preset = getPreset(activePresetId);
     if (!preset) return;
     applyPresetToSimulation(preset);
-    initialApplied.current = true;
+    globalInitialApplied = true;
   }, [presets, activePresetId, getPreset]);
 
   const handleShowSave = () => {
