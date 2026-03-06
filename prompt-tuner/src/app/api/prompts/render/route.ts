@@ -6,6 +6,7 @@ import { ORIGINAL_PROMPTS_DIR, isPathAllowed } from "@/lib/files/paths";
 import { resolvePromptSetBaseServer } from "@/lib/files/paths-server";
 import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
 import { createFileLoader } from "@/lib/pipeline/file-loader-factory";
+import type { SaveBioConfig } from "@/lib/pipeline/file-loader-factory";
 
 /**
  * Render a prompt through the Inja pipeline.
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
       scene,
       selectedNpcs,
       chatHistory,
+      enabledSaves,
     } = body;
 
     if (!templatePath) {
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const fileLoader = createFileLoader(baseDir);
+    const fileLoader = createFileLoader(baseDir, enabledSaves as SaveBioConfig[] | undefined);
 
     // If a pre-built simulationState is provided, use it directly (backward compat)
     // Otherwise build one from component params

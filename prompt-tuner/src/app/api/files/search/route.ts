@@ -86,6 +86,8 @@ export function invalidateFileIndex() {
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q");
+  const type = request.nextUrl.searchParams.get("type"); // "characters" for NPC search
+  const activeSet = request.nextUrl.searchParams.get("activeSet") || "";
 
   if (!query || query.length < 2) {
     return NextResponse.json({ results: [] });
@@ -95,17 +97,44 @@ export async function GET(request: NextRequest) {
     const index = await getFileIndex();
     const lowerQuery = query.toLowerCase();
 
-    const results = index
+    let results = index
       .filter((node) => {
         const label = (node.displayName || node.name).toLowerCase();
         const name = node.name.toLowerCase();
-        // Also search relative path segments
         const rel = node.path.toLowerCase();
         return label.includes(lowerQuery) || name.includes(lowerQuery) || rel.includes(lowerQuery);
-      })
-      .slice(0, 100);
+      });
 
-    return NextResponse.json({ results });
+    // For NPC search: only character files, deduplicated, no _saves
+    if (type === "characters") {
+      results = results.filter((node) => {
+        const norm = node.path.replace(/\\/g, "/");
+        return node.name.endsWith(".prompt") && norm.includes("/characters/") && !norm.includes("/_saves/");
+      });
+
+      // Deduplicate by filename — prefer active set > custom set > original
+      const deduped = new Map<string, FileNode>();
+      for (const node of results) {
+        const key = node.name;
+        const existing = deduped.get(key);
+        if (!existing) {
+          deduped.set(key, node);
+          continue;
+        }
+        const norm = node.path.replace(/\\/g, "/");
+        const existingNorm = existing.path.replace(/\\/g, "/");
+        const isActive = activeSet && norm.includes(`/${activeSet}/`);
+        const existingIsActive = activeSet && existingNorm.includes(`/${activeSet}/`);
+        if (isActive && !existingIsActive) {
+          deduped.set(key, node);
+        } else if (!existingIsActive && existing.isReadOnly && !node.isReadOnly) {
+          deduped.set(key, node);
+        }
+      }
+      results = Array.from(deduped.values());
+    }
+
+    return NextResponse.json({ results: results.slice(0, 100) });
   } catch (error) {
     console.error("Search failed:", error);
     return NextResponse.json({ error: "Search failed" }, { status: 500 });

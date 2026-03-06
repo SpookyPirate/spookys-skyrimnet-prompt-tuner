@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSimulationStore } from "@/stores/simulationStore";
+import { useAppStore } from "@/stores/appStore";
 import { Search, X, Trash2, User, MapPin } from "lucide-react";
 import type { NpcConfig } from "@/types/simulation";
 import type { FileNode } from "@/types/files";
@@ -28,7 +29,8 @@ export function NpcSelector() {
     }
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/files/search?q=${encodeURIComponent(q)}`);
+      const activeSet = useAppStore.getState().activePromptSet;
+      const res = await fetch(`/api/files/search?q=${encodeURIComponent(q)}&type=characters&activeSet=${encodeURIComponent(activeSet)}`);
       const data = await res.json();
       setResults(data.results || []);
     } catch {

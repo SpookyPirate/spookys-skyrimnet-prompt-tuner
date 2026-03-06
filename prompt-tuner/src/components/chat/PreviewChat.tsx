@@ -10,6 +10,7 @@ import { useAppStore } from "@/stores/appStore";
 import { useTriggerStore } from "@/stores/triggerStore";
 import { sendLlmRequest, sendLlmRequestWithSlot } from "@/lib/llm/client";
 import { runTargetSelection, runRealActionSelector, runSpeakerPrediction } from "@/lib/pipeline/chat-pipeline";
+import { buildEnabledSavesPayload } from "@/lib/pipeline/save-bio-payload";
 import type { ChatMessage } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
 import { GmControls } from "@/components/gamemaster/GmControls";
@@ -155,6 +156,7 @@ export function PreviewChat() {
             })),
             gameEvents,
             promptSetBase: activePromptSet || undefined,
+            enabledSaves: buildEnabledSavesPayload(),
           }),
         });
         const renderData = await renderRes.json();

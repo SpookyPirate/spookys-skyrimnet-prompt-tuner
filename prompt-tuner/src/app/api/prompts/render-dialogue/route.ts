@@ -3,10 +3,11 @@ import { assemblePrompt } from "@/lib/pipeline/assembler";
 import { resolvePromptSetBaseServer } from "@/lib/files/paths-server";
 import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
 import { createFileLoader, readTemplate } from "@/lib/pipeline/file-loader-factory";
+import type { SaveBioConfig } from "@/lib/pipeline/file-loader-factory";
 
 /**
  * Render the dialogue_response.prompt template.
- * POST body: { npc, player, scene, selectedNpcs, chatHistory, responseTarget?, eligibleActions?, promptSetBase? }
+ * POST body: { npc, player, scene, selectedNpcs, chatHistory, responseTarget?, eligibleActions?, promptSetBase?, enabledSaves? }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,10 +23,11 @@ export async function POST(request: NextRequest) {
       gameEvents = [],
       promptSetBase,
       dialogueRequest: bodyDialogueRequest,
+      enabledSaves,
     } = body;
 
     const baseDir = resolvePromptSetBaseServer(promptSetBase);
-    const fileLoader = createFileLoader(baseDir);
+    const fileLoader = createFileLoader(baseDir, enabledSaves as SaveBioConfig[] | undefined);
 
     let templateSource: string;
     try {

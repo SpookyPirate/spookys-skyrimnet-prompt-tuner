@@ -29,6 +29,7 @@ import type { FileNode } from "@/types/files";
 import { parseCharacterName } from "@/lib/files/paths";
 import { sendLlmRequest } from "@/lib/llm/client";
 import { buildSceneGenMessages } from "@/lib/benchmark/build-scene-gen-prompt";
+import { useAppStore } from "@/stores/appStore";
 import { toast } from "sonner";
 
 const GENDERS = ["Male", "Female"];
@@ -199,7 +200,8 @@ export function CustomScenarioDialog({
     setNpcQuery(q);
     if (q.length < 2) { setNpcResults([]); return; }
     try {
-      const res = await fetch(`/api/files/search?q=${encodeURIComponent(q)}`);
+      const activeSet = useAppStore.getState().activePromptSet;
+      const res = await fetch(`/api/files/search?q=${encodeURIComponent(q)}&type=characters&activeSet=${encodeURIComponent(activeSet)}`);
       const data = await res.json();
       setNpcResults(data.results || []);
     } catch { setNpcResults([]); }

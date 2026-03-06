@@ -3,6 +3,7 @@ import { assemblePrompt } from "@/lib/pipeline/assembler";
 import { resolvePromptSetBaseServer } from "@/lib/files/paths-server";
 import { buildFullSimulationState } from "@/lib/pipeline/build-sim-state";
 import { createFileLoader, readTemplate } from "@/lib/pipeline/file-loader-factory";
+import type { SaveBioConfig } from "@/lib/pipeline/file-loader-factory";
 
 /**
  * Render the native_action_selector.prompt template.
@@ -24,10 +25,11 @@ export async function POST(request: NextRequest) {
       selectedNpcs = [],
       chatHistory,
       gameEvents = [],
+      enabledSaves,
     } = body;
 
     const baseDir = resolvePromptSetBaseServer(promptSetBase);
-    const fileLoader = createFileLoader(baseDir);
+    const fileLoader = createFileLoader(baseDir, enabledSaves as SaveBioConfig[] | undefined);
 
     let templateSource: string;
     try {

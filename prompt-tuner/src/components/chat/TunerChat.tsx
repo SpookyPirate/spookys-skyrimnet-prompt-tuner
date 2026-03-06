@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useConfigStore } from "@/stores/configStore";
 import { useFileStore } from "@/stores/fileStore";
+import { useAppStore } from "@/stores/appStore";
 import { sendLlmRequest } from "@/lib/llm/client";
 import { TUNER_SYSTEM_PROMPT } from "@/lib/tuner/system-prompt";
 import { EditorPanel } from "@/components/editor/EditorPanel";
@@ -440,7 +441,8 @@ async function executeToolCall(
     }
     case "search_characters": {
       const query = args.query || args.name || Object.values(args)[0] || "";
-      const res = await fetch(`/api/files/search?q=${encodeURIComponent(query.trim())}`);
+      const activeSet = useAppStore.getState().activePromptSet;
+      const res = await fetch(`/api/files/search?q=${encodeURIComponent(query.trim())}&type=characters&activeSet=${encodeURIComponent(activeSet)}`);
       const data = await res.json();
       return (data.results || [])
         .map((r: { displayName?: string; name: string; path?: string }) =>

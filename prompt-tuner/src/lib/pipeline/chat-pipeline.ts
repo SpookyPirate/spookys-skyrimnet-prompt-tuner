@@ -1,4 +1,5 @@
 import { sendLlmRequest } from "@/lib/llm/client";
+import { buildEnabledSavesPayload } from "@/lib/pipeline/save-bio-payload";
 import type { ChatMessage, LlmCallLog } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ export async function runTargetSelection(
         player: playerConfig,
         gameEvents,
         promptSetBase: activePromptSet || undefined,
+        enabledSaves: buildEnabledSavesPayload(),
       }),
     });
     const renderData = await renderRes.json();
@@ -115,6 +117,7 @@ export async function runRealActionSelector(
       eventHistory,
       scene,
       promptSetBase: activePromptSet || undefined,
+      enabledSaves: buildEnabledSavesPayload(),
       player: playerConfig,
       selectedNpcs: selectedNpcs || [],
       chatHistory: chatHistory || [],
@@ -201,6 +204,7 @@ export async function runSpeakerPrediction(
         player: playerConfig,
         gameEvents,
         promptSetBase: activePromptSet || undefined,
+        enabledSaves: buildEnabledSavesPayload(),
       }),
     });
     const renderData = await renderRes.json();

@@ -84,17 +84,31 @@ async function buildDirectoryTree(
     const fullPath = path.join(dirPath, dir.name);
 
     // Check if this is a large directory (like characters/) that should be lazy-loaded
+    // Only lazy-load large character dirs; small ones (e.g. inside _saves) load eagerly
     if (dir.name === "characters") {
       const charEntries = await fs.readdir(fullPath);
-      nodes.push({
-        name: "characters",
-        path: fullPath,
-        type: "directory",
-        children: [], // Will be lazy-loaded
-        isLoaded: false,
-        isReadOnly: options.isReadOnly,
-        displayName: `characters (${charEntries.length} files)`,
-      });
+      if (charEntries.length > options.lazyLoadThreshold) {
+        nodes.push({
+          name: "characters",
+          path: fullPath,
+          type: "directory",
+          children: [], // Will be lazy-loaded
+          isLoaded: false,
+          isReadOnly: options.isReadOnly,
+          displayName: `characters (${charEntries.length} files)`,
+        });
+      } else {
+        const children = await buildDirectoryTree(fullPath, options);
+        nodes.push({
+          name: "characters",
+          path: fullPath,
+          type: "directory",
+          children,
+          isLoaded: true,
+          isReadOnly: options.isReadOnly,
+          displayName: `characters (${charEntries.length} files)`,
+        });
+      }
     } else {
       const children = await buildDirectoryTree(fullPath, options);
       nodes.push({

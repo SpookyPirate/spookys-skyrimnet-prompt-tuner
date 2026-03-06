@@ -7,6 +7,7 @@ import type {
   BenchmarkScene,
   BenchmarkNpc,
 } from "@/types/benchmark";
+import { buildEnabledSavesPayload } from "@/lib/pipeline/save-bio-payload";
 
 // ── Shared test data ────────────────────────────────────────────────
 
@@ -265,6 +266,7 @@ export function buildRenderBody(
     player: scenario.player,
     scene: scenario.scene,
     promptSetBase,
+    enabledSaves: buildEnabledSavesPayload(),
   };
 
   const npcs = scenario.npcs.map((n, i) => toNpcConfig(n, i));
@@ -397,6 +399,7 @@ export function buildMultiTurnRenderBody(
     player: scenario.player,
     scene: scenario.scene,
     promptSetBase,
+    enabledSaves: buildEnabledSavesPayload(),
     npc: respondingNpc,
     selectedNpcs: npcs,
     chatHistory: chat,
