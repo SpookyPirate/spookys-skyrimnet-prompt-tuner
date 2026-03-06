@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCopycatStore } from "@/stores/copycatStore";
 import { ProposalDisplay } from "@/components/shared/ProposalDisplay";
 import type { CopycatPhase, CopycatRound, CopycatDialogueTurn } from "@/types/copycat";
+import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
   Circle,
@@ -13,6 +14,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 
 const PHASE_LABELS: Record<CopycatPhase, string> = {
@@ -49,6 +52,42 @@ function shortModelName(modelId: string): string {
   return slash >= 0 ? modelId.slice(slash + 1) : modelId;
 }
 
+const COPYCAT_NOTICE_KEY = "skyrimnet-copycat-notice-dismissed";
+
+function CopycatCostNotice({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="mx-4 mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+        <div className="flex-1 space-y-2">
+          <p className="text-xs font-semibold text-amber-400">
+            Heads up — the default Copycat model can be expensive
+          </p>
+          <p className="text-[11px] text-foreground/80">
+            The Copycat tuner is configured to use <span className="font-mono text-amber-300">claude-opus-4-6</span> by
+            default. Opus is the recommended model for this task because it needs to deeply analyze
+            dialogue style differences and produce precise tuning proposals — but it is significantly
+            more expensive than most models.
+          </p>
+          <p className="text-[11px] text-foreground/80">
+            To change the Copycat model: open <span className="font-semibold">Settings</span> (gear icon)
+            → scroll to the <span className="font-semibold">Copycat</span> agent slot
+            → change the <span className="font-semibold">Model Names</span> field to your preferred model.
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 shrink-0"
+          onClick={onDismiss}
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function CopycatCenter() {
   const phase = useCopycatStore((s) => s.phase);
   const currentRound = useCopycatStore((s) => s.currentRound);
@@ -60,6 +99,16 @@ export function CopycatCenter() {
   const referenceModelId = useCopycatStore((s) => s.referenceModelId);
   const targetModelId = useCopycatStore((s) => s.targetModelId);
 
+  const [showCostNotice, setShowCostNotice] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem(COPYCAT_NOTICE_KEY);
+  });
+
+  const dismissNotice = () => {
+    setShowCostNotice(false);
+    localStorage.setItem(COPYCAT_NOTICE_KEY, "1");
+  };
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,12 +119,15 @@ export function CopycatCenter() {
 
   if (phase === "idle" && rounds.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-        <div className="text-center space-y-2">
-          <p>Configure the copycat in the left panel and click Start.</p>
-          <p className="text-xs opacity-60">
-            The copycat will run dialogue through both models, compare styles, and iteratively tune the target.
-          </p>
+      <div className="flex h-full flex-col">
+        {showCostNotice && <CopycatCostNotice onDismiss={dismissNotice} />}
+        <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
+          <div className="text-center space-y-2">
+            <p>Configure the copycat in the left panel and click Start.</p>
+            <p className="text-xs opacity-60">
+              The copycat will run dialogue through both models, compare styles, and iteratively tune the target.
+            </p>
+          </div>
         </div>
       </div>
     );
