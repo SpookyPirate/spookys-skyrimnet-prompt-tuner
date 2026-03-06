@@ -6,6 +6,7 @@ node_modules/
 out/
 build/
 dist/
+releases/
 
 # Packaged desktop builds (dev/test — not for release)
 builds/
