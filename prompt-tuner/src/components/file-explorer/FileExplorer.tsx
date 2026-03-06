@@ -7,9 +7,73 @@ import { useFileStore } from "@/stores/fileStore";
 import { useAppStore } from "@/stores/appStore";
 import { FileTreeNode } from "./FileTreeNode";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Archive } from "lucide-react";
+import { Search, Loader2, Archive, Lock, File } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { FileNode } from "@/types/files";
+import { cn } from "@/lib/utils";
+import { FileContextMenu } from "./FileContextMenu";
+
+function SearchResultRow({ node }: { node: FileNode }) {
+  const openFiles = useFileStore((s) => s.openFiles);
+  const selectedPath = useFileStore((s) => s.selectedPath);
+  const setSelectedPath = useFileStore((s) => s.setSelectedPath);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const isSelected = selectedPath === node.path;
+  const isModified = openFiles.some((f) => f.path === node.path && f.isDirty);
+
+  const handleClick = useCallback(async () => {
+    setSelectedPath(node.path);
+    const store = useFileStore.getState();
+    if (store.openFiles.some((f) => f.path === node.path)) {
+      store.setActiveFile(node.path);
+      return;
+    }
+    store.setLoadingFile(true);
+    try {
+      const res = await fetch(`/api/files/read?path=${encodeURIComponent(node.path)}`);
+      const data = await res.json();
+      if (data.error) return;
+      store.openFile({
+        path: node.path,
+        name: node.name,
+        displayName: node.displayName || node.name,
+        content: data.content,
+        originalContent: data.content,
+        isDirty: false,
+        isReadOnly: data.isReadOnly,
+      });
+    } finally {
+      store.setLoadingFile(false);
+    }
+  }, [node, setSelectedPath]);
+
+  return (
+    <>
+      <button
+        onClick={handleClick}
+        onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }); }}
+        className={cn(
+          "flex w-full flex-col rounded-sm px-2 py-1 text-left hover:bg-accent",
+          isSelected && "bg-accent text-accent-foreground"
+        )}
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate text-xs">{node.displayName || node.name}</span>
+          {isModified && <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-blue-400" />}
+          {node.isReadOnly && <Lock className="ml-auto h-3 w-3 shrink-0 text-yellow-500/60" />}
+        </div>
+        {node.promptSetName && (
+          <div className="pl-5 text-[10px] text-muted-foreground truncate">{node.promptSetName}</div>
+        )}
+      </button>
+      {contextMenu && (
+        <FileContextMenu node={node} position={contextMenu} onClose={() => setContextMenu(null)} />
+      )}
+    </>
+  );
+}
 
 export function FileExplorer() {
   const tree = useFileStore((s) => s.tree);
@@ -92,13 +156,9 @@ export function FileExplorer() {
           ) : searchQuery.length >= 2 ? (
             // Search results
             searchResults.length > 0 ? (
-              <div className="space-y-0.5 py-1">
+              <div className="py-1">
                 {searchResults.map((node) => (
-                  <FileTreeNode
-                    key={node.path}
-                    node={node}
-                    depth={0}
-                  />
+                  <SearchResultRow key={node.path} node={node} />
                 ))}
               </div>
             ) : (

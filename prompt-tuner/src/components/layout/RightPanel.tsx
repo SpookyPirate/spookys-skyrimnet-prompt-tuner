@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSimulationStore } from "@/stores/simulationStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { ActionSelectorPreviewContent } from "@/components/analysis/ActionSelectorPreview";
 import { SessionAnalysisDialog } from "@/components/analysis/SessionAnalysisDialog";
 import { AgentTestDialog } from "@/components/analysis/AgentTestDialog";
@@ -26,6 +27,11 @@ export function RightPanel() {
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
   const selectedNpcs = useSimulationStore((s) => s.selectedNpcs);
   const chatHistory = useSimulationStore((s) => s.chatHistory);
+
+  const profiles = useProfileStore((s) => s.profiles);
+  const activeProfileId = useProfileStore((s) => s.activeProfileId);
+  const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const activeModelName = activeProfile?.slots["default"]?.api?.modelNames || "";
 
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [memoryGenOpen, setMemoryGenOpen] = useState(false);
@@ -54,6 +60,19 @@ export function RightPanel() {
       <div className="flex h-8 items-center border-b px-3">
         <span className="text-xs font-medium text-muted-foreground">Analysis</span>
       </div>
+      {activeTab === "preview" && activeProfile && (
+        <div className="border-b px-3 py-2 space-y-0.5">
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Active Profile
+          </div>
+          <div className="text-xs font-medium truncate">{activeProfile.name}</div>
+          {activeModelName && (
+            <div className="text-[10px] text-muted-foreground font-mono truncate" title={activeModelName}>
+              {activeModelName}
+            </div>
+          )}
+        </div>
+      )}
       <ScrollArea className="flex-1 overflow-hidden">
         <div className="p-3 space-y-4">
           <Section title="Action Triggers" icon={<Zap className="h-3.5 w-3.5" />}>

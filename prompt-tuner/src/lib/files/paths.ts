@@ -1,19 +1,33 @@
 import path from "path";
 
-// The Next.js app lives in prompt-tuner/, so the project root is one level up
-export const PROJECT_ROOT = path.resolve(process.cwd(), "..");
+// ── Path resolution ───────────────────────────────────────────────────────────
+//
+// In dev:      process.cwd() is prompt-tuner/, so PROJECT_ROOT is one level up.
+// In packaged: electron/main.js sets env vars before starting the server so
+//              paths point to the correct locations inside the packaged bundle.
+//
+// SKYRIMNET_DATA_DIR     — writable user data (edited-prompts live here).
+//                          Packaged: data/ folder next to the exe.
+// SKYRIMNET_ORIGINALS_DIR — absolute path to the bundled original_prompts dir.
+//                           Packaged: inside Electron's resourcesPath.
 
-export const ORIGINAL_PROMPTS_DIR = path.join(
-  PROJECT_ROOT,
-  "reference-docs",
-  "skyrimnet-prompts",
-  "SkyrimNet-beta15.4_hotfix01",
-  "original_prompts"
-);
+const DATA_DIR = process.env.SKYRIMNET_DATA_DIR
+  ? path.resolve(process.env.SKYRIMNET_DATA_DIR)
+  : path.resolve(process.cwd(), "..");
 
-export const EDITED_PROMPTS_DIR = path.join(PROJECT_ROOT, "edited-prompts");
+export const PROJECT_ROOT = DATA_DIR;
 
-export const REFERENCE_DOCS_DIR = path.join(PROJECT_ROOT, "reference-docs");
+export const ORIGINAL_PROMPTS_DIR = process.env.SKYRIMNET_ORIGINALS_DIR
+  ? path.resolve(process.env.SKYRIMNET_ORIGINALS_DIR)
+  : path.join(DATA_DIR, "reference-docs", "skyrimnet-prompts", "SkyrimNet-beta15.4_hotfix01", "original_prompts");
+
+export const EDITED_PROMPTS_DIR = path.join(DATA_DIR, "edited-prompts");
+
+// REFERENCE_DOCS_DIR is derived from ORIGINAL_PROMPTS_DIR (3 levels up).
+// Used by isPathAllowed() to permit reads of bundled reference docs.
+export const REFERENCE_DOCS_DIR = process.env.SKYRIMNET_ORIGINALS_DIR
+  ? path.resolve(process.env.SKYRIMNET_ORIGINALS_DIR, "..", "..", "..")
+  : path.join(DATA_DIR, "reference-docs");
 
 /** MO2-ready subpath: prompts live at {set}/SKSE/Plugins/SkyrimNet/prompts/ */
 export const MO2_PROMPTS_SUBPATH = path.join("SKSE", "Plugins", "SkyrimNet", "prompts");

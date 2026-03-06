@@ -7,7 +7,7 @@ import type { FileNode } from "@/types/files";
 const SEARCHABLE_EXTENSIONS = new Set([".prompt", ".yaml", ".yml", ".txt", ".md"]);
 
 /** Walk a directory recursively and collect all searchable file nodes. */
-async function walkDir(dir: string, readOnly: boolean, nodes: FileNode[]): Promise<void> {
+async function walkDir(dir: string, readOnly: boolean, nodes: FileNode[], promptSetName: string): Promise<void> {
   let entries: string[];
   try {
     entries = await fs.readdir(dir);
@@ -26,7 +26,7 @@ async function walkDir(dir: string, readOnly: boolean, nodes: FileNode[]): Promi
       }
 
       if (stat.isDirectory()) {
-        await walkDir(fullPath, readOnly, nodes);
+        await walkDir(fullPath, readOnly, nodes, promptSetName);
       } else if (SEARCHABLE_EXTENSIONS.has(path.extname(entry).toLowerCase())) {
         const isChar = entry.endsWith(".prompt") && dir.includes("characters");
         const displayName = isChar ? parseCharacterName(entry).displayName : entry;
@@ -36,6 +36,7 @@ async function walkDir(dir: string, readOnly: boolean, nodes: FileNode[]): Promi
           type: "file",
           isReadOnly: readOnly || isReadOnly(fullPath),
           displayName,
+          promptSetName,
         });
       }
     })
@@ -53,19 +54,21 @@ async function getFileIndex(): Promise<FileNode[]> {
   const nodes: FileNode[] = [];
 
   // Original prompts (read-only)
-  await walkDir(ORIGINAL_PROMPTS_DIR, true, nodes);
+  await walkDir(ORIGINAL_PROMPTS_DIR, true, nodes, "Original Prompts");
 
   // All edited prompt sets
   try {
     const sets = await fs.readdir(EDITED_PROMPTS_DIR);
     await Promise.all(
-      sets.map(async (setName) => {
-        const setPath = path.join(EDITED_PROMPTS_DIR, setName);
-        const stat = await fs.stat(setPath).catch(() => null);
-        if (stat?.isDirectory()) {
-          await walkDir(setPath, false, nodes);
-        }
-      })
+      sets
+        .filter((setName) => !setName.startsWith("__"))
+        .map(async (setName) => {
+          const setPath = path.join(EDITED_PROMPTS_DIR, setName);
+          const stat = await fs.stat(setPath).catch(() => null);
+          if (stat?.isDirectory()) {
+            await walkDir(setPath, false, nodes, setName);
+          }
+        })
     );
   } catch {
     // Edited dir may not exist yet

@@ -6,6 +6,8 @@ export interface FileNode {
   isLoaded?: boolean;
   isReadOnly?: boolean;
   displayName?: string;
+  /** Set name this file belongs to, populated in search results */
+  promptSetName?: string;
 }
 
 export interface OpenFile {

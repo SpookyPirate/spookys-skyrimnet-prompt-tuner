@@ -1,5 +1,3 @@
-*.7z
-*.zip
 nul
 
 # Dependencies & build artifacts
@@ -8,6 +6,10 @@ node_modules/
 out/
 build/
 dist/
+
+# Packaged desktop builds (dev/test — not for release)
+builds/
+# Note: releases/ is intentionally NOT ignored — those are committed for GitHub
 
 # Environment & secrets
 .env

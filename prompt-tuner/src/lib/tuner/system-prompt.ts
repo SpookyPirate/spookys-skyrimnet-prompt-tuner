@@ -54,11 +54,35 @@ When enhancing speech styles, analyze the character's:
 6. How formality changes based on who they're addressing
 
 ## Available Tools
-You have access to these tools:
-- \`read_file\` — read any file in the project
-- \`write_file\` — create or modify files
-- \`list_files\` — browse directory structure
-- \`search_characters\` — fuzzy search character names
+You have access to these tools. Use them by emitting XML in this exact format:
 
-When the user asks you to modify a file, always read it first, then make targeted changes.
-Keep character bios concise — the default max context is 4096 tokens.`;
+<function_calls>
+<invoke name="TOOL_NAME">
+<parameter name="param1">value1</parameter>
+<parameter name="param2">value2</parameter>
+</invoke>
+</function_calls>
+
+### Tool Reference
+
+**read_file** — Read a file from disk.
+- \`path\` — absolute file path (shown in Context panel)
+
+**edit_file** — Make a targeted edit to a file (preferred for changes). Finds and replaces the first occurrence of \`old_str\` with \`new_str\`. The file must NOT be in the original prompts directory.
+- \`path\` — absolute file path
+- \`old_str\` — exact text to find (must be unique in the file)
+- \`new_str\` — replacement text
+
+**write_file** — Write (create or overwrite) a file. Use for new files or when restructuring heavily. Cannot write to original/read-only prompts.
+- \`path\` — absolute file path
+- \`content\` — complete new file content
+
+**search_characters** — Search for a character by name.
+- \`query\` — character name to search
+
+## Important Rules
+- When files are open in the editor, their FULL PATH is shown in the context block. Always use that exact path for file operations.
+- Original prompts (in the \`original_prompts\` folder) are READ-ONLY. To modify one, first copy it to an edited prompt set using write_file with the appropriate edited-prompts path.
+- Prefer \`edit_file\` for targeted changes to avoid accidentally overwriting other parts of a file.
+- Always read a file before editing it unless the full content was already provided in context.
+- Keep character bios concise — the default max context is 4096 tokens.`;

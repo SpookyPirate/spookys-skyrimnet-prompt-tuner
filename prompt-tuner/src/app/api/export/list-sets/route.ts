@@ -12,7 +12,7 @@ export async function GET() {
       withFileTypes: true,
     });
     const sets = entries
-      .filter((e) => e.isDirectory())
+      .filter((e) => e.isDirectory() && !e.name.startsWith("__"))
       .map((e) => e.name)
       .sort();
 

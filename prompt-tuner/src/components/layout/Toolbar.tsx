@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/appStore";
 import { useFileStore } from "@/stores/fileStore";
@@ -16,6 +16,7 @@ import {
   Swords,
   Zap,
   Wrench,
+  Loader2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -29,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { exportZip } from "@/lib/export/export-zip";
 
 export function Toolbar() {
   const toggleLeftPanel = useAppStore((s) => s.toggleLeftPanel);
@@ -36,13 +38,25 @@ export function Toolbar() {
   const leftPanelOpen = useAppStore((s) => s.leftPanelOpen);
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
   const activeTab = useAppStore((s) => s.activeTab);
+  const activePromptSet = useAppStore((s) => s.activePromptSet);
 
   const showRightPanel = activeTab !== "editor" && activeTab !== "tuner";
   const setSettingsOpen = useConfigStore((s) => s.setSettingsOpen);
-  const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
   const setEnhanceSpeechDialogOpen = useAppStore((s) => s.setEnhanceSpeechDialogOpen);
   const setCreateYamlDialogOpen = useAppStore((s) => s.setCreateYamlDialogOpen);
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportZip = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportZip(activePromptSet);
+    } finally {
+      setExporting(false);
+    }
+  }, [activePromptSet, exporting]);
 
   return (
     <div className="flex h-10 items-center justify-between border-b bg-card px-2">
@@ -96,8 +110,8 @@ export function Toolbar() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setExportDialogOpen(true)}>
-              <Download className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleExportZip} disabled={exporting}>
+              {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               Export Zip
             </Button>
           </TooltipTrigger>
@@ -169,12 +183,27 @@ function PromptSetSwitcher() {
   const [sets, setSets] = useState<string[]>([]);
   const activePromptSet = useAppStore((s) => s.activePromptSet);
 
-  useEffect(() => {
+  const refreshSets = useCallback(() => {
     fetch("/api/export/list-sets")
       .then((res) => res.json())
       .then((data) => setSets(data.sets ?? []))
       .catch(() => {});
   }, []);
+
+  // Re-fetch whenever the active prompt set changes (e.g. after saving a new set)
+  // Also reset to default if the stored set no longer exists (e.g. stale localStorage)
+  useEffect(() => {
+    fetch("/api/export/list-sets")
+      .then((res) => res.json())
+      .then((data) => {
+        const available: string[] = data.sets ?? [];
+        setSets(available);
+        if (activePromptSet && !available.includes(activePromptSet)) {
+          useAppStore.getState().setActivePromptSet("");
+        }
+      })
+      .catch(() => {});
+  }, [activePromptSet, refreshSets]);
 
   const handleSelect = async (value: string) => {
     if (value === activePromptSet) return;

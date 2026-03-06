@@ -1,24 +1,24 @@
 import { create } from "zustand";
 
 const STORAGE_KEY = "skyrimnet-app";
-const DEFAULT_PROMPT_SET = "v1.0";
+const DEFAULT_PROMPT_SET = "";
 
 type AppTab = "editor" | "tuner" | "preview" | "benchmark" | "autotuner" | "copycat";
 
 function loadPersistedState(): { activePromptSet: string; activeTab: AppTab } {
-  if (typeof window === "undefined") return { activePromptSet: DEFAULT_PROMPT_SET, activeTab: "editor" };
+  if (typeof window === "undefined") return { activePromptSet: "", activeTab: "editor" };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const tab = parsed.activeTab;
       return {
-        activePromptSet: parsed.activePromptSet ?? DEFAULT_PROMPT_SET,
+        activePromptSet: parsed.activePromptSet ?? "",
         activeTab: tab === "editor" || tab === "tuner" || tab === "preview" || tab === "benchmark" || tab === "autotuner" || tab === "copycat" ? tab : "editor",
       };
     }
   } catch {}
-  return { activePromptSet: DEFAULT_PROMPT_SET, activeTab: "editor" };
+  return { activePromptSet: "", activeTab: "editor" };
 }
 
 function persistState(state: { activePromptSet: string; activeTab: string }) {

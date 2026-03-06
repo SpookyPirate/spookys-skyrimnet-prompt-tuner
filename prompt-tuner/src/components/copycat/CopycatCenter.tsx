@@ -43,6 +43,12 @@ function PhaseIcon({ phase }: { phase: CopycatPhase }) {
   }
 }
 
+function shortModelName(modelId: string): string {
+  // e.g. "anthropic/claude-opus-4-6" → "claude-opus-4-6"
+  const slash = modelId.lastIndexOf("/");
+  return slash >= 0 ? modelId.slice(slash + 1) : modelId;
+}
+
 export function CopycatCenter() {
   const phase = useCopycatStore((s) => s.phase);
   const currentRound = useCopycatStore((s) => s.currentRound);
@@ -51,6 +57,8 @@ export function CopycatCenter() {
   const comparisonStream = useCopycatStore((s) => s.comparisonStream);
   const proposalStream = useCopycatStore((s) => s.proposalStream);
   const isRunning = useCopycatStore((s) => s.isRunning);
+  const referenceModelId = useCopycatStore((s) => s.referenceModelId);
+  const targetModelId = useCopycatStore((s) => s.targetModelId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +103,8 @@ export function CopycatCenter() {
               round={round}
               isCurrentRound={idx === rounds.length - 1 && isRunning}
               comparisonStream={idx === rounds.length - 1 ? comparisonStream : ""}
+              referenceModelId={referenceModelId}
+              targetModelId={targetModelId}
             />
           ))}
         </div>
@@ -107,11 +117,17 @@ function CopycatRoundCard({
   round,
   isCurrentRound,
   comparisonStream,
+  referenceModelId,
+  targetModelId,
 }: {
   round: CopycatRound;
   isCurrentRound: boolean;
   comparisonStream: string;
+  referenceModelId: string;
+  targetModelId: string;
 }) {
+  const refLabel = referenceModelId ? shortModelName(referenceModelId) : undefined;
+  const tgtLabel = targetModelId ? shortModelName(targetModelId) : undefined;
   // Which section is currently active — drives auto-expand/collapse.
   // Only the active section is open; others collapse when the phase moves on.
   const activeSection: string | null = !isCurrentRound ? null :
@@ -171,6 +187,7 @@ function CopycatRoundCard({
         {round.referenceDialogue.length > 0 && (
           <CollapsibleSection
             title="Reference Dialogue"
+            subtitle={refLabel}
             open={refOpen}
             onToggle={() => setRefOpen(!refOpen)}
             badge={round.roundNumber > 1 ? "Frozen from Round 1" : undefined}
@@ -183,6 +200,7 @@ function CopycatRoundCard({
         {round.targetDialogue.length > 0 && (
           <CollapsibleSection
             title="Target Dialogue"
+            subtitle={tgtLabel}
             open={targetOpen}
             onToggle={() => setTargetOpen(!targetOpen)}
           >
@@ -205,11 +223,15 @@ function CopycatRoundCard({
                     <div className="text-[10px] font-medium text-muted-foreground">{refTurn.label}</div>
                     <div className="grid grid-cols-2 gap-1 min-w-0">
                       <div className="rounded bg-blue-500/5 p-2 min-w-0 overflow-hidden">
-                        <div className="text-[9px] font-medium text-blue-400 mb-0.5">Reference</div>
+                        <div className="text-[9px] font-medium text-blue-400 mb-0.5 truncate" title={referenceModelId}>
+                          Reference{refLabel ? ` · ${refLabel}` : ""}
+                        </div>
                         <pre className="whitespace-pre-wrap break-words text-xs max-h-32 overflow-auto">{refTurn.response}</pre>
                       </div>
                       <div className="rounded bg-amber-500/5 p-2 min-w-0 overflow-hidden">
-                        <div className="text-[9px] font-medium text-amber-400 mb-0.5">Target</div>
+                        <div className="text-[9px] font-medium text-amber-400 mb-0.5 truncate" title={targetModelId}>
+                          Target{tgtLabel ? ` · ${tgtLabel}` : ""}
+                        </div>
                         <pre className="whitespace-pre-wrap break-words text-xs max-h-32 overflow-auto">{targetTurn?.response || "(no response)"}</pre>
                       </div>
                     </div>
@@ -301,6 +323,7 @@ function DialogueTurns({
 
 function CollapsibleSection({
   title,
+  subtitle,
   open,
   onToggle,
   badge,
@@ -308,6 +331,7 @@ function CollapsibleSection({
   children,
 }: {
   title: string;
+  subtitle?: string;
   open: boolean;
   onToggle: () => void;
   badge?: string;
@@ -318,19 +342,24 @@ function CollapsibleSection({
     <div className="border-t first:border-t-0">
       <button
         onClick={onToggle}
-        className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-accent/30 transition-colors"
+        className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-accent/30 transition-colors min-w-0"
       >
         {open ? (
-          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
         )}
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">
           {title}
         </span>
-        {streaming && <Loader2 className="h-3 w-3 animate-spin text-blue-500 ml-1" />}
+        {subtitle && (
+          <span className="text-[10px] font-mono text-muted-foreground/60 truncate" title={subtitle}>
+            {subtitle}
+          </span>
+        )}
+        {streaming && <Loader2 className="h-3 w-3 animate-spin text-blue-500 ml-1 shrink-0" />}
         {badge && (
-          <span className="ml-auto text-[10px] text-muted-foreground">{badge}</span>
+          <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{badge}</span>
         )}
       </button>
       {open && <div className="px-3 pb-2 min-w-0 overflow-hidden">{children}</div>}

@@ -1,0 +1,53 @@
+# ── electron-builder configuration ──────────────────────────────────────────
+# See BUILD.md for full build instructions.
+
+appId: com.spookys.skyrimnet-prompt-tuner
+productName: "SkyrimNet Prompt Tuner"
+copyright: "Copyright © 2025 Spooky"
+
+# Root package.json is the source of version and name.
+# electron/main.js is the entry point (set via package.json "main").
+
+# ── What goes in resources/app/ (the Electron shell itself) ─────────────────
+files:
+  - electron/main.js
+  - electron/preload.js
+  - electron/assets/icon.ico
+  - "!**/{node_modules,*.md}"
+
+# ── Extra resources copied alongside the app ─────────────────────────────────
+# These land at resources/<to> in the packaged app.
+# process.resourcesPath points to this resources/ folder at runtime.
+extraResources:
+  # Next.js standalone server (built output — run `npm run build:next` first)
+  - from: prompt-tuner/.next/standalone
+    to: server
+    filter:
+      - "**/*"
+      - "!**/*.map"
+
+  # Original SkyrimNet prompts (read-only reference, bundled with app)
+  - from: reference-docs/skyrimnet-prompts
+    to: reference-docs/skyrimnet-prompts
+    filter:
+      - "**/*"
+
+# ── Windows build ─────────────────────────────────────────────────────────────
+win:
+  icon: electron/assets/icon.ico   # Replace with a real .ico before releasing
+  target:
+    # ZIP: user unzips to any folder, clicks the .exe — no install required
+    - target: zip
+      arch: [x64]
+    # DIR: unpacked folder, useful for local testing
+    - target: dir
+      arch: [x64]
+
+# ── Output directories ────────────────────────────────────────────────────────
+directories:
+  output: builds           # gitignored — dev/test builds land here
+  buildResources: electron/assets
+
+# ── Artifact naming ───────────────────────────────────────────────────────────
+# Pattern: SkyrimNet-Prompt-Tuner-{version}-win-x64.zip
+artifactName: "SkyrimNet-Prompt-Tuner-${version}-win-x64.${ext}"

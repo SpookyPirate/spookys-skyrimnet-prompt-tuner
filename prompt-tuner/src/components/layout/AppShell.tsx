@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback } from "react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -13,19 +13,16 @@ import { LeftPanel } from "./LeftPanel";
 import { CenterPanel } from "./CenterPanel";
 import { RightPanel } from "./RightPanel";
 import { SettingsDialog } from "@/components/config/SettingsDialog";
-import { ExportDialog } from "@/components/export/ExportDialog";
 import { SavePromptSetDialog } from "@/components/export/SavePromptSetDialog";
 import { EnhanceSpeechDialog } from "@/components/speech/EnhanceSpeechDialog";
 import { UpdateOriginalsDialog } from "@/components/file-explorer/UpdateOriginalsDialog";
 import { CreateYamlDialog } from "@/components/actions/CreateYamlDialog";
 import { CommandPalette } from "./CommandPalette";
-import { usePanelRef, type PanelImperativeHandle } from "react-resizable-panels";
+import { usePanelRef, useDefaultLayout } from "react-resizable-panels";
 
 export function AppShell() {
   const leftPanelOpen = useAppStore((s) => s.leftPanelOpen);
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
-  const exportDialogOpen = useAppStore((s) => s.exportDialogOpen);
-  const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const saveSetDialogOpen = useAppStore((s) => s.saveSetDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
   const enhanceSpeechDialogOpen = useAppStore((s) => s.enhanceSpeechDialogOpen);
@@ -39,31 +36,13 @@ export function AppShell() {
   const leftPanelRef = usePanelRef();
   const rightPanelRef = usePanelRef();
 
-  // Remember the user's right-panel preference for tabs that support it
-  const savedRightPanelOpen = useRef(true);
-  const prevTabRef = useRef(activeTab);
   const hideRightPanel = activeTab === "editor" || activeTab === "tuner";
-  const hideRightPanelRef = useRef(hideRightPanel);
-  hideRightPanelRef.current = hideRightPanel;
 
-  useEffect(() => {
-    const prevTab = prevTabRef.current;
-    prevTabRef.current = activeTab;
-
-    const prevHidden = prevTab === "editor" || prevTab === "tuner";
-    const nowHidden = activeTab === "editor" || activeTab === "tuner";
-
-    if (nowHidden) {
-      if (!prevHidden) {
-        savedRightPanelOpen.current = useAppStore.getState().rightPanelOpen;
-      }
-      rightPanelRef.current?.collapse();
-    } else if (prevHidden) {
-      if (savedRightPanelOpen.current) {
-        rightPanelRef.current?.expand();
-      }
-    }
-  }, [activeTab, rightPanelRef]);
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "app-shell",
+    panelIds: ["left", "center", "right"],
+    storage: typeof window !== "undefined" ? localStorage : undefined,
+  });
 
   // Sync store → panel collapse/expand
   useEffect(() => {
@@ -75,13 +54,12 @@ export function AppShell() {
   }, [leftPanelOpen, leftPanelRef]);
 
   useEffect(() => {
-    if (hideRightPanel) return;
     if (rightPanelOpen) {
       rightPanelRef.current?.expand();
     } else {
       rightPanelRef.current?.collapse();
     }
-  }, [rightPanelOpen, rightPanelRef, hideRightPanel]);
+  }, [rightPanelOpen, rightPanelRef]);
 
   // Sync panel resize → store (detect drag-to-collapse)
   const handleLeftResize = useCallback(
@@ -98,7 +76,6 @@ export function AppShell() {
 
   const handleRightResize = useCallback(
     (size: { asPercentage: number }) => {
-      if (hideRightPanelRef.current) return; // Ignore resize events from auto-collapse
       const store = useAppStore.getState();
       if (size.asPercentage === 0 && store.rightPanelOpen) {
         store.toggleRightPanel();
@@ -113,8 +90,14 @@ export function AppShell() {
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <Toolbar />
       <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup orientation="horizontal" className="h-full">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="h-full"
+          defaultLayout={defaultLayout}
+          onLayoutChanged={onLayoutChanged}
+        >
           <ResizablePanel
+            id="left"
             panelRef={leftPanelRef}
             defaultSize="20%"
             minSize="200px"
@@ -126,30 +109,30 @@ export function AppShell() {
             <LeftPanel />
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize="55%" minSize="300px">
+          <ResizablePanel id="center" defaultSize="55%" minSize="300px">
             <CenterPanel />
           </ResizablePanel>
-          <ResizableHandle withHandle className={hideRightPanel ? "pointer-events-none opacity-0 !w-0" : ""} />
-          <ResizablePanel
-            panelRef={rightPanelRef}
-            defaultSize="25%"
-            minSize="200px"
-            maxSize="35%"
-            collapsible
-            collapsedSize={0}
-            onResize={handleRightResize}
-          >
-            <RightPanel />
-          </ResizablePanel>
+          {!hideRightPanel && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                id="right"
+                panelRef={rightPanelRef}
+                defaultSize="25%"
+                minSize="200px"
+                maxSize="35%"
+                collapsible
+                collapsedSize={0}
+                onResize={handleRightResize}
+              >
+                <RightPanel />
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
       <StatusBar />
       <SettingsDialog />
-      <ExportDialog
-        open={exportDialogOpen}
-        onOpenChange={setExportDialogOpen}
-        promptSetName={activePromptSet}
-      />
       <SavePromptSetDialog
         open={saveSetDialogOpen}
         onOpenChange={setSaveSetDialogOpen}

@@ -100,11 +100,15 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   updateFileContent: (path, content) =>
     set((state) => ({
-      openFiles: state.openFiles.map((f) =>
-        f.path === path
-          ? { ...f, content, isDirty: content !== f.originalContent }
-          : f
-      ),
+      openFiles: state.openFiles.map((f) => {
+        if (f.path !== path) return f;
+        // Normalize line endings before comparing so CRLF↔LF differences
+        // (e.g. from CodeMirror normalizing Windows line endings) don't mark
+        // a file dirty when the user hasn't actually changed anything.
+        const normalize = (s: string) => s.replace(/\r\n/g, "\n");
+        const isDirty = normalize(content) !== normalize(f.originalContent);
+        return { ...f, content, isDirty };
+      }),
     })),
 
   markFileSaved: (path) =>

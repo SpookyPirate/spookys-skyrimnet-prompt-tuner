@@ -40,7 +40,7 @@ export async function buildFileTree(): Promise<FileNode[]> {
       withFileTypes: true,
     });
     for (const entry of editedEntries) {
-      if (entry.isDirectory()) {
+      if (entry.isDirectory() && !entry.name.startsWith("__")) {
         const setPath = path.join(EDITED_PROMPTS_DIR, entry.name);
         const setTree = await buildDirectoryTree(setPath, {
           isReadOnly: false,

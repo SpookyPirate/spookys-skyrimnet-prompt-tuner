@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAutoTunerStore } from "@/stores/autoTunerStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { getCategoryDef } from "@/lib/benchmark/categories";
 import { saveSettingsToProfile, saveSettingsToNewProfile, deleteTunerTempSet } from "@/lib/autotuner/save-results";
 import { buildTuningReport } from "@/lib/autotuner/export-tuning-report";
 import { PromptSaveSection } from "@/components/shared/PromptSaveSection";
@@ -55,6 +56,11 @@ export function AutoTunerReport() {
 
   const tunedProfile = profiles.find((p) => p.id === selectedProfileId);
   const otherProfiles = profiles.filter((p) => p.id !== selectedProfileId);
+
+  const catDef = selectedCategory ? getCategoryDef(selectedCategory) : undefined;
+  const tunedModelName = catDef && tunedProfile
+    ? (tunedProfile.slots[catDef.agent]?.api?.modelNames ?? "Unknown model")
+    : undefined;
 
   type SaveMode = "overwrite" | "copy" | "other";
   const [saveMode, setSaveMode] = useState<SaveMode>("overwrite");
@@ -134,6 +140,20 @@ export function AutoTunerReport() {
     );
   }
 
+  const ModelInfoBanner = tunedProfile ? (
+    <div className="border-b px-3 py-2 space-y-0.5">
+      <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+        Tuning
+      </div>
+      <div className="text-xs font-medium truncate">{tunedProfile.name}</div>
+      {tunedModelName && (
+        <div className="text-[10px] text-muted-foreground font-mono truncate" title={tunedModelName}>
+          {tunedModelName}
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="flex h-full flex-col bg-card">
       <div className="flex h-8 items-center border-b px-3">
@@ -141,6 +161,7 @@ export function AutoTunerReport() {
           Tuning Report
         </span>
       </div>
+      {ModelInfoBanner}
       <ScrollArea className="flex-1 overflow-hidden">
         <div className="p-3 space-y-4">
           {/* Status */}

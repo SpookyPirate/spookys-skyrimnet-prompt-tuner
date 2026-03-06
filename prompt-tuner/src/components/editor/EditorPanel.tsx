@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FileText, Loader2, GitCompare, Eye, Save } from "lucide-react";
+import { FileText, Loader2, GitCompare, Eye, SaveAll, FileOutput } from "lucide-react";
 import { toast } from "sonner";
 import { YamlValidationBadge } from "./YamlValidationBadge";
 
@@ -29,6 +29,9 @@ export function EditorPanel() {
   const [showRendered, setShowRendered] = useState(false);
   const [renderedOutput, setRenderedOutput] = useState<string | null>(null);
   const [loadingRender, setLoadingRender] = useState(false);
+  const [showCopyMenu, setShowCopyMenu] = useState(false);
+  const [newSetName, setNewSetName] = useState("");
+  const [availableSets, setAvailableSets] = useState<string[]>([]);
 
   const activeFile = openFiles.find((f) => f.path === activeFilePath);
 
@@ -106,6 +109,24 @@ export function EditorPanel() {
     }
   }, [activeFile, markFileSaved]);
 
+  const handleCopyToSet = useCallback(async (targetSetName: string) => {
+    if (!activeFile || !targetSetName.trim()) return;
+    const res = await fetch("/api/files/copy-to-set", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourcePath: activeFile.path, targetSetName: targetSetName.trim() }),
+    });
+    if (res.ok) {
+      await useFileStore.getState().refreshTree();
+      toast.success(`Copied to "${targetSetName.trim()}"`);
+      setShowCopyMenu(false);
+      setNewSetName("");
+    } else {
+      const d = await res.json();
+      toast.error(d.error || "Copy failed");
+    }
+  }, [activeFile]);
+
   const handleRenderPreview = useCallback(async () => {
     if (!activeFile) return;
     setShowRendered(true);
@@ -181,7 +202,7 @@ export function EditorPanel() {
       {activeFile && (
         <>
           {/* Editor toolbar */}
-          <div className="flex items-center gap-1 border-b px-2 py-1 bg-card/50">
+          <div className="flex items-center gap-0.5 border-b px-2 py-1 bg-card/50">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -218,6 +239,93 @@ export function EditorPanel() {
               <TooltipContent>Render preview</TooltipContent>
             </Tooltip>
 
+            {/* Divider */}
+            <div className="mx-1 h-4 w-px bg-border shrink-0" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={activeFile.isDirty && !activeFile.isReadOnly ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleSave}
+                  disabled={!activeFile.isDirty || activeFile.isReadOnly}
+                >
+                  <SaveAll className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save (Ctrl+S)</TooltipContent>
+            </Tooltip>
+
+            {/* Save copy to prompt set */}
+            <div className="relative">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showCopyMenu ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      if (!showCopyMenu) {
+                        fetch("/api/export/list-sets")
+                          .then((r) => r.json())
+                          .then((d) => setAvailableSets(d.sets ?? []))
+                          .catch(() => setAvailableSets([]));
+                      }
+                      setShowCopyMenu((v) => !v);
+                    }}
+                  >
+                    <FileOutput className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Save copy to prompt set</TooltipContent>
+              </Tooltip>
+
+              {showCopyMenu && (
+                <>
+                  {/* Backdrop */}
+                  <div className="fixed inset-0 z-40" onClick={() => setShowCopyMenu(false)} />
+                  <div className="absolute left-0 top-full mt-1 z-50 w-52 rounded-md border bg-popover shadow-lg py-1 text-xs">
+                    {availableSets.length > 0 && (
+                      <>
+                        {availableSets.map((name) => (
+                          <button
+                            key={name}
+                            onClick={() => handleCopyToSet(name)}
+                            className="w-full text-left px-3 py-1.5 hover:bg-accent transition-colors truncate"
+                          >
+                            {name}
+                          </button>
+                        ))}
+                        <div className="my-1 border-t" />
+                      </>
+                    )}
+                    <div className="px-3 py-1 text-[10px] text-muted-foreground">New prompt set:</div>
+                    <div className="flex gap-1 px-2 pb-1.5">
+                      <input
+                        className="flex-1 h-6 rounded border bg-background px-1.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
+                        placeholder="Set name..."
+                        value={newSetName}
+                        onChange={(e) => setNewSetName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCopyToSet(newSetName);
+                          e.stopPropagation();
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleCopyToSet(newSetName)}
+                        disabled={!newSetName.trim()}
+                        className="rounded bg-primary px-2 text-[10px] text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="flex-1" />
 
             {activeFile.name.endsWith(".yaml") || activeFile.name.endsWith(".yml") ? (
@@ -229,21 +337,6 @@ export function EditorPanel() {
             <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-mono">
               {activeFile.content.split("\n").length} lines
             </Badge>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={activeFile.isDirty ? "default" : "ghost"}
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={handleSave}
-                  disabled={!activeFile.isDirty || activeFile.isReadOnly}
-                >
-                  <Save className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Save (Ctrl+S)</TooltipContent>
-            </Tooltip>
           </div>
 
           {/* Content area */}

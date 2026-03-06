@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useFileStore } from "@/stores/fileStore";
 import { useAppStore } from "@/stores/appStore";
 import { FileText, Search, FolderOpen, MessageSquare, Eye, Code } from "lucide-react";
+import { exportZip } from "@/lib/export/export-zip";
 
 interface PaletteItem {
   id: string;
@@ -33,7 +34,6 @@ export function CommandPalette() {
   const openFiles = useFileStore((s) => s.openFiles);
   const setActiveFile = useFileStore((s) => s.setActiveFile);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
-  const setExportDialogOpen = useAppStore((s) => s.setExportDialogOpen);
   const setSaveSetDialogOpen = useAppStore((s) => s.setSaveSetDialogOpen);
 
   // Global keyboard shortcut
@@ -155,7 +155,7 @@ export function CommandPalette() {
         id: "cmd-export",
         label: "Export as Zip",
         icon: <FolderOpen className="h-3.5 w-3.5" />,
-        action: () => { setExportDialogOpen(true); setOpen(false); },
+        action: async () => { setOpen(false); await exportZip(useAppStore.getState().activePromptSet); },
         category: "command",
       },
       {
