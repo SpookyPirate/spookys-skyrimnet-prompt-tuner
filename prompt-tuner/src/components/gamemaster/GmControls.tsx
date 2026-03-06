@@ -13,6 +13,7 @@ import {
   Timer,
   Loader2,
 } from "lucide-react";
+import { InferenceMixer } from "@/components/chat/InferenceMixer";
 
 const GM_STATUS_LABELS: Record<string, { label: string; color: string }> = {
   idle: { label: "Idle", color: "text-muted-foreground" },
@@ -58,7 +59,7 @@ export function GmControls() {
 
   if (!gmEnabled) {
     return (
-      <div className="border-t px-2 py-1.5">
+      <div className="border-t px-2 py-1.5 flex items-center gap-3">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -72,6 +73,7 @@ export function GmControls() {
             GameMaster Mode
           </span>
         </label>
+        <InferenceMixer />
       </div>
     );
   }
@@ -106,6 +108,8 @@ export function GmControls() {
             {gmStatus === "cooldown" && countdown > 0 && ` (${countdown}s)`}
           </span>
         )}
+
+        <InferenceMixer />
 
         {scenePlan && (
           <Badge

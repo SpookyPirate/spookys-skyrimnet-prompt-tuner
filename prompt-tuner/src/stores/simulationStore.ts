@@ -89,6 +89,8 @@ interface SimulationState {
   gmCooldown: number;
   gmContinuousMode: boolean;
   gmActionLog: GmActionEntry[];
+  // Inference mixer overrides (dialogue agent only, null = use profile)
+  inferenceOverrides: Partial<import("@/types/config").AiTuningSettings> | null;
   // Autochat
   autochatEnabled: boolean;
   autochatDuration: number;  // minutes, 0 = infinite
@@ -132,6 +134,8 @@ interface SimulationState {
   addGmAction: (action: GmActionEntry) => void;
   advanceBeat: () => void;
   clearScenePlan: () => void;
+  // Inference mixer
+  setInferenceOverrides: (overrides: Partial<import("@/types/config").AiTuningSettings> | null) => void;
   // Autochat
   setAutochatEnabled: (enabled: boolean) => void;
   setAutochatDuration: (minutes: number) => void;
@@ -166,6 +170,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   gmCooldown: 120,
   gmContinuousMode: false,
   gmActionLog: [],
+  inferenceOverrides: null,
   autochatEnabled: false,
   autochatDuration: (() => {
     if (typeof window === "undefined") return 5;
@@ -325,6 +330,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   clearScenePlan: () =>
     set({ scenePlan: null, gmActionLog: [], isPlanning: false, gmStatus: "idle" }),
 
+  setInferenceOverrides: (overrides) => set({ inferenceOverrides: overrides }),
   setAutochatEnabled: (enabled) => set({ autochatEnabled: enabled }),
   setAutochatDuration: (minutes) => {
     set({ autochatDuration: minutes });

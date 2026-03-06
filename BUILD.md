@@ -83,32 +83,29 @@ The zip contains everything needed to run — no install required.
 
 ## Preparing a Release
 
-1. Update the version in **`package.json`** (root):
+1. Increment the version in **`package.json`** (root):
    ```json
-   { "version": "1.0.1" }
+   { "version": "1.1.0" }
    ```
 
-2. Add an app icon (if not already done — see [Icon](#icon) below).
-
-3. Build:
+2. Build:
    ```bash
    npm run package
    ```
 
-4. Copy the zip from `builds/` to `releases/`:
+3. Commit and push:
    ```bash
-   cp "builds/SkyrimNet-Prompt-Tuner-1.0.1-win-x64.zip" "releases/"
+   git add -A
+   git commit -m "Release v1.1.0"
+   git push
    ```
 
-5. Commit `releases/` and tag:
+4. Create a GitHub Release with the zip attached:
    ```bash
-   git add releases/
-   git commit -m "Release v1.0.1"
-   git tag v1.0.1
-   git push && git push --tags
+   gh release create v1.1.0 "builds/SkyrimNet-Prompt-Tuner-1.1.0-win-x64.zip" \
+     --title "SkyrimNet Prompt Tuner v1.1.0" \
+     --notes "Release notes here"
    ```
-
-6. Create a GitHub Release pointing to the tag and attach the zip.
 
 ---
 

@@ -8,7 +8,7 @@ import { useSimulationStore } from "@/stores/simulationStore";
 import { useConfigStore } from "@/stores/configStore";
 import { useAppStore } from "@/stores/appStore";
 import { useTriggerStore } from "@/stores/triggerStore";
-import { sendLlmRequest } from "@/lib/llm/client";
+import { sendLlmRequest, sendLlmRequestWithSlot } from "@/lib/llm/client";
 import { runTargetSelection, runRealActionSelector, runSpeakerPrediction } from "@/lib/pipeline/chat-pipeline";
 import type { ChatMessage } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
@@ -42,6 +42,7 @@ export function PreviewChat() {
   const [copied, setCopied] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('[data-slot="scroll-area-viewport"]');
@@ -49,6 +50,13 @@ export function PreviewChat() {
       viewport.scrollTop = viewport.scrollHeight;
     }
   }, [chatHistory, streamingText]);
+
+  // Refocus input when processing finishes
+  useEffect(() => {
+    if (!isProcessing) {
+      inputRef.current?.focus();
+    }
+  }, [isProcessing]);
 
   const getEligibleActions = useSimulationStore((s) => s.getEligibleActions);
 
@@ -184,12 +192,33 @@ export function PreviewChat() {
       const abortController = new AbortController();
       abortRef.current = abortController;
 
-      const dialogueLog = await sendLlmRequest({
-        messages: dialogueMessages,
-        agent: "default",
-        onChunk: (chunk) => setStreamingText((prev) => prev + chunk),
-        signal: abortController.signal,
-      });
+      // Use inference mixer overrides if active
+      const overrides = useSimulationStore.getState().inferenceOverrides;
+      let dialogueLog;
+      if (overrides && Object.keys(overrides).length > 0) {
+        const store = useConfigStore.getState();
+        const baseSlot = store.slots["default"];
+        const mixedSlot = {
+          ...baseSlot,
+          tuning: { ...baseSlot.tuning, ...overrides },
+        };
+        dialogueLog = await sendLlmRequestWithSlot({
+          messages: dialogueMessages,
+          agent: "default",
+          slot: mixedSlot,
+          model: store.getNextModel("default"),
+          apiKey: store.getEffectiveApiKey("default"),
+          onChunk: (chunk) => setStreamingText((prev) => prev + chunk),
+          signal: abortController.signal,
+        });
+      } else {
+        dialogueLog = await sendLlmRequest({
+          messages: dialogueMessages,
+          agent: "default",
+          onChunk: (chunk) => setStreamingText((prev) => prev + chunk),
+          signal: abortController.signal,
+        });
+      }
       addLlmCall(dialogueLog);
 
       const npcResponse = dialogueLog.response || streamingText;
@@ -399,6 +428,7 @@ export function PreviewChat() {
             </>
           )}
           <Input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
