@@ -38,15 +38,8 @@ export async function POST(request: Request) {
     // Target always uses MO2 hierarchy: {set}/SKSE/Plugins/SkyrimNet/prompts/
     const targetPrompts = path.join(targetPath, MO2_PROMPTS_SUBPATH);
 
-    if (sourceSet === "__original__") {
-      // Copy from the original prompts directory
-      try {
-        await fs.access(ORIGINAL_PROMPTS_DIR);
-        await copyDirectory(ORIGINAL_PROMPTS_DIR, targetPrompts);
-      } catch {
-        await fs.mkdir(targetPrompts, { recursive: true });
-      }
-    } else if (sourceSet) {
+    if (sourceSet && sourceSet !== "__original__") {
+      // Copy from an existing custom prompt set
       const sourcePath = path.join(EDITED_PROMPTS_DIR, sourceSet);
       if (!isPathAllowed(sourcePath)) {
         return NextResponse.json({ error: "Source path not allowed" }, { status: 403 });
@@ -66,6 +59,8 @@ export async function POST(request: Request) {
         await fs.mkdir(targetPrompts, { recursive: true });
       }
     } else {
+      // Original prompts are the read-only base — just create an empty set.
+      // User edits are stored as overrides; unmodified files fall through to originals.
       await fs.mkdir(targetPrompts, { recursive: true });
     }
 

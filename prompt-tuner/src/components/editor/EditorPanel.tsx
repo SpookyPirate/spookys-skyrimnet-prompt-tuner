@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FileText, Loader2, GitCompare, Eye, SaveAll, FileOutput } from "lucide-react";
+import { FileText, Loader2, GitCompare, Eye, Save, FileOutput } from "lucide-react";
 import { toast } from "sonner";
 import { YamlValidationBadge } from "./YamlValidationBadge";
 
@@ -251,7 +251,7 @@ export function EditorPanel() {
                   onClick={handleSave}
                   disabled={!activeFile.isDirty || activeFile.isReadOnly}
                 >
-                  <SaveAll className="h-3.5 w-3.5" />
+                  <Save className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Save (Ctrl+S)</TooltipContent>
@@ -278,7 +278,7 @@ export function EditorPanel() {
                     <FileOutput className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Save copy to prompt set</TooltipContent>
+                <TooltipContent>Save copy to another prompt set</TooltipContent>
               </Tooltip>
 
               {showCopyMenu && (
