@@ -561,6 +561,7 @@ export function CopycatSetup() {
         open={customDialogOpen}
         onOpenChange={setCustomDialogOpen}
         initialCategory="dialogue"
+        lockCategory
       />
     </div>
   );

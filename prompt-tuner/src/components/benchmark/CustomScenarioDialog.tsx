@@ -43,6 +43,8 @@ interface CustomScenarioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialCategory: BenchmarkCategory;
+  /** When true, locks to initialCategory and hides the category dropdown. */
+  lockCategory?: boolean;
 }
 
 type FormScenario = Omit<BenchmarkScenario, "id" | "isBuiltin">;
@@ -77,6 +79,7 @@ export function CustomScenarioDialog({
   open,
   onOpenChange,
   initialCategory,
+  lockCategory = false,
 }: CustomScenarioDialogProps) {
   const customScenarios = useBenchmarkStore((s) => s.customScenarios);
   const addCustomScenario = useBenchmarkStore((s) => s.addCustomScenario);
@@ -304,6 +307,46 @@ export function CustomScenarioDialog({
     }));
   };
 
+  /** Build the list of speaker/target options: Player + all scene NPCs */
+  const speakerTargetOptions = [
+    { label: form.player.name || "Player", value: "__player__", uuid: "player_001", type: "player" as const },
+    ...form.npcs.map((npc) => ({
+      label: npc.displayName,
+      value: npc.uuid,
+      uuid: npc.uuid,
+      type: "npc" as const,
+    })),
+  ];
+
+  const handleSpeakerChange = (turnIdx: number, selectedValue: string) => {
+    const opt = speakerTargetOptions.find((o) => o.value === selectedValue);
+    if (!opt) return;
+    setForm((f) => ({
+      ...f,
+      turns: (f.turns ?? []).map((t, i) =>
+        i === turnIdx
+          ? {
+              ...t,
+              inputType: opt.type,
+              inputSpeaker: opt.label,
+              inputSpeakerUuid: opt.uuid,
+            }
+          : t
+      ),
+    }));
+  };
+
+  const handleTargetChange = (turnIdx: number, selectedValue: string) => {
+    const opt = speakerTargetOptions.find((o) => o.value === selectedValue);
+    if (!opt) return;
+    setForm((f) => ({
+      ...f,
+      turns: (f.turns ?? []).map((t, i) =>
+        i === turnIdx ? { ...t, inputTarget: opt.label } : t
+      ),
+    }));
+  };
+
   const handleRemoveTurn = (idx: number) => {
     setForm((f) => ({
       ...f,
@@ -348,23 +391,27 @@ export function CustomScenarioDialog({
         <div className="flex gap-3 flex-1 min-h-0">
           {/* Left: category + existing scenarios */}
           <div className="w-48 shrink-0 space-y-1.5">
-            <Label className="text-[10px] text-muted-foreground">Category</Label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => {
-                const cat = e.target.value as BenchmarkCategory;
-                setSelectedCategory(cat);
-                setEditingId(null);
-                setForm(createEmptyForm(cat));
-              }}
-              className={selectClass}
-            >
-              {BENCHMARK_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            {!lockCategory && (
+              <>
+                <Label className="text-[10px] text-muted-foreground">Category</Label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    const cat = e.target.value as BenchmarkCategory;
+                    setSelectedCategory(cat);
+                    setEditingId(null);
+                    setForm(createEmptyForm(cat));
+                  }}
+                  className={selectClass}
+                >
+                  {BENCHMARK_CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
 
             <Separator />
 
@@ -748,54 +795,70 @@ export function CustomScenarioDialog({
                       + Add Turn
                     </button>
                   </div>
-                  {(form.turns ?? []).map((turn, i) => (
+                  {(form.turns ?? []).map((turn, i) => {
+                    // Find the matching speaker option by uuid, fall back to checking by name
+                    const speakerValue = speakerTargetOptions.find(
+                      (o) => o.uuid === turn.inputSpeakerUuid
+                    )?.value ?? speakerTargetOptions.find(
+                      (o) => o.label === turn.inputSpeaker
+                    )?.value ?? "__player__";
+                    const targetValue = speakerTargetOptions.find(
+                      (o) => o.label === turn.inputTarget
+                    )?.value ?? (speakerTargetOptions[1]?.value ?? "__player__");
+
+                    return (
                     <div key={turn.id} className="space-y-1">
-                      <div className="grid gap-1.5 items-center" style={{ gridTemplateColumns: "1.25rem 4.5rem 1fr 1fr 8rem 1.25rem" }}>
+                      <div className="grid gap-1.5 items-center" style={{ gridTemplateColumns: "1.25rem 1fr 1fr 8rem 1.25rem" }}>
                         <span className="text-[10px] font-medium text-muted-foreground text-center">
                           {i + 1}
                         </span>
-                        <select
-                          value={turn.inputType}
-                          onChange={(e) =>
-                            handleUpdateTurn(i, "inputType", e.target.value)
-                          }
-                          className={selectClass}
-                        >
-                          <option value="player">Player</option>
-                          <option value="npc">NPC</option>
-                        </select>
-                        <Input
-                          value={turn.inputSpeaker}
-                          onChange={(e) =>
-                            handleUpdateTurn(i, "inputSpeaker", e.target.value)
-                          }
-                          placeholder="Speaker"
-                          className="h-6 text-xs"
-                        />
-                        <Input
-                          value={turn.inputTarget}
-                          onChange={(e) =>
-                            handleUpdateTurn(i, "inputTarget", e.target.value)
-                          }
-                          placeholder="Target"
-                          className="h-6 text-xs"
-                        />
-                        <select
-                          value={turn.respondingNpcIndex}
-                          onChange={(e) =>
-                            handleUpdateTurn(i, "respondingNpcIndex", parseInt(e.target.value) || 0)
-                          }
-                          className={selectClass}
-                        >
-                          {form.npcs.map((npc, ni) => (
-                            <option key={ni} value={ni}>
-                              {npc.displayName || `NPC ${ni}`}
-                            </option>
-                          ))}
-                        </select>
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Speaker</Label>
+                          <select
+                            value={speakerValue}
+                            onChange={(e) => handleSpeakerChange(i, e.target.value)}
+                            className={selectClass}
+                          >
+                            {speakerTargetOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Target</Label>
+                          <select
+                            value={targetValue}
+                            onChange={(e) => handleTargetChange(i, e.target.value)}
+                            className={selectClass}
+                          >
+                            {speakerTargetOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Responding NPC</Label>
+                          <select
+                            value={turn.respondingNpcIndex}
+                            onChange={(e) =>
+                              handleUpdateTurn(i, "respondingNpcIndex", parseInt(e.target.value) || 0)
+                            }
+                            className={selectClass}
+                          >
+                            {form.npcs.map((npc, ni) => (
+                              <option key={ni} value={ni}>
+                                {npc.displayName || `NPC ${ni}`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                         <button
                           onClick={() => handleRemoveTurn(i)}
-                          className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive justify-self-center"
+                          className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive justify-self-center mt-3"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -810,7 +873,8 @@ export function CustomScenarioDialog({
                       />
                       {i < (form.turns ?? []).length - 1 && <Separator />}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -922,7 +986,7 @@ export function CustomScenarioDialog({
                     {needsNpcName && (
                       <div>
                         <Label className="text-[10px] text-muted-foreground">NPC Name</Label>
-                        <Input
+                        <select
                           value={form.npcName || ""}
                           onChange={(e) =>
                             setForm((f) => ({
@@ -930,8 +994,15 @@ export function CustomScenarioDialog({
                               npcName: e.target.value,
                             }))
                           }
-                          className="h-6 text-xs"
-                        />
+                          className={selectClass}
+                        >
+                          <option value="">Select NPC...</option>
+                          {form.npcs.map((npc, ni) => (
+                            <option key={ni} value={npc.displayName}>
+                              {npc.displayName}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     )}
                     {needsNpcResponse && (
@@ -952,7 +1023,7 @@ export function CustomScenarioDialog({
                     {needsLastSpeaker && (
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Last Speaker</Label>
-                        <Input
+                        <select
                           value={form.lastSpeaker || ""}
                           onChange={(e) =>
                             setForm((f) => ({
@@ -960,8 +1031,16 @@ export function CustomScenarioDialog({
                               lastSpeaker: e.target.value,
                             }))
                           }
-                          className="h-6 text-xs"
-                        />
+                          className={selectClass}
+                        >
+                          <option value="">Select speaker...</option>
+                          <option value={form.player.name}>{form.player.name || "Player"}</option>
+                          {form.npcs.map((npc, ni) => (
+                            <option key={ni} value={npc.displayName}>
+                              {npc.displayName}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     )}
                     {needsScenePlan && (

@@ -2,6 +2,25 @@ import type { AiTuningSettings } from "@/types/config";
 import type { SettingsChange, PromptChange } from "@/types/autotuner";
 
 /**
+ * Normalize a parameter name from snake_case (LLM output) to camelCase (store keys).
+ * e.g. "max_tokens" → "maxTokens", "frequency_penalty" → "frequencyPenalty"
+ */
+const PARAM_ALIASES: Record<string, keyof AiTuningSettings> = {
+  max_tokens: "maxTokens",
+  top_p: "topP",
+  top_k: "topK",
+  frequency_penalty: "frequencyPenalty",
+  presence_penalty: "presencePenalty",
+  stop_sequences: "stopSequences",
+  structured_outputs: "structuredOutputs",
+  allow_reasoning: "allowReasoning",
+};
+
+function normalizeParamKey(key: string): keyof AiTuningSettings {
+  return PARAM_ALIASES[key] || key as keyof AiTuningSettings;
+}
+
+/**
  * Apply settings changes to a copy of the working settings.
  * Returns a new AiTuningSettings object (does not mutate).
  */
@@ -12,7 +31,7 @@ export function applySettingsChanges(
   const result = { ...current };
 
   for (const change of changes) {
-    const key = change.parameter;
+    const key = normalizeParamKey(change.parameter);
     if (!(key in result)) continue;
 
     const currentVal = result[key];
