@@ -61,6 +61,9 @@ export function PromptSaveSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasPromptChanges, workingPromptSet]);
 
+  // Reset saved indicator when user changes save mode or inputs
+  useEffect(() => { setPromptsSaved(false); }, [promptSaveMode, promptSetTarget, existingSetTarget]);
+
   const effectiveTarget =
     promptSaveMode === "existing" ? existingSetTarget : promptSetTarget;
 
@@ -91,7 +94,6 @@ export function PromptSaveSection({
       <SaveModeOption
         selected={promptSaveMode === "new"}
         onSelect={() => setPromptSaveMode("new")}
-        disabled={promptsSaved}
         label="Save as new set"
         description="Create a new prompt set with these changes"
         icon={<Save className="h-3 w-3" />}
@@ -111,7 +113,6 @@ export function PromptSaveSection({
       <SaveModeOption
         selected={promptSaveMode === "existing"}
         onSelect={() => setPromptSaveMode("existing")}
-        disabled={promptsSaved}
         label="Overwrite existing set"
         description="Apply changes to prompts in an existing set"
         icon={<FolderOpen className="h-3 w-3" />}
@@ -140,7 +141,6 @@ export function PromptSaveSection({
         size="sm"
         className="w-full gap-1.5 text-xs"
         disabled={
-          promptsSaved ||
           (promptSaveMode === "new" && !promptSetTarget.trim()) ||
           (promptSaveMode === "existing" && !existingSetTarget)
         }

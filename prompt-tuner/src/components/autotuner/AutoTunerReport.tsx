@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -72,6 +72,9 @@ export function AutoTunerReport() {
     const other = profiles.find((p) => p.id !== selectedProfileId);
     return other?.id || "";
   });
+
+  // Reset saved indicator when user changes save mode or inputs
+  useEffect(() => { setSettingsSaved(false); }, [saveMode, copyName, otherProfileId]);
 
   const handleSaveSettings = useCallback(async () => {
     if (!selectedCategory || !workingSettings) {
@@ -266,7 +269,6 @@ export function AutoTunerReport() {
                     <SaveModeOption
                       selected={saveMode === "overwrite"}
                       onSelect={() => setSaveMode("overwrite")}
-                      disabled={settingsSaved}
                       label={`Update "${tunedProfile?.name || "current profile"}"`}
                       description="Overwrite the profile that was tuned"
                       icon={<Save className="h-3 w-3" />}
@@ -275,7 +277,6 @@ export function AutoTunerReport() {
                     <SaveModeOption
                       selected={saveMode === "copy"}
                       onSelect={() => setSaveMode("copy")}
-                      disabled={settingsSaved}
                       label="Save as new profile"
                       description="Create a copy with the tuned settings"
                       icon={<Copy className="h-3 w-3" />}
@@ -296,7 +297,6 @@ export function AutoTunerReport() {
                       <SaveModeOption
                         selected={saveMode === "other"}
                         onSelect={() => setSaveMode("other")}
-                        disabled={settingsSaved}
                         label="Apply to another profile"
                         description="Update a different profile's agent settings"
                         icon={<Save className="h-3 w-3" />}
@@ -320,7 +320,7 @@ export function AutoTunerReport() {
                       size="sm"
                       className="w-full gap-1.5 text-xs"
                       disabled={
-                        savingSettings || settingsSaved ||
+                        savingSettings ||
                         (saveMode === "copy" && !copyName.trim()) ||
                         (saveMode === "other" && !otherProfileId)
                       }

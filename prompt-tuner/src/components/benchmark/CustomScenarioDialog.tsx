@@ -45,6 +45,8 @@ interface CustomScenarioDialogProps {
   initialCategory: BenchmarkCategory;
   /** When true, locks to initialCategory and hides the category dropdown. */
   lockCategory?: boolean;
+  /** Context hint passed to scene generator for category-specific instructions. */
+  generatorContext?: "tuner" | "copycat";
 }
 
 type FormScenario = Omit<BenchmarkScenario, "id" | "isBuiltin">;
@@ -80,6 +82,7 @@ export function CustomScenarioDialog({
   onOpenChange,
   initialCategory,
   lockCategory = false,
+  generatorContext,
 }: CustomScenarioDialogProps) {
   const customScenarios = useBenchmarkStore((s) => s.customScenarios);
   const addCustomScenario = useBenchmarkStore((s) => s.addCustomScenario);
@@ -129,7 +132,7 @@ export function CustomScenarioDialog({
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const messages = buildSceneGenMessages(selectedCategory, genDescription);
+      const messages = buildSceneGenMessages(selectedCategory, genDescription, generatorContext);
       const result = await sendLlmRequest({
         messages,
         agent: "tuner",
@@ -300,7 +303,7 @@ export function CustomScenarioDialog({
           inputSpeaker: f.player.name,
           inputSpeakerUuid: "player_001",
           inputContent: "",
-          inputTarget: f.npcs[0]?.displayName ?? "",
+          inputTarget: "",
           respondingNpcIndex: 0,
         },
       ],
@@ -337,6 +340,15 @@ export function CustomScenarioDialog({
   };
 
   const handleTargetChange = (turnIdx: number, selectedValue: string) => {
+    if (selectedValue === "__anyone__") {
+      setForm((f) => ({
+        ...f,
+        turns: (f.turns ?? []).map((t, i) =>
+          i === turnIdx ? { ...t, inputTarget: "" } : t
+        ),
+      }));
+      return;
+    }
     const opt = speakerTargetOptions.find((o) => o.value === selectedValue);
     if (!opt) return;
     setForm((f) => ({
@@ -802,9 +814,11 @@ export function CustomScenarioDialog({
                     )?.value ?? speakerTargetOptions.find(
                       (o) => o.label === turn.inputSpeaker
                     )?.value ?? "__player__";
-                    const targetValue = speakerTargetOptions.find(
-                      (o) => o.label === turn.inputTarget
-                    )?.value ?? (speakerTargetOptions[1]?.value ?? "__player__");
+                    const targetValue = !turn.inputTarget
+                      ? "__anyone__"
+                      : speakerTargetOptions.find(
+                          (o) => o.label === turn.inputTarget
+                        )?.value ?? "__anyone__";
 
                     return (
                     <div key={turn.id} className="space-y-1">
@@ -833,6 +847,7 @@ export function CustomScenarioDialog({
                             onChange={(e) => handleTargetChange(i, e.target.value)}
                             className={selectClass}
                           >
+                            <option value="__anyone__">Anyone</option>
                             {speakerTargetOptions.map((opt) => (
                               <option key={opt.value} value={opt.value}>
                                 {opt.label}

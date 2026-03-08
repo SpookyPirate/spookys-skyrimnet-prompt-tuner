@@ -35,7 +35,7 @@ Each turn object:
   { "id": "turn-N", "label": "Turn N", "inputType": "player"|"npc", "inputSpeaker": string, "inputSpeakerUuid": string, "inputContent": string, "inputTarget": string, "respondingNpcIndex": number }
 - inputSpeakerUuid: for player use "player_001", for NPCs use their uuid from the npcs array.
 - respondingNpcIndex: a valid index into the npcs[] array (the NPC who should respond to this turn).
-- inputTarget: the name of who the speaker is addressing.
+- inputTarget: the name of who the speaker is addressing, or "" for undirected speech.
 Include at least 1-2 NPCs. Alternate between player and NPC turns for natural dialogue flow.`,
 
   meta_eval: `Category: meta_eval (target selection / speaker prediction)
@@ -79,10 +79,29 @@ Include dialogue that shows personality traits, relationship changes, or new fac
 Leave turns, eligibleActions, scenePlan, playerMessage, npcResponse, npcName, lastSpeaker empty/default.`,
 };
 
+const COPYCAT_DIALOGUE_OVERRIDE = `Category: dialogue
+Use the "turns" array with 3-6 turns. Leave "chatHistory" empty.
+Each turn object:
+  { "id": "turn-N", "label": "Turn N", "inputType": "player"|"npc", "inputSpeaker": string, "inputSpeakerUuid": string, "inputContent": string, "inputTarget": string, "respondingNpcIndex": number }
+- inputSpeakerUuid: for player use "player_001", for NPCs use their uuid from the npcs array.
+- respondingNpcIndex: a valid index into the npcs[] array (the NPC who should respond to this turn).
+- inputTarget: the name of who the speaker is addressing, or "" for undirected speech.
+
+IMPORTANT: Each turn is a single INPUT line spoken TO an NPC. The NPC at respondingNpcIndex will generate a response via the AI model being tested — you do NOT write the NPC's response. Every turn should be a prompt that elicits an interesting dialogue response from the responding NPC.
+
+Typical pattern: the player says something to an NPC, and that NPC responds (via the AI). So most turns will have inputType "player". You can also have an NPC speak to another NPC (inputType "npc") to test NPC-to-NPC dialogue.
+
+Include at least 1-2 NPCs. Vary the topics and emotional tone across turns to test range (e.g. a greeting, a lore question, a personal question, a provocative remark, a request for help).`;
+
 export function buildSceneGenMessages(
   category: BenchmarkCategory,
   userDescription?: string,
+  context?: "tuner" | "copycat",
 ): ChatMessage[] {
+  const categoryInstructions = context === "copycat" && category === "dialogue"
+    ? COPYCAT_DIALOGUE_OVERRIDE
+    : CATEGORY_INSTRUCTIONS[category];
+
   const system = `You are a Skyrim scenario generator for SkyrimNet benchmark testing. You create realistic, lore-accurate test scenarios for evaluating AI NPC agents.
 
 Output a single JSON object matching this schema:
@@ -92,7 +111,7 @@ ${ENUMS}
 
 ${UUID_NOTE}
 
-${CATEGORY_INSTRUCTIONS[category]}
+${categoryInstructions}
 
 Rules:
 - Use lore-accurate Skyrim locations, NPC names, races, and settings.

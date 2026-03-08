@@ -562,6 +562,7 @@ export function CopycatSetup() {
         onOpenChange={setCustomDialogOpen}
         initialCategory="dialogue"
         lockCategory
+        generatorContext="copycat"
       />
     </div>
   );

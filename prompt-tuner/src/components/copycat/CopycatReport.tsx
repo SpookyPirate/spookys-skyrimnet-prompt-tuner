@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -69,6 +69,9 @@ export function CopycatReport() {
     .filter((r) => r.effectivenessScore !== null)
     .map((r) => r.effectivenessScore!);
   const latestScore = effectivenessSummary ?? (scores.length > 0 ? scores[scores.length - 1] : null);
+
+  // Reset saved indicator when user changes save mode or inputs
+  useEffect(() => { setSettingsSaved(false); }, [saveMode, copyName, otherProfileId]);
 
   const handleSaveSettings = useCallback(async () => {
     if (!workingSettings) {
@@ -297,7 +300,6 @@ export function CopycatReport() {
                     <SaveModeOption
                       selected={saveMode === "copy"}
                       onSelect={() => setSaveMode("copy")}
-                      disabled={settingsSaved}
                       label="Save as new profile"
                       description="Create a new profile with the tuned settings"
                       icon={<Copy className="h-3 w-3" />}
@@ -318,7 +320,6 @@ export function CopycatReport() {
                       <SaveModeOption
                         selected={saveMode === "other"}
                         onSelect={() => setSaveMode("other")}
-                        disabled={settingsSaved}
                         label="Apply to existing profile"
                         description="Update an existing profile's agent settings"
                         icon={<Save className="h-3 w-3" />}
@@ -342,7 +343,7 @@ export function CopycatReport() {
                       size="sm"
                       className="w-full gap-1.5 text-xs"
                       disabled={
-                        savingSettings || settingsSaved ||
+                        savingSettings ||
                         (saveMode === "copy" && !copyName.trim()) ||
                         (saveMode === "other" && !otherProfileId)
                       }

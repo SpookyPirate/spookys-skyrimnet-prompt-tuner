@@ -11,7 +11,7 @@ export function SaveModeOption({
 }: {
   selected: boolean;
   onSelect: () => void;
-  disabled: boolean;
+  disabled?: boolean;
   label: string;
   description: string;
   icon: React.ReactNode;
