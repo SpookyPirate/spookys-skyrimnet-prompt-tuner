@@ -13,7 +13,7 @@
     - Develop ideas fully - diaries are a space to work through complex feelings and experiences
     - Be unflinchingly honest about physical and intimate experiences - this is private writing where nothing is off-limits
 
-    {{ render_subcomponent("system_head", "diary") }}
+    {{ render_subcomponent("system_head", "full") }}
 [ end system ]
 
 [ user ]

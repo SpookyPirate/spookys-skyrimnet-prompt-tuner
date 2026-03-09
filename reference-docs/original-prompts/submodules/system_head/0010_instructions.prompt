@@ -10,7 +10,6 @@ Speak naturally as {{ decnpc(npc.UUID).name }} in this moment. React to what's h
 Think internally as {{ decnpc(npc.UUID).name }}. React to what just happened and what it means to you.
 {% elif render_mode == "book" %}
 Reflect on what you just read. Summarize key points and consider what they mean for you personally.
-{% elif render_mode == "diary" %}
 {% else %}
 Respond as {{ decnpc(npc.UUID).name }} in conversation.{% if responseTarget and responseTarget.UUID != 0 %} You are speaking to {% if responseTarget.type == "player" %}{{ player.name }}{% else if responseTarget.type == "npc" %}{{ decnpc(responseTarget.UUID).name }}{% endif %}.{% endif %}
 {% endif %}

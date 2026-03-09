@@ -6,7 +6,7 @@
     <title>{{ page_title }} - {{ server_name }}</title>
     
     <!-- Bundled CSS -->
-    <link rel="stylesheet" href="/static/main.41220636.css">
+    <link rel="stylesheet" href="/static/main.571f17c9.css">
     
     <!-- Theme color for initial load (prevents white flash) -->
     <style>
@@ -60,7 +60,7 @@
     <script src="/static/codemirror-vendor.7233de1f.js"></script>
     <script src="/static/charts-vendor.86bc7f94.js"></script>
     <script src="/static/vendors.d1074683.js"></script>
-    <script src="/static/main.27f0ecf2.js"></script>
+    <script src="/static/main.f6f3c786.js"></script>
     
     <!-- Page-specific scripts -->
     {% block scripts %}{% endblock %}

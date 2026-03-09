@@ -19,14 +19,14 @@ export const PROJECT_ROOT = DATA_DIR;
 
 export const ORIGINAL_PROMPTS_DIR = process.env.SKYRIMNET_ORIGINALS_DIR
   ? path.resolve(process.env.SKYRIMNET_ORIGINALS_DIR)
-  : path.join(DATA_DIR, "reference-docs", "skyrimnet-prompts", "SkyrimNet-beta15.4_hotfix01", "original_prompts");
+  : path.join(DATA_DIR, "reference-docs", "original-prompts");
 
 export const EDITED_PROMPTS_DIR = path.join(DATA_DIR, "edited-prompts");
 
-// REFERENCE_DOCS_DIR is derived from ORIGINAL_PROMPTS_DIR (3 levels up).
+// REFERENCE_DOCS_DIR is derived from ORIGINAL_PROMPTS_DIR (1 level up).
 // Used by isPathAllowed() to permit reads of bundled reference docs.
 export const REFERENCE_DOCS_DIR = process.env.SKYRIMNET_ORIGINALS_DIR
-  ? path.resolve(process.env.SKYRIMNET_ORIGINALS_DIR, "..", "..", "..")
+  ? path.resolve(process.env.SKYRIMNET_ORIGINALS_DIR, "..")
   : path.join(DATA_DIR, "reference-docs");
 
 /** MO2-ready subpath: prompts live at {set}/SKSE/Plugins/SkyrimNet/prompts/ */

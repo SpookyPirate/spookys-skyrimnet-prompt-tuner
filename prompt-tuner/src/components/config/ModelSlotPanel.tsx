@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -373,13 +374,47 @@ function SliderField({
   max: number;
   step: number;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const commitEdit = () => {
+    setEditing(false);
+    const v = parseFloat(draft);
+    if (!isNaN(v)) {
+      onChange(Math.min(max, Math.max(min, v)));
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
         <Label className="text-xs font-medium">{label}</Label>
-        <span className="text-xs text-muted-foreground font-mono">
-          {value.toFixed(2)}
-        </span>
+        {editing ? (
+          <input
+            type="number"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitEdit();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            min={min}
+            max={max}
+            step={step}
+            className="w-16 h-5 text-xs font-mono text-right bg-background border rounded px-1 focus:outline-none focus:ring-1 focus:ring-ring"
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setDraft(value.toFixed(2)); setEditing(true); }}
+            className="text-xs text-muted-foreground font-mono hover:text-foreground hover:bg-muted px-1 rounded cursor-text transition-colors"
+            title="Click to type a value"
+          >
+            {value.toFixed(2)}
+          </button>
+        )}
       </div>
       <input
         type="range"

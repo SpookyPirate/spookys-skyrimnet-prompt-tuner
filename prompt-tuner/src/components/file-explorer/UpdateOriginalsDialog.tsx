@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,27 +9,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFileStore } from "@/stores/fileStore";
 import {
   Archive,
   Loader2,
   CheckCircle2,
   XCircle,
-  Folder,
   FileArchive,
-  ChevronUp,
-  Home,
+  Upload,
+  FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface BrowseEntry {
-  name: string;
-  path: string;
-  type: "file" | "directory";
-}
 
 interface UpdateOriginalsDialogProps {
   open: boolean;
@@ -38,60 +29,31 @@ interface UpdateOriginalsDialogProps {
 
 type Phase = "browse" | "extracting" | "done" | "error";
 
+const VALID_EXTENSIONS = [".zip", ".7z"];
+
 export function UpdateOriginalsDialog({
   open,
   onOpenChange,
 }: UpdateOriginalsDialogProps) {
   const [phase, setPhase] = useState<Phase>("browse");
-  const [entries, setEntries] = useState<BrowseEntry[]>([]);
-  const [currentDir, setCurrentDir] = useState<string | null>(null);
-  const [parentDir, setParentDir] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [selectedPath, setSelectedPath] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<{
     filesExtracted?: number;
     source?: string;
     error?: string;
   }>({});
 
-  const fetchDir = useCallback(async (dir?: string) => {
-    setLoading(true);
-    try {
-      const url = dir
-        ? `/api/browse?dir=${encodeURIComponent(dir)}&extensions=.zip,.7z`
-        : `/api/browse?extensions=.zip,.7z`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-      setEntries(data.entries ?? []);
-      setCurrentDir(data.current);
-      setParentDir(data.parent);
-    } catch {
-      toast.error("Failed to browse directory");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const dragCounterRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load initial directory listing on open
+  // Reset state when dialog opens
   useEffect(() => {
     if (!open) return;
     setPhase("browse");
-    setSelectedPath("");
+    setSelectedFile(null);
     setResult({});
-    fetchDir();
-  }, [open, fetchDir]);
-
-  const handleEntryClick = (entry: BrowseEntry) => {
-    if (entry.type === "directory") {
-      fetchDir(entry.path);
-    } else {
-      setSelectedPath(entry.path);
-    }
-  };
+  }, [open]);
 
   const handleClose = (openState: boolean) => {
     if (phase === "extracting") return;
@@ -102,18 +64,63 @@ export function UpdateOriginalsDialog({
     onOpenChange(openState);
   };
 
+  const isValidArchive = (name: string) =>
+    VALID_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
+
+  const handleFileSelected = (file: File) => {
+    if (!isValidArchive(file.name)) {
+      toast.error("Please select a .zip or .7z archive");
+      return;
+    }
+    setSelectedFile(file);
+  };
+
+  // ── Drag & drop handlers ───────────────────────────────────────────
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (dragCounterRef.current === 1) setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) setDragging(false);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    handleFileSelected(files[0]);
+  }, []);
+
+  // ── Submit ─────────────────────────────────────────────────────────
+
   const handleUpdate = async () => {
-    const trimmed = selectedPath.trim();
-    if (!trimmed) return;
+    if (!selectedFile) return;
 
     setPhase("extracting");
     setResult({});
 
     try {
+      const formData = new FormData();
+      formData.append("archive", selectedFile);
       const res = await fetch("/api/prompts/update-originals", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archivePath: trimmed }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -130,7 +137,6 @@ export function UpdateOriginalsDialog({
       });
       setPhase("done");
 
-      // Refresh file tree
       await useFileStore.getState().refreshTree();
 
       toast.success(
@@ -159,92 +165,75 @@ export function UpdateOriginalsDialog({
 
         {phase === "browse" && (
           <>
-            {/* Path input — manual entry or shows selected file */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Archive path
-              </label>
-              <Input
-                placeholder="Browse below or paste a path..."
-                value={selectedPath}
-                onChange={(e) => setSelectedPath(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && selectedPath.trim()) handleUpdate();
-                }}
-                className="h-8 text-xs"
-              />
-            </div>
+            {/* Hidden native file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".zip,.7z"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileSelected(file);
+                // Reset so the same file can be re-selected
+                e.target.value = "";
+              }}
+            />
 
-            {/* Navigation bar */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 shrink-0"
-                onClick={() => fetchDir()}
-                title="Quick access"
-              >
-                <Home className="h-3.5 w-3.5" />
-              </Button>
-              {parentDir && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 shrink-0"
-                  onClick={() => fetchDir(parentDir)}
-                  title="Go up"
-                >
-                  <ChevronUp className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {currentDir && (
-                <span
-                  className="truncate text-[11px] text-muted-foreground"
-                  title={currentDir}
-                >
-                  {currentDir}
-                </span>
-              )}
-            </div>
-
-            {/* Directory listing */}
-            {loading ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <ScrollArea className="max-h-56 rounded-md border">
-                <div className="p-1">
-                  {entries.length === 0 ? (
-                    <div className="py-4 text-center text-xs text-muted-foreground">
-                      {currentDir
-                        ? "No folders or archives here"
-                        : "Loading..."}
+            {/* Drop zone + browse button */}
+            <div
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={`relative rounded-lg border-2 border-dashed transition-colors ${
+                dragging
+                  ? "border-primary bg-primary/5"
+                  : selectedFile
+                    ? "border-green-500/50 bg-green-500/5"
+                    : "border-muted-foreground/25 hover:border-muted-foreground/50"
+              }`}
+            >
+              <div className="flex flex-col items-center gap-2 py-6 px-3">
+                {selectedFile ? (
+                  <>
+                    <FileArchive className="h-8 w-8 text-green-500" />
+                    <span className="text-sm font-medium">{selectedFile.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {(selectedFile.size / 1024 / 1024).toFixed(1)} MB — ready to extract
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs px-3 text-muted-foreground"
+                      onClick={() => setSelectedFile(null)}
+                    >
+                      Clear
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Upload className={`h-8 w-8 ${dragging ? "text-primary" : "text-muted-foreground/50"}`} />
+                    <span className="text-sm text-muted-foreground">
+                      {dragging ? "Drop archive here" : "Drag & drop a .zip or .7z archive"}
+                    </span>
+                    <div className="relative flex items-center gap-3 w-full px-6 mt-1">
+                      <div className="flex-1 border-t border-muted-foreground/20" />
+                      <span className="text-[10px] text-muted-foreground uppercase">or</span>
+                      <div className="flex-1 border-t border-muted-foreground/20" />
                     </div>
-                  ) : (
-                    entries.map((entry) => {
-                      const isSelected = entry.path === selectedPath;
-                      return (
-                        <button
-                          key={entry.path}
-                          onClick={() => handleEntryClick(entry)}
-                          className={`flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-xs transition-colors hover:bg-accent ${
-                            isSelected ? "bg-accent font-medium" : ""
-                          }`}
-                        >
-                          {entry.type === "directory" ? (
-                            <Folder className="h-3.5 w-3.5 shrink-0 text-blue-400" />
-                          ) : (
-                            <FileArchive className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                          )}
-                          <span className="truncate">{entry.name}</span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </ScrollArea>
-            )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 mt-1"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FolderOpen className="h-3.5 w-3.5" />
+                      Browse Files
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => handleClose(false)}>
@@ -252,7 +241,7 @@ export function UpdateOriginalsDialog({
               </Button>
               <Button
                 onClick={handleUpdate}
-                disabled={!selectedPath.trim()}
+                disabled={!selectedFile}
                 className="gap-1.5"
               >
                 <Archive className="h-4 w-4" />
@@ -304,6 +293,7 @@ export function UpdateOriginalsDialog({
                 onClick={() => {
                   setPhase("browse");
                   setResult({});
+                  setSelectedFile(null);
                 }}
               >
                 Try Again
