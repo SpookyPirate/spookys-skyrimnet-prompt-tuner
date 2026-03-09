@@ -5,11 +5,11 @@ import { useSimulationStore } from "@/stores/simulationStore";
 import { useConfigStore } from "@/stores/configStore";
 import { useAppStore } from "@/stores/appStore";
 import { useTriggerStore } from "@/stores/triggerStore";
-import { sendLlmRequest } from "@/lib/llm/client";
+import { sendLlmRequest, sendDialogueRequest, sendRenderAndChat } from "@/lib/llm/client";
 import { parseGmAction } from "@/lib/gamemaster/action-parser";
 import { scenePlanToTemplateFormat } from "@/types/gamemaster";
 import type { SceneBeat, ScenePlan } from "@/types/gamemaster";
-import type { ChatMessage } from "@/types/llm";
+
 import type { ChatEntry } from "@/types/simulation";
 
 /**
@@ -75,26 +75,23 @@ export function useGmLoop() {
     setGmStatus("planning");
 
     try {
-      const renderRes = await fetch("/api/prompts/render-scene-planner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const log = await sendRenderAndChat({
+        renderEndpoint: "/api/prompts/render-scene-planner",
+        renderBody: {
           npcs: selectedNpcs,
           scene,
           chatHistory,
           gameEvents,
           promptSetBase: activePromptSet || undefined,
           player: playerConfig,
-        }),
+        },
+        agent: "game_master",
       });
-      const renderData = await renderRes.json();
+      addLlmCall(log);
 
-      if (!renderData.messages || renderData.messages.length === 0) {
+      if (log.error && !log.renderResult) {
         return null;
       }
-
-      const log = await sendLlmRequest({ messages: renderData.messages, agent: "game_master" });
-      addLlmCall(log);
 
       if (!log.response) return null;
 
@@ -199,41 +196,27 @@ export function useGmLoop() {
         tickChatHistory = [...tickChatHistory, gmDirective];
       }
 
-      // Render NPC dialogue through pipeline with GM context
+      // Render NPC dialogue + call LLM in a single server round-trip
       setProcessing(true);
       try {
-        let npcMessages: ChatMessage[];
-        try {
-          const renderRes = await fetch("/api/prompts/render-dialogue", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              npc: speaker,
-              player: playerConfig,
-              scene,
-              selectedNpcs,
-              chatHistory: tickChatHistory,
-              responseTarget,
-              eligibleActions: getEligibleActions().map((a) => ({
-                name: a.name,
-                description: a.description,
-                parameterSchema: a.parameterSchema,
-              })),
-              gameEvents,
-              promptSetBase: activePromptSet || undefined,
-            }),
-          });
-          const renderData = await renderRes.json();
-          if (renderData.messages && renderData.messages.length > 0) {
-            npcMessages = renderData.messages;
-          } else {
-            return tickChatHistory;
-          }
-        } catch {
-          return tickChatHistory;
-        }
-
-        const npcLog = await sendLlmRequest({ messages: npcMessages, agent: "default" });
+        const npcLog = await sendDialogueRequest({
+          renderParams: {
+            npc: speaker,
+            player: playerConfig,
+            scene,
+            selectedNpcs,
+            chatHistory: tickChatHistory,
+            responseTarget,
+            eligibleActions: getEligibleActions().map((a) => ({
+              name: a.name,
+              description: a.description,
+              parameterSchema: a.parameterSchema,
+            })),
+            gameEvents,
+            promptSetBase: activePromptSet || undefined,
+          },
+          agent: "default",
+        });
         addLlmCall(npcLog);
 
         if (npcLog.error) {
@@ -324,45 +307,30 @@ export function useGmLoop() {
           ? scenePlanToTemplateFormat(currentPlan)
           : null;
 
-        // Render action selector through pipeline
-        let gmMessages: ChatMessage[];
-        try {
-          const renderRes = await fetch("/api/prompts/render-gm-action-selector", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              npcs: selectedNpcs,
-              scene,
-              chatHistory: tickChatHistory,
-              scenePlan: scenePlanForTemplate,
-              isContinuousMode: gmContinuousMode,
-              gameEvents,
-              eligibleActions: GM_ELIGIBLE_ACTIONS,
-              promptSetBase: activePromptSet || undefined,
-              player: playerConfig,
-            }),
-          });
-          const renderData = await renderRes.json();
-          if (renderData.messages && renderData.messages.length > 0) {
-            gmMessages = renderData.messages;
-          } else {
-            console.warn("[GM] Action selector render returned no messages:", renderData.error || "empty");
-            break;
-          }
-        } catch (renderErr) {
-          console.error("[GM] Action selector render failed:", renderErr);
-          break;
-        }
-
-        const gmLog = await sendLlmRequest({ messages: gmMessages, agent: "game_master" });
+        // Render action selector + call LLM in one trip
+        const gmLog = await sendRenderAndChat({
+          renderEndpoint: "/api/prompts/render-gm-action-selector",
+          renderBody: {
+            npcs: selectedNpcs,
+            scene,
+            chatHistory: tickChatHistory,
+            scenePlan: scenePlanForTemplate,
+            isContinuousMode: gmContinuousMode,
+            gameEvents,
+            eligibleActions: GM_ELIGIBLE_ACTIONS,
+            promptSetBase: activePromptSet || undefined,
+            player: playerConfig,
+          },
+          agent: "game_master",
+        });
         addLlmCall(gmLog);
 
         if (gmLog.error) {
-          console.warn("[GM] LLM call returned error:", gmLog.error);
+          console.warn("[GM] Action selector error:", gmLog.error);
           break;
         }
         if (!gmLog.response) {
-          console.warn("[GM] LLM call returned empty response");
+          console.warn("[GM] Action selector returned empty response");
           break;
         }
 

@@ -10,7 +10,7 @@ import { useConfigStore } from "@/stores/configStore";
 import { useAppStore } from "@/stores/appStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useTriggerStore } from "@/stores/triggerStore";
-import { sendLlmRequest, sendLlmRequestWithSlot } from "@/lib/llm/client";
+import { sendLlmRequest, sendLlmRequestWithSlot, sendDialogueRequest } from "@/lib/llm/client";
 import { runTargetSelection, runRealActionSelector, runSpeakerPrediction } from "@/lib/pipeline/chat-pipeline";
 import { buildEnabledSavesPayload } from "@/lib/pipeline/save-bio-payload";
 import type { ChatMessage } from "@/types/llm";
@@ -146,67 +146,29 @@ export function PreviewChat() {
       setStreamingSpeaker(targetNpc.displayName);
       setStreamingText("");
 
-      let dialogueMessages: ChatMessage[];
-      let dialogueRenderedText = "";
-
-      try {
-        const renderRes = await fetch("/api/prompts/render-dialogue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            npc: targetNpc,
-            player: playerConfig,
-            scene,
-            selectedNpcs,
-            chatHistory: fullChatHistory,
-            responseTarget: { type: "player", UUID: "player_001" },
-            eligibleActions: getEligibleActions().map((a) => ({
-              name: a.name,
-              description: a.description,
-              parameterSchema: a.parameterSchema,
-            })),
-            gameEvents,
-            promptSetBase: activePromptSet || undefined,
-            enabledSaves: buildEnabledSavesPayload(),
-          }),
-        });
-        const renderData = await renderRes.json();
-
-        if (renderData.messages && renderData.messages.length > 0) {
-          dialogueMessages = renderData.messages;
-          dialogueRenderedText = renderData.renderedText || "";
-          setLastDialoguePreview({
-            renderedPrompt: dialogueRenderedText,
-            messages: dialogueMessages,
-          });
-        } else {
-          throw new Error(renderData.error || "Empty render result");
-        }
-      } catch (renderErr) {
-        // Fallback to hardcoded prompt
-        console.warn("Dialogue pipeline render failed, using fallback:", renderErr);
-        toast.warning("Dialogue pipeline failed", {
-          description: `Could not render dialogue_response.prompt — using simplified fallback. ${renderErr instanceof Error ? renderErr.message : ""}`,
-        });
-        dialogueMessages = [
-          {
-            role: "system",
-            content: `You are ${targetNpc.displayName}, a ${targetNpc.gender} ${targetNpc.race} in Skyrim. Location: ${scene.location}. ${scene.worldPrompt ? `World: ${scene.worldPrompt}` : ""} ${scene.scenePrompt ? `Scene: ${scene.scenePrompt}` : ""}\nYou are speaking with ${playerConfig.name}, a ${playerConfig.gender} ${playerConfig.race} (level ${playerConfig.level}).${playerConfig.isInCombat ? " They are currently in combat." : ""}${playerConfig.bio ? ` About them: ${playerConfig.bio}` : ""}\n\nRespond in character as ${targetNpc.displayName}. Keep responses concise (1-3 sentences typically). Stay in character.`,
-          },
-          ...chatHistory.slice(-20).map((e): ChatMessage => ({
-            role: e.type === "player" ? "user" : "assistant",
-            content: e.type === "player" ? e.content : `${e.speaker}: ${e.content}`,
-          })),
-          { role: "user", content: playerMessage },
-        ];
-        setLastDialoguePreview(null);
-      }
-
       const abortController = new AbortController();
       abortRef.current = abortController;
 
       // Use inference mixer overrides if active
       const overrides = useSimulationStore.getState().inferenceOverrides;
+
+      // Shared render params for the combined render+chat endpoint
+      const renderParams = {
+        npc: targetNpc,
+        player: playerConfig,
+        scene,
+        selectedNpcs,
+        chatHistory: fullChatHistory,
+        responseTarget: { type: "player", UUID: "player_001" },
+        eligibleActions: getEligibleActions().map((a) => ({
+          name: a.name,
+          description: a.description,
+          parameterSchema: a.parameterSchema,
+        })),
+        gameEvents,
+        promptSetBase: activePromptSet || undefined,
+        enabledSaves: buildEnabledSavesPayload(),
+      };
 
       if (isMultichat) {
         // ── MULTICHAT MODE ──────────────────────────────────────────
@@ -217,41 +179,84 @@ export function PreviewChat() {
           .map((id) => profiles.find((p) => p.id === id))
           .filter(Boolean) as typeof profiles;
 
-        const promises = multichatProfiles.map(async (profile) => {
+        // First profile uses the combined render+chat endpoint;
+        // remaining profiles reuse the rendered messages from the first.
+        let sharedMessages: ChatMessage[] | null = null;
+
+        const promises = multichatProfiles.map(async (profile, idx) => {
           const slot = { ...profile.slots.default };
           if (overrides && Object.keys(overrides).length > 0) {
             slot.tuning = { ...slot.tuning, ...overrides };
           }
 
           const apiKey = profile.globalApiKey || globalApiKey;
-          // Parse model names and pick first (or rotate)
           const modelNames = slot.api.modelNames.split(",").map((m) => m.trim()).filter(Boolean);
           const model = modelNames[0] || "unknown";
 
           try {
-            const log = await sendLlmRequestWithSlot({
-              messages: dialogueMessages,
-              agent: "default",
-              slot,
-              model,
-              apiKey,
-              onChunk: (chunk) => {
-                const current = useSimulationStore.getState().multichatStreaming[profile.id] || "";
-                setMultichatStreaming(profile.id, current + chunk);
-              },
-              signal: abortController.signal,
-            });
-            addLlmCall(log);
+            if (idx === 0) {
+              // First profile: combined render + LLM in one trip
+              const log = await sendDialogueRequest({
+                renderParams,
+                agent: "default",
+                slot,
+                model,
+                apiKey,
+                onChunk: (chunk) => {
+                  const current = useSimulationStore.getState().multichatStreaming[profile.id] || "";
+                  setMultichatStreaming(profile.id, current + chunk);
+                },
+                onRenderResult: (result) => {
+                  sharedMessages = result.messages;
+                  setLastDialoguePreview({
+                    renderedPrompt: result.renderedText,
+                    messages: result.messages,
+                  });
+                },
+                signal: abortController.signal,
+              });
+              addLlmCall(log);
 
-            return {
-              profileId: profile.id,
-              profileName: profile.name,
-              model,
-              content: log.response || "",
-              latencyMs: log.latencyMs,
-              totalTokens: log.totalTokens,
-              error: log.error,
-            } as MultichatResponse;
+              return {
+                profileId: profile.id,
+                profileName: profile.name,
+                model,
+                content: log.response || "",
+                latencyMs: log.latencyMs,
+                totalTokens: log.totalTokens,
+                error: log.error,
+              } as MultichatResponse;
+            } else {
+              // Wait for first profile's render to complete
+              while (!sharedMessages && !abortController.signal.aborted) {
+                await new Promise((r) => setTimeout(r, 10));
+              }
+              if (!sharedMessages) throw new Error("Render failed");
+
+              const log = await sendLlmRequestWithSlot({
+                messages: sharedMessages,
+                agent: "default",
+                slot,
+                model,
+                apiKey,
+                onChunk: (chunk) => {
+                  const current = useSimulationStore.getState().multichatStreaming[profile.id] || "";
+                  setMultichatStreaming(profile.id, current + chunk);
+                },
+                signal: abortController.signal,
+              });
+              addLlmCall(log);
+
+              return {
+                profileId: profile.id,
+                profileName: profile.name,
+                model,
+                content: log.response || "",
+                latencyMs: log.latencyMs,
+                totalTokens: log.totalTokens,
+                error: log.error,
+              } as MultichatResponse;
+            }
           } catch (err) {
             return {
               profileId: profile.id,
@@ -350,31 +355,30 @@ export function PreviewChat() {
         }
       } else {
         // ── STANDARD MODE ───────────────────────────────────────────
-        let dialogueLog;
-        if (overrides && Object.keys(overrides).length > 0) {
-          const store = useConfigStore.getState();
-          const baseSlot = store.slots["default"];
-          const mixedSlot = {
-            ...baseSlot,
-            tuning: { ...baseSlot.tuning, ...overrides },
-          };
-          dialogueLog = await sendLlmRequestWithSlot({
-            messages: dialogueMessages,
-            agent: "default",
-            slot: mixedSlot,
+        // Combined render + LLM in a single server round-trip
+        const store = useConfigStore.getState();
+        const baseSlot = store.slots["default"];
+        const slot = (overrides && Object.keys(overrides).length > 0)
+          ? { ...baseSlot, tuning: { ...baseSlot.tuning, ...overrides } }
+          : undefined;
+
+        const dialogueLog = await sendDialogueRequest({
+          renderParams,
+          agent: "default",
+          ...(slot ? {
+            slot,
             model: store.getNextModel("default"),
             apiKey: store.getEffectiveApiKey("default"),
-            onChunk: (chunk) => setStreamingText((prev) => prev + chunk),
-            signal: abortController.signal,
-          });
-        } else {
-          dialogueLog = await sendLlmRequest({
-            messages: dialogueMessages,
-            agent: "default",
-            onChunk: (chunk) => setStreamingText((prev) => prev + chunk),
-            signal: abortController.signal,
-          });
-        }
+          } : {}),
+          onChunk: (chunk) => setStreamingText((prev) => prev + chunk),
+          onRenderResult: (result) => {
+            setLastDialoguePreview({
+              renderedPrompt: result.renderedText,
+              messages: result.messages,
+            });
+          },
+          signal: abortController.signal,
+        });
         addLlmCall(dialogueLog);
 
         const npcResponse = dialogueLog.response || streamingText;

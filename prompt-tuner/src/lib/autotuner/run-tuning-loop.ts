@@ -11,7 +11,7 @@ import { parseProposal } from "./parse-proposal";
 import { applySettingsChanges, applyPromptChanges } from "./apply-changes";
 import { fetchPromptContent } from "./fetch-prompt-content";
 import { createTunerTempSet, deleteTunerTempSet, TUNER_TEMP_SET } from "./save-results";
-import { sendLlmRequest, sendLlmRequestWithSlot } from "@/lib/llm/client";
+import { sendLlmRequest, sendLlmRequestWithSlot, sendDialogueRequest, sendRenderAndChat } from "@/lib/llm/client";
 import { useAutoTunerStore } from "@/stores/autoTunerStore";
 
 /**
@@ -129,33 +129,16 @@ export async function runTuningLoop(
               target: turn.inputTarget,
             });
 
-            // Render the prompt for the responding NPC with current chat
-            const renderBody = buildMultiTurnRenderBody(
+            // Render + send to LLM in a single server round-trip
+            const renderParams = buildMultiTurnRenderBody(
               turn,
               activeScenario,
               accumulatedChat,
               promptSetBase,
             );
 
-            const renderResponse = await fetch("/api/prompts/render-dialogue", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(renderBody),
-              signal: abortController.signal,
-            });
-
-            if (!renderResponse.ok) {
-              const errData = await renderResponse.json().catch(() => ({}));
-              throw new Error(errData.error || `Render failed on turn ${turnIdx + 1}: HTTP ${renderResponse.status}`);
-            }
-
-            const renderData = await renderResponse.json();
-            renderedMessages = renderData.messages;
-            if (turnIdx === 0) renderedText = renderData.renderedText || "";
-
-            // Send to LLM
-            const log = await sendLlmRequestWithSlot({
-              messages: renderedMessages,
+            const log = await sendDialogueRequest({
+              renderParams,
               agent,
               slot: workingSlot,
               model,
@@ -165,6 +148,9 @@ export async function runTuningLoop(
             });
 
             if (log.error) throw new Error(log.error);
+
+            renderedMessages = log.renderResult?.messages || log.messages;
+            if (turnIdx === 0) renderedText = log.renderResult?.renderedText || "";
 
             allResponses.push(log.response);
             benchLatencyMs += log.latencyMs;
@@ -202,29 +188,12 @@ export async function runTuningLoop(
             if (abortController.signal.aborted) break;
 
             const subtask = catDef.subtasks[stIdx];
-            _t(`subtask ${stIdx} "${subtask.label}" render START`);
+            _t(`subtask ${stIdx} "${subtask.label}" render+LLM START`);
             const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
 
-            const renderResponse = await fetch(subtask.renderEndpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(renderBody),
-              signal: abortController.signal,
-            });
-            _t(`subtask ${stIdx} render DONE (${renderResponse.status})`);
-
-            if (!renderResponse.ok) {
-              const errData = await renderResponse.json().catch(() => ({}));
-              throw new Error(errData.error || `Render failed for ${subtask.label}: HTTP ${renderResponse.status}`);
-            }
-
-            const renderData = await renderResponse.json();
-            const subtaskMessages: ChatMessage[] = renderData.messages;
-            if (stIdx === 0) renderedText = renderData.renderedText || "";
-
-            _t(`subtask ${stIdx} LLM START (model=${model})`);
-            const log = await sendLlmRequestWithSlot({
-              messages: subtaskMessages,
+            const log = await sendRenderAndChat({
+              renderEndpoint: subtask.renderEndpoint,
+              renderBody,
               agent,
               slot: workingSlot,
               model,
@@ -232,9 +201,12 @@ export async function runTuningLoop(
               onChunk: () => {},
               signal: abortController.signal,
             });
-            _t(`subtask ${stIdx} LLM DONE (${log.latencyMs}ms, ${log.totalTokens}tok)`);
+            _t(`subtask ${stIdx} DONE (${log.latencyMs}ms, ${log.totalTokens}tok)`);
 
             if (log.error) throw new Error(log.error);
+
+            const subtaskMessages = log.renderResult?.messages || log.messages;
+            if (stIdx === 0) renderedText = log.renderResult?.renderedText || "";
 
             allSubtaskResponses.push(log.response);
             benchLatencyMs += log.latencyMs;

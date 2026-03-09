@@ -6,7 +6,7 @@ import { getCategoryDef } from "./categories";
 import { getDefaultScenario, buildRenderBody, buildMultiTurnRenderBody, resolveScenarioNpcs } from "./default-scenarios";
 import { buildExplanationMessages } from "./build-explanation-prompt";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
-import { sendLlmRequestWithSlot } from "@/lib/llm/client";
+import { sendLlmRequestWithSlot, sendRenderAndChat } from "@/lib/llm/client";
 
 /**
  * Run a self-explanation follow-up: asks the same model to explain
@@ -137,62 +137,19 @@ export async function runBenchmark(
       });
     }
 
-    // For each subtask, render once then run all profiles in parallel
+    // For each subtask, run all profiles in parallel using combined render+chat
     for (let stIdx = 0; stIdx < catDef.subtasks.length; stIdx++) {
       if (abortController.signal.aborted) break;
 
       const subtask = catDef.subtasks[stIdx];
+      const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
 
-      // Render this subtask's prompt template once
-      const renderBody = buildRenderBody(
-        subtask.id,
-        activeScenario,
-        promptSetBase,
-      );
-
-      const renderResponse = await fetch(subtask.renderEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(renderBody),
-        signal: abortController.signal,
-      });
-
-      if (!renderResponse.ok) {
-        const errData = await renderResponse.json().catch(() => ({}));
-        // Mark this subtask as error for all profiles
-        for (const profile of profiles) {
-          const key = `${profile.id}-${category}`;
-          useBenchmarkStore.getState().updateSubtask(key, stIdx, {
-            status: "error",
-            error: errData.error || `Render failed: HTTP ${renderResponse.status}`,
-          });
-        }
-        continue;
-      }
-
-      const renderData = await renderResponse.json();
-      const messages: ChatMessage[] = renderData.messages;
-      const renderedText: string = renderData.renderedText || "";
-
-      // Store rendered text (append for multi-subtask agents)
-      const currentStore = useBenchmarkStore.getState();
-      const sep = currentStore.renderedText ? `\n\n--- ${subtask.label} ---\n\n` : "";
-      store.setRendered(
-        messages,
-        currentStore.renderedText + sep + renderedText,
-      );
-
-      // Mark subtasks as streaming and store messages
-      for (const profile of profiles) {
-        const key = `${profile.id}-${category}`;
-        useBenchmarkStore.getState().updateSubtask(key, stIdx, {
-          status: "streaming",
-          messages,
-        });
-      }
+      // First profile uses combined render+chat; rest reuse rendered messages
+      let sharedMessages: ChatMessage[] | null = null;
+      let sharedRenderedText = "";
 
       // Run all profiles in parallel for this subtask
-      const promises = profiles.map(async (profile) => {
+      const promises = profiles.map(async (profile, profileIdx) => {
         const key = `${profile.id}-${category}`;
         const agentSlot = profile.slots[catDef.agent];
         const models = agentSlot.api.modelNames
@@ -203,43 +160,112 @@ export async function runBenchmark(
         const apiKey = agentSlot.api.apiKey || profile.globalApiKey;
 
         try {
-          const log = await sendLlmRequestWithSlot({
-            messages,
-            agent: catDef.agent,
-            slot: agentSlot,
-            model,
-            apiKey,
-            onChunk: (chunk) => {
-              useBenchmarkStore.getState().appendSubtaskStream(key, stIdx, chunk);
-            },
-            signal: abortController.signal,
-          });
+          if (profileIdx === 0) {
+            // First profile: combined render+LLM
+            useBenchmarkStore.getState().updateSubtask(key, stIdx, { status: "streaming" });
 
-          useBenchmarkStore.getState().updateSubtask(key, stIdx, {
-            response: log.response,
-            latencyMs: log.latencyMs,
-            promptTokens: log.promptTokens,
-            completionTokens: log.completionTokens,
-            totalTokens: log.totalTokens,
-            status: log.error ? "error" : "done",
-            error: log.error,
-          });
-
-          // Run self-explanation after successful response
-          if (log.response && !log.error) {
-            await runSelfExplanation({
-              key,
-              subtaskIdx: stIdx,
-              category,
-              subtaskLabel: subtask.label,
-              originalMessages: messages,
-              modelResponse: log.response,
+            const log = await sendRenderAndChat({
+              renderEndpoint: subtask.renderEndpoint,
+              renderBody,
               agent: catDef.agent,
               slot: agentSlot,
               model,
               apiKey,
+              onChunk: (chunk) => {
+                useBenchmarkStore.getState().appendSubtaskStream(key, stIdx, chunk);
+              },
+              onRenderResult: (result) => {
+                sharedMessages = result.messages;
+                sharedRenderedText = result.renderedText;
+
+                // Store rendered text
+                const currentStore = useBenchmarkStore.getState();
+                const sep = currentStore.renderedText ? `\n\n--- ${subtask.label} ---\n\n` : "";
+                store.setRendered(result.messages, currentStore.renderedText + sep + result.renderedText);
+
+                // Update messages for all profiles
+                for (const p of profiles) {
+                  useBenchmarkStore.getState().updateSubtask(`${p.id}-${category}`, stIdx, {
+                    status: "streaming",
+                    messages: result.messages,
+                  });
+                }
+              },
               signal: abortController.signal,
             });
+
+            if (log.error && !log.renderResult) {
+              // Render failed — mark all profiles as error
+              for (const p of profiles) {
+                useBenchmarkStore.getState().updateSubtask(`${p.id}-${category}`, stIdx, {
+                  status: "error",
+                  error: log.error,
+                });
+              }
+              return;
+            }
+
+            useBenchmarkStore.getState().updateSubtask(key, stIdx, {
+              response: log.response,
+              latencyMs: log.latencyMs,
+              promptTokens: log.promptTokens,
+              completionTokens: log.completionTokens,
+              totalTokens: log.totalTokens,
+              status: log.error ? "error" : "done",
+              error: log.error,
+            });
+
+            const messages = log.renderResult?.messages || log.messages;
+            if (log.response && !log.error) {
+              await runSelfExplanation({
+                key, subtaskIdx: stIdx, category, subtaskLabel: subtask.label,
+                originalMessages: messages, modelResponse: log.response,
+                agent: catDef.agent, slot: agentSlot, model, apiKey,
+                signal: abortController.signal,
+              });
+            }
+          } else {
+            // Wait for first profile's render to complete
+            while (!sharedMessages && !abortController.signal.aborted) {
+              await new Promise((r) => setTimeout(r, 10));
+            }
+            if (!sharedMessages) return;
+
+            useBenchmarkStore.getState().updateSubtask(key, stIdx, {
+              status: "streaming",
+              messages: sharedMessages,
+            });
+
+            const log = await sendLlmRequestWithSlot({
+              messages: sharedMessages,
+              agent: catDef.agent,
+              slot: agentSlot,
+              model,
+              apiKey,
+              onChunk: (chunk) => {
+                useBenchmarkStore.getState().appendSubtaskStream(key, stIdx, chunk);
+              },
+              signal: abortController.signal,
+            });
+
+            useBenchmarkStore.getState().updateSubtask(key, stIdx, {
+              response: log.response,
+              latencyMs: log.latencyMs,
+              promptTokens: log.promptTokens,
+              completionTokens: log.completionTokens,
+              totalTokens: log.totalTokens,
+              status: log.error ? "error" : "done",
+              error: log.error,
+            });
+
+            if (log.response && !log.error) {
+              await runSelfExplanation({
+                key, subtaskIdx: stIdx, category, subtaskLabel: subtask.label,
+                originalMessages: sharedMessages, modelResponse: log.response,
+                agent: catDef.agent, slot: agentSlot, model, apiKey,
+                signal: abortController.signal,
+              });
+            }
           }
         } catch (err: unknown) {
           if (err instanceof Error && err.name === "AbortError") return;
@@ -354,8 +380,8 @@ async function runMultiTurnBenchmark(
           target: turn.inputTarget,
         });
 
-        // 2. Render the prompt for the responding NPC with current chat
-        const renderBody = buildMultiTurnRenderBody(
+        // 2. Render + send to LLM in a single server round-trip
+        const renderParams = buildMultiTurnRenderBody(
           turn,
           scenario,
           accumulatedChat,
@@ -363,40 +389,25 @@ async function runMultiTurnBenchmark(
         );
 
         try {
-          const renderResponse = await fetch("/api/prompts/render-dialogue", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(renderBody),
-            signal: abortController.signal,
-          });
-
-          if (!renderResponse.ok) {
-            const errData = await renderResponse.json().catch(() => ({}));
-            useBenchmarkStore.getState().updateSubtask(key, turnIdx, {
-              status: "error",
-              error: errData.error || `Render failed: HTTP ${renderResponse.status}`,
-            });
-            continue;
-          }
-
-          const renderData = await renderResponse.json();
-          const messages: ChatMessage[] = renderData.messages;
-
-          // Mark as streaming and store messages for this turn
+          // Mark as streaming
           useBenchmarkStore.getState().updateSubtask(key, turnIdx, {
             status: "streaming",
-            messages,
           });
 
-          // 3. Send rendered messages to LLM (streaming)
-          const log = await sendLlmRequestWithSlot({
-            messages,
+          const log = await sendRenderAndChat({
+            renderEndpoint: "/api/prompts/render-dialogue",
+            renderBody: renderParams,
             agent: catDef.agent,
             slot: agentSlot,
             model,
             apiKey,
             onChunk: (chunk) => {
               useBenchmarkStore.getState().appendSubtaskStream(key, turnIdx, chunk);
+            },
+            onRenderResult: (result) => {
+              useBenchmarkStore.getState().updateSubtask(key, turnIdx, {
+                messages: result.messages,
+              });
             },
             signal: abortController.signal,
           });
@@ -410,6 +421,8 @@ async function runMultiTurnBenchmark(
             status: log.error ? "error" : "done",
             error: log.error,
           });
+
+          const messages = log.renderResult?.messages || log.messages;
 
           // Run self-explanation after successful response
           if (log.response && !log.error) {
@@ -428,7 +441,7 @@ async function runMultiTurnBenchmark(
             });
           }
 
-          // 4. Push NPC response to accumulated chat for next turn
+          // 3. Push NPC response to accumulated chat for next turn
           if (log.response && !log.error) {
             const respondingNpc = scenario.npcs[turn.respondingNpcIndex];
             accumulatedChat.push({
