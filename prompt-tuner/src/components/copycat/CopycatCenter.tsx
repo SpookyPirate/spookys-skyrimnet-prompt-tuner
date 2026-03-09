@@ -98,6 +98,7 @@ export function CopycatCenter() {
   const isRunning = useCopycatStore((s) => s.isRunning);
   const referenceModelId = useCopycatStore((s) => s.referenceModelId);
   const targetModelId = useCopycatStore((s) => s.targetModelId);
+  const statusMessage = useCopycatStore((s) => s.statusMessage);
 
   const [showCostNotice, setShowCostNotice] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -115,7 +116,7 @@ export function CopycatCenter() {
     if (isRunning && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [comparisonStream, proposalStream, isRunning, rounds]);
+  }, [comparisonStream, proposalStream, isRunning, rounds, statusMessage]);
 
   if (phase === "idle" && rounds.length === 0) {
     return (
@@ -144,6 +145,9 @@ export function CopycatCenter() {
             : `${PHASE_LABELS[phase]} — ${rounds.length} round${rounds.length !== 1 ? "s" : ""}`
           }
         </span>
+        {isRunning && statusMessage && (
+          <span className="text-xs text-muted-foreground ml-auto truncate">{statusMessage}</span>
+        )}
       </div>
 
       {/* Rounds */}
@@ -157,6 +161,7 @@ export function CopycatCenter() {
               comparisonStream={idx === rounds.length - 1 ? comparisonStream : ""}
               referenceModelId={referenceModelId}
               targetModelId={targetModelId}
+              statusMessage={idx === rounds.length - 1 && isRunning ? statusMessage : ""}
             />
           ))}
         </div>
@@ -171,12 +176,14 @@ function CopycatRoundCard({
   comparisonStream,
   referenceModelId,
   targetModelId,
+  statusMessage,
 }: {
   round: CopycatRound;
   isCurrentRound: boolean;
   comparisonStream: string;
   referenceModelId: string;
   targetModelId: string;
+  statusMessage: string;
 }) {
   const refLabel = referenceModelId ? shortModelName(referenceModelId) : undefined;
   const tgtLabel = targetModelId ? shortModelName(targetModelId) : undefined;
@@ -237,6 +244,14 @@ function CopycatRoundCard({
       </div>
 
       <div className="space-y-0">
+        {/* Status message during dialogue phases */}
+        {isCurrentRound && statusMessage && (round.phase === "running_reference" || round.phase === "running_target") && (
+          <div className="flex items-center gap-2 px-3 py-2 border-t text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin text-blue-500 shrink-0" />
+            <span className="truncate">{statusMessage}</span>
+          </div>
+        )}
+
         {/* Reference Dialogue */}
         {round.referenceDialogue.length > 0 && (
           <CollapsibleSection

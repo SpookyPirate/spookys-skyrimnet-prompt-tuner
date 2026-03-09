@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const candidateDialogues: InjaValue[] = npcs.map((n: Record<string, string | number>) => ({
+    const candidateDialogues: InjaValue[] = npcs.map((n: Record<string, string | number>, i: number) => ({
+      id: i + 1,
       name: n.displayName || n.name,
       UUID: n.uuid || "unknown",
       gender: n.gender || "Unknown",

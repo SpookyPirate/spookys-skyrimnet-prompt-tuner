@@ -465,7 +465,8 @@ export function buildFullSimulationState(params: BuildSimStateParams): Simulatio
   const sceneContext = [scene.worldPrompt, scene.scenePrompt].filter(Boolean).join("\n");
 
   // Candidate dialogues (for speaker/target selectors)
-  const candidateDialoguesFinal = candidateDialogues ?? selectedNpcs.map((n) => ({
+  const candidateDialoguesFinal = candidateDialogues ?? selectedNpcs.map((n, i) => ({
+    id: i + 1,
     name: n.displayName || n.name,
     UUID: n.uuid,
     gender: n.gender,

@@ -190,51 +190,38 @@ export function useAutochat() {
         // Step B: Generate NPC dialogue response (no streaming for autochat)
         let dialogueMessages: ChatMessage[];
 
-        try {
-          const renderRes = await fetch("/api/prompts/render-dialogue", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              npc: targetNpc,
-              player: playerConfig,
-              scene,
-              selectedNpcs,
-              chatHistory: fullChatHistory,
-              eligibleActions: getEligibleActions().map((a) => ({
-                name: a.name,
-                description: a.description,
-                parameterSchema: a.parameterSchema,
-              })),
-              gameEvents,
-              promptSetBase: activePromptSet || undefined,
-            }),
-          });
-          const renderData = await renderRes.json();
-
-          if (renderData.messages && renderData.messages.length > 0) {
-            dialogueMessages = renderData.messages;
-            setLastDialoguePreview({
-              renderedPrompt: renderData.renderedText || "",
-              messages: dialogueMessages,
-            });
-          } else {
-            throw new Error(renderData.error || "Empty render result");
-          }
-        } catch {
-          // Fallback
-          dialogueMessages = [
-            {
-              role: "system",
-              content: `You are ${targetNpc.displayName}, a ${targetNpc.gender} ${targetNpc.race} in Skyrim. Location: ${scene.location}. Respond in character. Keep responses concise (1-3 sentences).`,
-            },
-            ...chatHistory.slice(-20).map((e): ChatMessage => ({
-              role: e.type === "player" ? "user" : "assistant",
-              content: e.type === "player" ? e.content : `${e.speaker}: ${e.content}`,
+        const renderRes = await fetch("/api/prompts/render-dialogue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            npc: targetNpc,
+            player: playerConfig,
+            scene,
+            selectedNpcs,
+            chatHistory: fullChatHistory,
+            eligibleActions: getEligibleActions().map((a) => ({
+              name: a.name,
+              description: a.description,
+              parameterSchema: a.parameterSchema,
             })),
-            { role: "user", content: parsed.dialogue },
-          ];
-          setLastDialoguePreview(null);
+            gameEvents,
+            promptSetBase: activePromptSet || undefined,
+          }),
+        });
+        const renderData = await renderRes.json();
+
+        if (!renderData.messages || renderData.messages.length === 0) {
+          const errMsg = renderData.error || "Empty render result";
+          console.error("Autochat dialogue render failed:", errMsg);
+          setProcessing(false);
+          setAutochatStatus(useSimulationStore.getState().autochatEnabled ? "cooldown" : "idle");
+          return;
         }
+        dialogueMessages = renderData.messages;
+        setLastDialoguePreview({
+          renderedPrompt: renderData.renderedText || "",
+          messages: dialogueMessages,
+        });
 
         const dialogueLog = await sendLlmRequest({
           messages: dialogueMessages,

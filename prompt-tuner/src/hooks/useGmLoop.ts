@@ -262,14 +262,8 @@ export function useGmLoop() {
     return tickChatHistory;
   }, []);
 
-  /**
-   * A single tick of the GM loop.
-   *
-   * Normal mode:  Run action selector once. "None" = skip, loop continues.
-   * Continuous:   Run action selector guided by scene plan beats.
-   *               Up to 3 actions per tick. Advance beat after each action.
-   */
-  const tick = useCallback(async () => {
+  /** Run tick logic. Called from setInterval — guards against re-entry. */
+  const runTick = useCallback(async () => {
     if (tickActiveRef.current) return;
     tickActiveRef.current = true;
 
@@ -289,7 +283,6 @@ export function useGmLoop() {
         return;
       }
 
-      // Skip tick if dialogue generation is already in progress (player or previous GM action)
       if (store.isProcessing) {
         console.log("[GM] Skipping tick — dialogue generation in progress");
         return;
@@ -304,13 +297,11 @@ export function useGmLoop() {
       let tickChatHistory = [...chatHistory];
 
       for (let round = 0; round < maxRounds; round++) {
-        // In continuous mode, check if beats remain
         if (gmContinuousMode) {
           const currentPlan = useSimulationStore.getState().scenePlan;
           if (!currentPlan) break;
           const currentBeat = currentPlan.beats[currentPlan.currentBeatIndex];
           if (!currentBeat) {
-            // All beats complete — exit continuous mode
             console.log("[GM] All beats complete, exiting continuous mode");
             useSimulationStore.getState().setGmContinuousMode(false);
             useSimulationStore.getState().setGmCooldown(120);
@@ -318,13 +309,11 @@ export function useGmLoop() {
           }
         }
 
-        // Build the scene plan context for the template
         const currentPlan = useSimulationStore.getState().scenePlan;
         const scenePlanForTemplate = (gmContinuousMode && currentPlan)
           ? scenePlanToTemplateFormat(currentPlan)
           : null;
 
-        // Render action selector through pipeline
         let gmMessages: ChatMessage[];
         try {
           const renderRes = await fetch("/api/prompts/render-gm-action-selector", {
@@ -377,13 +366,10 @@ export function useGmLoop() {
           beatIndex: beatIndex ?? 0,
         });
 
-        // Normal mode: "None" = skip this tick, loop continues next interval
         if (parsed.action === "None") break;
 
-        // Execute the action
         tickChatHistory = await executeAction(parsed, tickChatHistory, beatIndex);
 
-        // In continuous mode, advance beat after each action
         if (gmContinuousMode && currentPlan) {
           advanceBeat();
         }
@@ -397,7 +383,6 @@ export function useGmLoop() {
       }
     } catch (e) {
       console.error("[GM] Tick error:", e);
-      // Still set status so the UI doesn't get stuck
       try {
         const s = useSimulationStore.getState();
         s.setGmStatus(s.gmEnabled ? "cooldown" : "idle");
@@ -405,53 +390,35 @@ export function useGmLoop() {
     } finally {
       tickActiveRef.current = false;
     }
-  }, [executeAction, clearLoop]);
+  }, [executeAction]);
 
-  /**
-   * Start the GM loop interval at the current cooldown rate.
-   */
+  /** Start the interval loop at the current cooldown rate. */
   const startLoop = useCallback(() => {
     clearLoop();
-    const { gmCooldown } = useSimulationStore.getState();
-    // Run first tick immediately
-    tick();
-    intervalRef.current = setInterval(tick, gmCooldown * 1000);
-  }, [tick, clearLoop]);
-
-  /**
-   * Stop the GM loop and set status to idle.
-   */
-  const stopLoop = useCallback(() => {
-    clearLoop();
-    useSimulationStore.getState().setGmStatus("idle");
-  }, [clearLoop]);
+    const { gmCooldown, gmEnabled } = useSimulationStore.getState();
+    if (!gmEnabled) return;
+    console.log(`[GM] Starting loop with ${gmCooldown}s interval`);
+    intervalRef.current = setInterval(() => runTick(), gmCooldown * 1000);
+  }, [clearLoop, runTick]);
 
   // Start/stop loop when gmEnabled changes
   useEffect(() => {
     const unsub = useSimulationStore.subscribe((state, prev) => {
       if (state.gmEnabled && !prev.gmEnabled) {
-        // GM just turned on — start loop
-        clearLoop();
-        const cooldownMs = state.gmCooldown * 1000;
-        // First tick after a short delay to let UI settle
-        setTimeout(() => {
-          tick();
-          intervalRef.current = setInterval(tick, cooldownMs);
-        }, 500);
+        // GM just turned on — run first tick quickly, then start interval
+        runTick().then(() => startLoop());
       } else if (!state.gmEnabled && prev.gmEnabled) {
-        // GM just turned off — stop loop
         clearLoop();
         state.setGmStatus("idle");
       }
     });
     return unsub;
-  }, [tick, clearLoop]);
+  }, [runTick, startLoop, clearLoop]);
 
   // Handle continuous mode toggle: auto-plan scene on, clear plan on off
   useEffect(() => {
     const unsub = useSimulationStore.subscribe((state, prev) => {
       if (state.gmContinuousMode && !prev.gmContinuousMode && state.gmEnabled) {
-        // Continuous mode just turned ON — auto-plan and switch to 6s
         (async () => {
           state.setGmCooldown(6);
           const plan = await planScene();
@@ -459,48 +426,41 @@ export function useGmLoop() {
             useSimulationStore.getState().setScenePlan(plan);
           }
           useSimulationStore.getState().setGmStatus("cooldown");
-          // Restart loop at new cooldown
-          clearLoop();
-          tick();
-          intervalRef.current = setInterval(tick, 6000);
+          startLoop();
         })();
       } else if (!state.gmContinuousMode && prev.gmContinuousMode && state.gmEnabled) {
-        // Continuous mode just turned OFF — clear plan, revert to 120s
         state.clearScenePlan();
         state.setGmCooldown(120);
-        // Restart loop at normal cooldown
-        clearLoop();
-        tick();
-        intervalRef.current = setInterval(tick, 120000);
+        startLoop();
       }
     });
     return unsub;
-  }, [tick, clearLoop, planScene]);
+  }, [startLoop, clearLoop, planScene]);
 
-  // Restart interval when cooldown changes manually
+  // Restart interval when cooldown changes (only if loop is running)
   useEffect(() => {
     const unsub = useSimulationStore.subscribe((state, prev) => {
-      if (state.gmCooldown !== prev.gmCooldown && state.gmEnabled) {
-        clearLoop();
-        intervalRef.current = setInterval(tick, state.gmCooldown * 1000);
+      if (state.gmCooldown !== prev.gmCooldown && state.gmEnabled && intervalRef.current) {
+        startLoop();
       }
     });
     return unsub;
-  }, [tick, clearLoop]);
+  }, [startLoop]);
 
-  // Reset GM cooldown when player sends a message (mirrors real SkyrimNet behavior)
+  // Reset cooldown timer when player sends a message
   useEffect(() => {
     const unsub = useSimulationStore.subscribe((state, prev) => {
       if (state.gmEnabled && state.chatHistory.length > prev.chatHistory.length) {
         const lastEntry = state.chatHistory[state.chatHistory.length - 1];
-        if (lastEntry?.type === "player") {
-          clearLoop();
-          intervalRef.current = setInterval(tick, state.gmCooldown * 1000);
+        if (lastEntry?.type === "player" && intervalRef.current) {
+          // Player just spoke — restart the interval to reset the cooldown
+          useSimulationStore.getState().setGmStatus("cooldown");
+          startLoop();
         }
       }
     });
     return unsub;
-  }, [tick, clearLoop]);
+  }, [startLoop]);
 
   // Clean up on unmount
   useEffect(() => {

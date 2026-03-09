@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
     const candidates = npcs.filter(
       (n: Record<string, string>) => (n.displayName || n.name) !== lastSpeaker
     );
-    const candidateDialogues: InjaValue[] = candidates.map((n: Record<string, string | number>) => ({
+    const candidateDialogues: InjaValue[] = candidates.map((n: Record<string, string | number>, i: number) => ({
+      id: i + 1,
       name: n.displayName || n.name,
       UUID: n.uuid || "unknown",
       gender: n.gender || "Unknown",

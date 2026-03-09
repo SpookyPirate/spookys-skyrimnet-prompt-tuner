@@ -40,23 +40,25 @@ export function GmControls() {
   // Initialize the GM loop hook (manages its own lifecycle via store subscriptions)
   useGmLoop();
 
-  // Live countdown timer — starts when GM enters cooldown
-  const [countdown, setCountdown] = useState(0);
+  // Live countdown timer — tracks time remaining based on when cooldown started
+  const [cooldownStarted, setCooldownStarted] = useState(0);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    if (gmStatus !== "cooldown") {
-      setCountdown(0);
-      return;
+    if (gmStatus === "cooldown") {
+      setCooldownStarted(Date.now());
     }
-    setCountdown(gmCooldown);
-    const id = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
-    }, 1000);
+  }, [gmStatus]);
+
+  useEffect(() => {
+    if (gmStatus !== "cooldown") return;
+    const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
-  }, [gmStatus, gmCooldown]);
+  }, [gmStatus]);
+
+  const cooldownRemaining = gmStatus === "cooldown"
+    ? Math.max(0, gmCooldown - Math.floor((now - cooldownStarted) / 1000))
+    : 0;
 
   if (!gmEnabled) {
     return (
@@ -107,7 +109,7 @@ export function GmControls() {
         ) : (
           <span className={`text-[9px] ${statusInfo.color}`}>
             {statusInfo.label}
-            {gmStatus === "cooldown" && countdown > 0 && ` (${countdown}s)`}
+            {gmStatus === "cooldown" && ` (${cooldownRemaining}s)`}
           </span>
         )}
 

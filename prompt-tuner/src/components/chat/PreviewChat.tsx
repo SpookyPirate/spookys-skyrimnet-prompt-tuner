@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useSimulationStore } from "@/stores/simulationStore";
 import { useConfigStore } from "@/stores/configStore";
@@ -40,13 +39,18 @@ export function PreviewChat() {
   const gameEvents = useTriggerStore((s) => s.eventHistory);
 
   // Multichat state
+  const multichatEnabled = useSimulationStore((s) => s.multichatEnabled);
   const multichatProfileIds = useSimulationStore((s) => s.multichatProfileIds);
   const multichatStreaming = useSimulationStore((s) => s.multichatStreaming);
   const setMultichatStreaming = useSimulationStore((s) => s.setMultichatStreaming);
   const clearMultichatStreaming = useSimulationStore((s) => s.clearMultichatStreaming);
   const profiles = useProfileStore((s) => s.profiles);
 
-  const isMultichat = multichatProfileIds.length > 0;
+  // Multichat is active when enabled AND has valid (still-existing) profiles selected
+  const validMultichatIds = multichatEnabled
+    ? multichatProfileIds.filter((id) => profiles.some((p) => p.id === id))
+    : [];
+  const isMultichat = validMultichatIds.length > 0;
 
   const [input, setInput] = useState("");
   const [streamingText, setStreamingText] = useState("");
@@ -57,9 +61,9 @@ export function PreviewChat() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const viewport = scrollAreaRef.current?.querySelector('[data-slot="scroll-area-viewport"]');
-    if (viewport) {
-      viewport.scrollTop = viewport.scrollHeight;
+    const el = scrollAreaRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [chatHistory, streamingText, multichatStreaming]);
 
@@ -149,58 +153,42 @@ export function PreviewChat() {
       let dialogueMessages: ChatMessage[];
       let dialogueRenderedText = "";
 
-      try {
-        const renderRes = await fetch("/api/prompts/render-dialogue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            npc: targetNpc,
-            player: playerConfig,
-            scene,
-            selectedNpcs,
-            chatHistory: fullChatHistory,
-            responseTarget: { type: "player", UUID: "player_001" },
-            eligibleActions: getEligibleActions().map((a) => ({
-              name: a.name,
-              description: a.description,
-              parameterSchema: a.parameterSchema,
-            })),
-            gameEvents,
-            promptSetBase: activePromptSet || undefined,
-            enabledSaves: buildEnabledSavesPayload(),
-          }),
-        });
-        const renderData = await renderRes.json();
-
-        if (renderData.messages && renderData.messages.length > 0) {
-          dialogueMessages = renderData.messages;
-          dialogueRenderedText = renderData.renderedText || "";
-          setLastDialoguePreview({
-            renderedPrompt: dialogueRenderedText,
-            messages: dialogueMessages,
-          });
-        } else {
-          throw new Error(renderData.error || "Empty render result");
-        }
-      } catch (renderErr) {
-        // Fallback to hardcoded prompt
-        console.warn("Dialogue pipeline render failed, using fallback:", renderErr);
-        toast.warning("Dialogue pipeline failed", {
-          description: `Could not render dialogue_response.prompt — using simplified fallback. ${renderErr instanceof Error ? renderErr.message : ""}`,
-        });
-        dialogueMessages = [
-          {
-            role: "system",
-            content: `You are ${targetNpc.displayName}, a ${targetNpc.gender} ${targetNpc.race} in Skyrim. Location: ${scene.location}. ${scene.worldPrompt ? `World: ${scene.worldPrompt}` : ""} ${scene.scenePrompt ? `Scene: ${scene.scenePrompt}` : ""}\nYou are speaking with ${playerConfig.name}, a ${playerConfig.gender} ${playerConfig.race} (level ${playerConfig.level}).${playerConfig.isInCombat ? " They are currently in combat." : ""}${playerConfig.bio ? ` About them: ${playerConfig.bio}` : ""}\n\nRespond in character as ${targetNpc.displayName}. Keep responses concise (1-3 sentences typically). Stay in character.`,
-          },
-          ...chatHistory.slice(-20).map((e): ChatMessage => ({
-            role: e.type === "player" ? "user" : "assistant",
-            content: e.type === "player" ? e.content : `${e.speaker}: ${e.content}`,
+      const renderRes = await fetch("/api/prompts/render-dialogue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          npc: targetNpc,
+          player: playerConfig,
+          scene,
+          selectedNpcs,
+          chatHistory: fullChatHistory,
+          responseTarget: { type: "player", UUID: "player_001" },
+          eligibleActions: getEligibleActions().map((a) => ({
+            name: a.name,
+            description: a.description,
+            parameterSchema: a.parameterSchema,
           })),
-          { role: "user", content: playerMessage },
-        ];
-        setLastDialoguePreview(null);
+          gameEvents,
+          promptSetBase: activePromptSet || undefined,
+          enabledSaves: buildEnabledSavesPayload(),
+        }),
+      });
+      const renderData = await renderRes.json();
+
+      if (!renderData.messages || renderData.messages.length === 0) {
+        const errMsg = renderData.error || "Empty render result";
+        toast.error("Dialogue pipeline failed", {
+          description: `Could not render dialogue_response.prompt: ${errMsg}`,
+        });
+        setProcessing(false);
+        return;
       }
+      dialogueMessages = renderData.messages;
+      dialogueRenderedText = renderData.renderedText || "";
+      setLastDialoguePreview({
+        renderedPrompt: dialogueRenderedText,
+        messages: dialogueMessages,
+      });
 
       const abortController = new AbortController();
       abortRef.current = abortController;
@@ -213,7 +201,7 @@ export function PreviewChat() {
         // Send dialogue to all selected profiles in parallel
         clearMultichatStreaming();
 
-        const multichatProfiles = multichatProfileIds
+        const multichatProfiles = validMultichatIds
           .map((id) => profiles.find((p) => p.id === id))
           .filter(Boolean) as typeof profiles;
 
@@ -473,7 +461,7 @@ export function PreviewChat() {
     addChatEntry, setProcessing, addLlmCall, setLastAction, setLastSpeakerPrediction,
     getEligibleActions, activePromptSet, setLastActionSelectorPreview,
     setLastDialoguePreview, setLastTargetSelectorPreview, setLastSpeakerSelectorPreview,
-    streamingText, gameEvents, isMultichat, multichatProfileIds, profiles,
+    streamingText, gameEvents, isMultichat, validMultichatIds, profiles,
     globalApiKey, setMultichatStreaming, clearMultichatStreaming,
   ]);
 
@@ -529,7 +517,7 @@ export function PreviewChat() {
   return (
     <div className="flex h-full flex-col">
       {/* Chat messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
+      <div ref={scrollAreaRef} className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-3 space-y-2">
           {chatHistory.length === 0 && !streamingText && !hasMultichatStreaming && (
             <div className="text-center text-xs text-muted-foreground py-8">
@@ -547,7 +535,7 @@ export function PreviewChat() {
             entry.multichatResponses && entry.multichatResponses.length > 0 ? (
               <MultichatBubble key={entry.id} entry={entry} />
             ) : (
-              <ChatBubble key={entry.id} entry={entry} />
+              <ChatBubble key={entry.id} entry={entry} isMultichat={isMultichat} />
             )
           ))}
 
@@ -569,12 +557,12 @@ export function PreviewChat() {
             <MultichatStreamingBubble
               speaker={streamingSpeaker}
               streaming={multichatStreaming}
-              profileIds={multichatProfileIds}
+              profileIds={validMultichatIds}
               profiles={profiles}
             />
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* GameMaster controls */}
       <GmControls />
@@ -651,7 +639,7 @@ export function PreviewChat() {
 
 /* ── Standard Chat Bubble ─────────────────────────────────────────── */
 
-function ChatBubble({ entry }: { entry: ChatEntry }) {
+function ChatBubble({ entry, isMultichat }: { entry: ChatEntry; isMultichat?: boolean }) {
   const isPlayer = entry.type === "player";
   const isSystem = entry.type === "system";
   const isNarration = entry.type === "narration";
@@ -671,6 +659,19 @@ function ChatBubble({ entry }: { entry: ChatEntry }) {
           <span className="text-[8px] text-purple-500/50 block mb-0.5">[GM: {entry.gmAction}]</span>
         )}
         {entry.content}
+      </div>
+    );
+  }
+
+  // In multichat mode, player bubbles span full width and center-align
+  // so they don't get lost next to the wide multichat columns
+  if (isPlayer && isMultichat) {
+    return (
+      <div className="flex justify-center py-1">
+        <div className="rounded-lg px-4 py-1.5 text-xs bg-primary text-primary-foreground">
+          <span className="font-semibold text-[10px] opacity-70 mr-1.5">{entry.speaker || "Player"}:</span>
+          {entry.content}
+        </div>
       </div>
     );
   }
@@ -714,16 +715,16 @@ function MultichatBubble({ entry }: { entry: ChatEntry }) {
         )}
       </div>
 
-      {/* Side-by-side columns */}
-      <div className="overflow-x-auto">
+      {/* Side-by-side columns — always scrollable */}
+      <div className="overflow-x-auto pb-1">
         <div
-          className="flex gap-1.5 min-w-0"
-          style={{ minWidth: count > 3 ? `${count * 288}px` : undefined }}
+          className="flex gap-1.5"
+          style={{ width: count > 2 ? `${count * 288}px` : undefined }}
         >
           {responses.map((resp) => (
             <div
               key={resp.profileId}
-              className="flex-1 min-w-[280px] rounded-lg border bg-muted/50 overflow-hidden"
+              className={`rounded-lg border bg-muted/50 overflow-hidden ${count <= 2 ? "flex-1 min-w-0" : "w-[280px] shrink-0"}`}
             >
               {/* Column header */}
               <div className="px-2 py-1 border-b bg-muted/30 flex items-center gap-1.5">
@@ -779,11 +780,11 @@ function MultichatStreamingBubble({
         {speaker}
       </div>
 
-      {/* Side-by-side streaming columns */}
-      <div className="overflow-x-auto">
+      {/* Side-by-side streaming columns — always scrollable */}
+      <div className="overflow-x-auto pb-1">
         <div
-          className="flex gap-1.5 min-w-0"
-          style={{ minWidth: count > 3 ? `${count * 288}px` : undefined }}
+          className="flex gap-1.5"
+          style={{ width: count > 2 ? `${count * 288}px` : undefined }}
         >
           {profileIds.map((profileId) => {
             const profile = profiles.find((p) => p.id === profileId);
@@ -793,7 +794,7 @@ function MultichatStreamingBubble({
             return (
               <div
                 key={profileId}
-                className="flex-1 min-w-[280px] rounded-lg border bg-muted/50 overflow-hidden"
+                className={`rounded-lg border bg-muted/50 overflow-hidden ${count <= 2 ? "flex-1 min-w-0" : "w-[280px] shrink-0"}`}
               >
                 {/* Column header */}
                 <div className="px-2 py-1 border-b bg-muted/30 flex items-center gap-1.5">

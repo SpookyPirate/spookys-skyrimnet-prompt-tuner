@@ -51,6 +51,7 @@ export function AutoTunerCenter() {
   const assessmentStream = useAutoTunerStore((s) => s.assessmentStream);
   const proposalStream = useAutoTunerStore((s) => s.proposalStream);
   const isRunning = useAutoTunerStore((s) => s.isRunning);
+  const statusMessage = useAutoTunerStore((s) => s.statusMessage);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +60,7 @@ export function AutoTunerCenter() {
     if (isRunning && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [explanationStream, assessmentStream, proposalStream, isRunning, rounds]);
+  }, [explanationStream, assessmentStream, proposalStream, isRunning, rounds, statusMessage]);
 
   if (phase === "idle" && rounds.length === 0) {
     return (
@@ -85,6 +86,9 @@ export function AutoTunerCenter() {
             : `${PHASE_LABELS[phase]} — ${rounds.length} round${rounds.length !== 1 ? "s" : ""}`
           }
         </span>
+        {isRunning && statusMessage && (
+          <span className="text-xs text-muted-foreground ml-auto truncate">{statusMessage}</span>
+        )}
       </div>
 
       {/* Rounds */}
@@ -98,6 +102,7 @@ export function AutoTunerCenter() {
               explanationStream={idx === rounds.length - 1 ? explanationStream : ""}
               assessmentStream={idx === rounds.length - 1 ? assessmentStream : ""}
               proposalStream={idx === rounds.length - 1 ? proposalStream : ""}
+              statusMessage={idx === rounds.length - 1 && isRunning ? statusMessage : ""}
             />
           ))}
         </div>
@@ -112,12 +117,14 @@ function TunerRoundCard({
   explanationStream,
   assessmentStream,
   proposalStream,
+  statusMessage,
 }: {
   round: TunerRound;
   isCurrentRound: boolean;
   explanationStream: string;
   assessmentStream: string;
   proposalStream: string;
+  statusMessage: string;
 }) {
   // Which section is currently active — drives auto-expand/collapse.
   // Only the active section is open; others collapse when the phase moves on.
@@ -178,6 +185,14 @@ function TunerRoundCard({
       </div>
 
       <div className="space-y-0">
+        {/* Status message during benchmarking */}
+        {isCurrentRound && statusMessage && round.phase === "benchmarking" && (
+          <div className="flex items-center gap-2 px-3 py-2 border-t text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin text-blue-500 shrink-0" />
+            <span className="truncate">{statusMessage}</span>
+          </div>
+        )}
+
         {/* Multi-turn: per-turn sections */}
         {isMultiTurn ? (
           <>

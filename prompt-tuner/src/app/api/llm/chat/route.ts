@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
       // sort disables load balancing and tries providers in order of the chosen metric.
       const provider: Record<string, unknown> = {
         sort: providerSorting || "latency",
-        require_parameters: true,
       };
 
       // Merge user-provided provider settings JSON (routing preferences only)
@@ -77,12 +76,14 @@ export async function POST(request: NextRequest) {
 
       payload.provider = provider;
 
-      // Reasoning is a top-level parameter, not inside provider.
-      // Only send when explicitly enabled — omitting lets the model use its default.
-      // Some models (e.g. DeepSeek R1) mandate reasoning and reject effort:"none".
+      // Reasoning: top-level parameter with enabled toggle + effort level.
+      // Models like Grok reason by default — omitting the param won't disable it.
+      // Must explicitly send enabled:false to turn it off.
       if (allowReasoning) {
         const effort = reasoningEffort || "medium";
-        payload.reasoning = { effort };
+        payload.reasoning = { enabled: true, effort };
+      } else {
+        payload.reasoning = { enabled: false };
       }
     }
 

@@ -27,8 +27,8 @@ extraResources:
       - "!**/*.map"
 
   # Original SkyrimNet prompts (read-only reference, bundled with app)
-  - from: reference-docs/skyrimnet-prompts
-    to: reference-docs/skyrimnet-prompts
+  - from: reference-docs/original-prompts
+    to: reference-docs/original-prompts
     filter:
       - "**/*"
 

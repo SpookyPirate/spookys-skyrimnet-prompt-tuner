@@ -120,6 +120,8 @@ export async function runTuningLoop(
             if (abortController.signal.aborted) break;
 
             const turn = turns[turnIdx];
+            const respondingNpc = activeScenario.npcs[turn.respondingNpcIndex];
+            store.setStatusMessage(`Turn ${turnIdx + 1}/${turns.length}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"} — rendering prompt...`);
 
             // Push scripted input to accumulated chat
             accumulatedChat.push({
@@ -153,6 +155,8 @@ export async function runTuningLoop(
             renderedMessages = renderData.messages;
             if (turnIdx === 0) renderedText = renderData.renderedText || "";
 
+            store.setStatusMessage(`Turn ${turnIdx + 1}/${turns.length}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"} — waiting for LLM...`);
+
             // Send to LLM
             const log = await sendLlmRequestWithSlot({
               messages: renderedMessages,
@@ -172,13 +176,14 @@ export async function runTuningLoop(
             benchCompletionTokens += log.completionTokens;
             benchTotalTokens += log.totalTokens;
 
-            // Store per-turn data
-            const respondingNpc = activeScenario.npcs[turn.respondingNpcIndex];
-            roundTurnResults.push({
+            // Store per-turn data incrementally
+            const turnResult: TunerTurnResult = {
               label: `Turn ${turnIdx + 1}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"}`,
               messages: [...renderedMessages],
               response: log.response,
-            });
+            };
+            roundTurnResults.push(turnResult);
+            store.addRoundTurnResult(roundIdx, turnResult);
 
             // Push NPC response to accumulated chat for next turn
             accumulatedChat.push({
@@ -188,9 +193,6 @@ export async function runTuningLoop(
               target: turn.inputSpeaker,
             });
           }
-
-          // Store per-turn results
-          store.setRoundTurnResults(roundIdx, roundTurnResults);
 
           // Aggregate all turn responses for assessment
           benchResponse = allResponses.map((r, i) => `[Turn ${i + 1}] ${r}`).join("\n\n");
@@ -202,6 +204,11 @@ export async function runTuningLoop(
             if (abortController.signal.aborted) break;
 
             const subtask = catDef.subtasks[stIdx];
+            const subtaskProgress = catDef.subtasks.length > 1
+              ? `Subtask ${stIdx + 1}/${catDef.subtasks.length}: ${subtask.label}`
+              : subtask.label;
+            store.setStatusMessage(`${subtaskProgress} — rendering prompt...`);
+
             _t(`subtask ${stIdx} "${subtask.label}" render START`);
             const renderBody = buildRenderBody(subtask.id, activeScenario, promptSetBase);
 
@@ -221,6 +228,8 @@ export async function runTuningLoop(
             const renderData = await renderResponse.json();
             const subtaskMessages: ChatMessage[] = renderData.messages;
             if (stIdx === 0) renderedText = renderData.renderedText || "";
+
+            store.setStatusMessage(`${subtaskProgress} — waiting for LLM...`);
 
             _t(`subtask ${stIdx} LLM START (model=${model})`);
             const log = await sendLlmRequestWithSlot({
@@ -245,9 +254,9 @@ export async function runTuningLoop(
             // Keep last subtask's messages as the primary renderedMessages
             renderedMessages = subtaskMessages;
 
-            // Store per-subtask data when there are multiple subtasks
+            // Store per-subtask data incrementally when there are multiple subtasks
             if (catDef.subtasks.length > 1) {
-              roundTurnResults.push({
+              const turnResult: TunerTurnResult = {
                 label: subtask.label,
                 messages: [...subtaskMessages],
                 response: log.response,
@@ -255,13 +264,10 @@ export async function runTuningLoop(
                 promptTokens: log.promptTokens,
                 completionTokens: log.completionTokens,
                 totalTokens: log.totalTokens,
-              });
+              };
+              roundTurnResults.push(turnResult);
+              store.addRoundTurnResult(roundIdx, turnResult);
             }
-          }
-
-          // Store per-subtask results for multi-subtask categories
-          if (roundTurnResults.length > 1) {
-            store.setRoundTurnResults(roundIdx, roundTurnResults);
           }
 
           benchResponse = catDef.subtasks.length > 1
@@ -301,6 +307,7 @@ export async function runTuningLoop(
       _t("EXPLAIN START");
       store.setPhase("explaining");
       store.setRoundPhase(roundIdx, "explaining");
+      store.setStatusMessage("Generating self-explanation...");
       store.clearStreams();
 
       let explanationText = "";
@@ -370,6 +377,7 @@ export async function runTuningLoop(
       _t("ASSESS START");
       store.setPhase("assessing");
       store.setRoundPhase(roundIdx, "assessing");
+      store.setStatusMessage("Assessing quality...");
       store.clearStreams();
 
       let assessmentText = "";
@@ -447,6 +455,7 @@ export async function runTuningLoop(
       _t("PROPOSE START");
       store.setPhase("proposing");
       store.setRoundPhase(roundIdx, "proposing");
+      store.setStatusMessage("Proposing changes...");
 
       let promptContent = "";
       if (tuningTarget === "prompts" || tuningTarget === "both") {
@@ -509,6 +518,7 @@ export async function runTuningLoop(
         // ── APPLY PHASE ──
         store.setPhase("applying");
         store.setRoundPhase(roundIdx, "applying");
+        store.setStatusMessage("Applying changes...");
 
         // Apply settings changes
         if (proposal.settingsChanges.length > 0) {

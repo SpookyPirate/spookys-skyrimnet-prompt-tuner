@@ -39,11 +39,9 @@ const SERVER_ENTRY = path.join(SERVER_DIR, "server.js");
 
 // Original SkyrimNet prompts (bundled read-only)
 const ORIGINALS_DIR = path.join(
-  isDev ? RESOURCES_DIR : RESOURCES_DIR,
+  RESOURCES_DIR,
   "reference-docs",
-  "skyrimnet-prompts",
-  "SkyrimNet-beta15.4_hotfix01",
-  "original_prompts"
+  "original-prompts"
 );
 
 // ── Start Next.js server (runs in main process) ──────────────────────────────

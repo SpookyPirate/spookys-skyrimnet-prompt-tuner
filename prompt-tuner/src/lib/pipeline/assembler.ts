@@ -348,6 +348,13 @@ function buildDecoratorFunctions(
       return `[${type}] ${data.text || ""}`;
     },
 
+    short_time: (timeStr: InjaValue) => {
+      // Extract just the time portion from a game time string like "3:42 PM, 15th of Last Seed"
+      const s = String(timeStr || "");
+      const match = s.match(/^\d{1,2}:\d{2}\s*(?:AM|PM)/i);
+      return match ? match[0] : s;
+    },
+
     // ===== Actions =====
 
     is_action_enabled: (actionName: InjaValue) => {

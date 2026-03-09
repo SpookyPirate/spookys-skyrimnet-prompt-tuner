@@ -129,7 +129,8 @@ interface SimulationState {
   autochatStartedAt: number | null;  // timestamp ms
   autochatStatus: "idle" | "running" | "cooldown";
   // Multichat comparison
-  multichatProfileIds: string[];
+  multichatEnabled: boolean;
+  multichatProfileIds: string[];  // persisted checked profiles
   multichatStreaming: Record<string, string>;  // profileId → streamed text
 
   // Player
@@ -177,6 +178,7 @@ interface SimulationState {
   setAutochatStartedAt: (timestamp: number | null) => void;
   setAutochatStatus: (status: "idle" | "running" | "cooldown") => void;
   // Multichat
+  setMultichatEnabled: (enabled: boolean) => void;
   setMultichatProfileIds: (ids: string[]) => void;
   setMultichatStreaming: (profileId: string, text: string) => void;
   clearMultichatStreaming: () => void;
@@ -221,6 +223,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   })(),
   autochatStartedAt: null,
   autochatStatus: "idle",
+  multichatEnabled: false,
   multichatProfileIds: [],
   multichatStreaming: {},
 
@@ -385,6 +388,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   },
   setAutochatStartedAt: (timestamp) => set({ autochatStartedAt: timestamp }),
   setAutochatStatus: (status) => set({ autochatStatus: status }),
+  setMultichatEnabled: (enabled) => set({ multichatEnabled: enabled }),
   setMultichatProfileIds: (ids) => set({ multichatProfileIds: ids }),
   setMultichatStreaming: (profileId, text) =>
     set((s) => ({ multichatStreaming: { ...s.multichatStreaming, [profileId]: text } })),

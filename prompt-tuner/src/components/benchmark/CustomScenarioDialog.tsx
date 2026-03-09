@@ -24,11 +24,12 @@ import type {
   BenchmarkNpc,
   BenchmarkDialogueTurn,
 } from "@/types/benchmark";
-import { Trash2, Copy, Search, X, MapPin, Sparkles, Loader2 } from "lucide-react";
+import { Trash2, Copy, Search, X, MapPin, Sparkles, Loader2, Download, Upload } from "lucide-react";
 import type { FileNode } from "@/types/files";
 import { parseCharacterName } from "@/lib/files/paths";
 import { sendLlmRequest } from "@/lib/llm/client";
 import { buildSceneGenMessages } from "@/lib/benchmark/build-scene-gen-prompt";
+import { exportSingleScenario, exportCategoryScenarios, parseScenarioFile } from "@/lib/benchmark/scenario-io";
 import { useAppStore } from "@/stores/appStore";
 import { toast } from "sonner";
 
@@ -100,6 +101,7 @@ export function CustomScenarioDialog({
   const [genDescription, setGenDescription] = useState("");
   const [showGenInput, setShowGenInput] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -125,6 +127,24 @@ export function CustomScenarioDialog({
       name: `${def.name} (Copy)`,
       description: def.description,
     });
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset so the same file can be re-imported
+    e.target.value = "";
+
+    const result = await parseScenarioFile(file);
+    if (!result.valid) {
+      toast.error("Import failed", { description: result.error });
+      return;
+    }
+
+    for (const scenario of result.scenarios) {
+      addCustomScenario(scenario);
+    }
+    toast.success(`Imported ${result.scenarios.length} scenario${result.scenarios.length !== 1 ? "s" : ""}`);
   };
 
   const handleGenerateScene = async () => {
@@ -445,6 +465,16 @@ export function CustomScenarioDialog({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      exportSingleScenario(s);
+                    }}
+                    className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                    title="Export scenario"
+                  >
+                    <Download className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       handleDelete(s.id);
                     }}
                     className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
@@ -453,6 +483,37 @@ export function CustomScenarioDialog({
                   </button>
                 </div>
               ))}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full h-6 gap-1.5 text-xs justify-start px-1.5"
+                onClick={() => importInputRef.current?.click()}
+              >
+                <Upload className="h-3 w-3" />
+                Import
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full h-6 gap-1.5 text-xs justify-start px-1.5"
+                disabled={categoryScenarios.length === 0}
+                onClick={() => exportCategoryScenarios(categoryScenarios, selectedCategory)}
+              >
+                <Download className="h-3 w-3" />
+                Export Category
+              </Button>
             </div>
           </div>
 

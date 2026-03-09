@@ -21,45 +21,31 @@ export async function runTargetSelection(
 
   let renderedPrompt = "";
 
-  try {
-    const renderRes = await fetch("/api/prompts/render-target-selector", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playerMessage,
-        chatHistory,
-        npcs,
-        scene,
-        player: playerConfig,
-        gameEvents,
-        promptSetBase: activePromptSet || undefined,
-        enabledSaves: buildEnabledSavesPayload(),
-      }),
-    });
-    const renderData = await renderRes.json();
+  const renderRes = await fetch("/api/prompts/render-target-selector", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      playerMessage,
+      chatHistory,
+      npcs,
+      scene,
+      player: playerConfig,
+      gameEvents,
+      promptSetBase: activePromptSet || undefined,
+      enabledSaves: buildEnabledSavesPayload(),
+    }),
+  });
+  const renderData = await renderRes.json();
 
-    if (renderData.messages && renderData.messages.length > 0) {
-      messages = renderData.messages;
-      renderedPrompt = renderData.renderedText || "";
-    } else {
-      throw new Error(renderData.error || "Empty render");
-    }
-  } catch (err) {
-    // Fallback to hardcoded prompt
-    toast.warning("Target selector pipeline failed", {
-      description: `Could not render player_dialogue_target_selector.prompt — using simplified fallback. ${err instanceof Error ? err.message : ""}`,
+  if (!renderData.messages || renderData.messages.length === 0) {
+    const errMsg = renderData.error || "Empty render";
+    toast.error("Target selector pipeline failed", {
+      description: `Could not render player_dialogue_target_selector.prompt: ${errMsg}`,
     });
-    messages = [
-      {
-        role: "system",
-        content: `Select which NPC the player is addressing. Output only the NPC's name.\n\nCandidates:\n${npcs.map((n) => `- ${n.displayName} (${n.gender} ${n.race}, ${n.distance} units away)`).join("\n")}`,
-      },
-      {
-        role: "user",
-        content: `Location: ${scene.location}\n\nRecent dialogue:\n${chatHistory.map((e) => e.type === "player" ? `${e.speaker || "Player"}: ${e.content}` : e.type === "npc" ? `${e.speaker}: ${e.content}` : e.content).join("\n")}\n\nPlayer says: "${playerMessage}"\n\nWho is the player addressing? Output only the name.`,
-      },
-    ];
+    throw new Error(errMsg);
   }
+  messages = renderData.messages;
+  renderedPrompt = renderData.renderedText || "";
 
   const log = await sendLlmRequest({ messages, agent: "meta_eval" });
 
@@ -177,7 +163,7 @@ export async function runRealActionSelector(
 }
 
 /**
- * Speaker prediction through rendered pipeline, with hardcoded fallback.
+ * Speaker prediction through rendered pipeline.
  */
 export async function runSpeakerPrediction(
   lastSpeaker: string,
@@ -192,46 +178,31 @@ export async function runSpeakerPrediction(
   let messages: ChatMessage[];
   let renderedPrompt = "";
 
-  try {
-    const renderRes = await fetch("/api/prompts/render-speaker-selector", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lastSpeaker,
-        chatHistory,
-        npcs,
-        scene,
-        player: playerConfig,
-        gameEvents,
-        promptSetBase: activePromptSet || undefined,
-        enabledSaves: buildEnabledSavesPayload(),
-      }),
-    });
-    const renderData = await renderRes.json();
+  const renderRes = await fetch("/api/prompts/render-speaker-selector", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      lastSpeaker,
+      chatHistory,
+      npcs,
+      scene,
+      player: playerConfig,
+      gameEvents,
+      promptSetBase: activePromptSet || undefined,
+      enabledSaves: buildEnabledSavesPayload(),
+    }),
+  });
+  const renderData = await renderRes.json();
 
-    if (renderData.messages && renderData.messages.length > 0) {
-      messages = renderData.messages;
-      renderedPrompt = renderData.renderedText || "";
-    } else {
-      throw new Error(renderData.error || "Empty render");
-    }
-  } catch (err) {
-    // Fallback to hardcoded prompt
-    toast.warning("Speaker selector pipeline failed", {
-      description: `Could not render dialogue_speaker_selector.prompt — using simplified fallback. ${err instanceof Error ? err.message : ""}`,
+  if (!renderData.messages || renderData.messages.length === 0) {
+    const errMsg = renderData.error || "Empty render";
+    toast.error("Speaker selector pipeline failed", {
+      description: `Could not render dialogue_speaker_selector.prompt: ${errMsg}`,
     });
-    const candidates = npcs.filter((n) => n.displayName !== lastSpeaker);
-    messages = [
-      {
-        role: "system",
-        content: `Select who speaks next. Output: 0 (silence) or [speaker]>[target]\nDo NOT select ${lastSpeaker} as speaker.\n\nCandidates:\n${candidates.map((n) => `- ${n.displayName} (${n.gender} ${n.race})`).join("\n")}`,
-      },
-      {
-        role: "user",
-        content: `Location: ${scene.location}\n\nRecent dialogue:\n${chatHistory.map((e) => e.type === "player" ? `${e.speaker || "Player"}: ${e.content}` : e.type === "npc" ? `${e.speaker}: ${e.content}` : e.content).join("\n")}\n\nWho speaks next? Output 0 or [Name]>[target]`,
-      },
-    ];
+    throw new Error(errMsg);
   }
+  messages = renderData.messages;
+  renderedPrompt = renderData.renderedText || "";
 
   const log = await sendLlmRequest({ messages, agent: "meta_eval" });
 

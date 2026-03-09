@@ -19,9 +19,34 @@ import { CopycatReport } from "@/components/copycat/CopycatReport";
 import { useAppStore } from "@/stores/appStore";
 import type { LlmCallLog } from "@/types/llm";
 
+/**
+ * Parse speaker prediction LLM output.
+ * Expected: "0" for silence, or "Speaker>Target" for a prediction.
+ * LLMs may wrap in backticks, quotes, or add extra text.
+ */
+function parseSpeakerPrediction(raw: string): { isSilence: boolean; display: string } {
+  // Strip backticks, quotes, and whitespace
+  const cleaned = raw.replace(/[`"']/g, "").trim();
+
+  // Check for silence: "0", "0 (silence)", just the number zero
+  if (/^0(\b|$)/.test(cleaned)) {
+    return { isSilence: true, display: "Silence" };
+  }
+
+  // Try to extract "Speaker>Target" pattern
+  const match = cleaned.match(/([^>]+)>(.+)/);
+  if (match) {
+    return { isSilence: false, display: `${match[1].trim()} → ${match[2].trim()}` };
+  }
+
+  // Fallback: show whatever the LLM said
+  return { isSilence: false, display: cleaned };
+}
+
 export function RightPanel() {
   const activeTab = useAppStore((s) => s.activeTab);
   const lastAction = useSimulationStore((s) => s.lastAction);
+  const lastTargetSelectorPreview = useSimulationStore((s) => s.lastTargetSelectorPreview);
   const lastSpeakerPrediction = useSimulationStore((s) => s.lastSpeakerPrediction);
   const llmCallLog = useSimulationStore((s) => s.llmCallLog);
   const gmEnabled = useSimulationStore((s) => s.gmEnabled);
@@ -100,14 +125,35 @@ export function RightPanel() {
 
           <Separator />
 
+          <Section title="Selected Target" icon={<UserCog className="h-3.5 w-3.5" />}>
+            {lastTargetSelectorPreview?.rawResponse ? (
+              <div className="text-xs font-mono">
+                {(() => {
+                  const parsed = parseSpeakerPrediction(lastTargetSelectorPreview.rawResponse);
+                  return parsed.isSilence ? (
+                    <span className="text-muted-foreground">No clear target</span>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">
+                      {parsed.display}
+                    </Badge>
+                  );
+                })()}
+              </div>
+            ) : (
+              <Placeholder text="No target selected yet" />
+            )}
+          </Section>
+
+          <Separator />
+
           <Section title="Speaker Prediction" icon={<Users className="h-3.5 w-3.5" />}>
             {lastSpeakerPrediction ? (
               <div className="text-xs font-mono">
-                {lastSpeakerPrediction === "0" ? (
+                {parseSpeakerPrediction(lastSpeakerPrediction).isSilence ? (
                   <span className="text-muted-foreground">Silence (no next speaker)</span>
                 ) : (
                   <Badge variant="outline" className="text-xs">
-                    {lastSpeakerPrediction}
+                    {parseSpeakerPrediction(lastSpeakerPrediction).display}
                   </Badge>
                 )}
               </div>
@@ -136,8 +182,8 @@ export function RightPanel() {
 
           <Section title="LLM Call Breakdown" icon={<Activity className="h-3.5 w-3.5" />}>
             {llmCallLog.length > 0 ? (
-              <div className="space-y-1">
-                {llmCallLog.map((log) => (
+              <div className="max-h-64 overflow-y-auto space-y-1 rounded border border-border/50 p-1">
+                {[...llmCallLog].reverse().map((log) => (
                   <LlmCallEntry key={log.id} log={log} />
                 ))}
               </div>
@@ -150,8 +196,8 @@ export function RightPanel() {
 
           <Section title="Raw API Requests" icon={<FileJson className="h-3.5 w-3.5" />} defaultCollapsed>
             {llmCallLog.length > 0 ? (
-              <div className="space-y-1">
-                {llmCallLog.map((log) => (
+              <div className="max-h-64 overflow-y-auto space-y-1 rounded border border-border/50 p-1">
+                {[...llmCallLog].reverse().map((log) => (
                   <RawRequestEntry key={log.id} log={log} />
                 ))}
               </div>

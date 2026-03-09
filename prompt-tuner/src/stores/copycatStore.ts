@@ -102,6 +102,7 @@ interface CopycatState {
   // Streaming buffers
   comparisonStream: string;
   proposalStream: string;
+  statusMessage: string;
 
   // Final summary
   effectivenessSummary: number | null;
@@ -144,10 +145,13 @@ interface CopycatState {
   setRoundAppliedSettings: (roundIdx: number, settings: AiTuningSettings) => void;
   setRoundEffectivenessScore: (roundIdx: number, score: number) => void;
   setRoundVerificationRuns: (roundIdx: number, runs: CopycatVerificationRun[]) => void;
+  addRoundReferenceTurn: (roundIdx: number, turn: CopycatDialogueTurn) => void;
+  addRoundTargetTurn: (roundIdx: number, turn: CopycatDialogueTurn) => void;
 
   // Actions - streaming
   appendComparisonStream: (chunk: string) => void;
   appendProposalStream: (chunk: string) => void;
+  setStatusMessage: (msg: string) => void;
   clearStreams: () => void;
 
   // Actions - lifecycle
@@ -187,6 +191,7 @@ export const useCopycatStore = create<CopycatState>((set, get) => ({
   // Streaming
   comparisonStream: "",
   proposalStream: "",
+  statusMessage: "",
 
   // Summary
   effectivenessSummary: null,
@@ -353,12 +358,35 @@ export const useCopycatStore = create<CopycatState>((set, get) => ({
       return { rounds };
     }),
 
+  addRoundReferenceTurn: (roundIdx, turn) =>
+    set((s) => {
+      const rounds = [...s.rounds];
+      if (!rounds[roundIdx]) return s;
+      rounds[roundIdx] = {
+        ...rounds[roundIdx],
+        referenceDialogue: [...rounds[roundIdx].referenceDialogue, turn],
+      };
+      return { rounds };
+    }),
+
+  addRoundTargetTurn: (roundIdx, turn) =>
+    set((s) => {
+      const rounds = [...s.rounds];
+      if (!rounds[roundIdx]) return s;
+      rounds[roundIdx] = {
+        ...rounds[roundIdx],
+        targetDialogue: [...rounds[roundIdx].targetDialogue, turn],
+      };
+      return { rounds };
+    }),
+
   // Streaming actions
   appendComparisonStream: (chunk) =>
     set((s) => ({ comparisonStream: s.comparisonStream + chunk })),
   appendProposalStream: (chunk) =>
     set((s) => ({ proposalStream: s.proposalStream + chunk })),
-  clearStreams: () => set({ comparisonStream: "", proposalStream: "" }),
+  setStatusMessage: (msg) => set({ statusMessage: msg }),
+  clearStreams: () => set({ comparisonStream: "", proposalStream: "", statusMessage: "" }),
 
   // Lifecycle
   reset: () =>
@@ -374,6 +402,7 @@ export const useCopycatStore = create<CopycatState>((set, get) => ({
       workingPromptSet: "",
       comparisonStream: "",
       proposalStream: "",
+      statusMessage: "",
       effectivenessSummary: null,
     }),
 

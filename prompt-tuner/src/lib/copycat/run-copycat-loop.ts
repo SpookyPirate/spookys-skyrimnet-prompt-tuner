@@ -34,6 +34,8 @@ async function runDialogue(
   apiKey: string,
   promptSetBase: string | undefined,
   abortSignal: AbortSignal,
+  onTurnComplete?: (turn: CopycatDialogueTurn, turnIdx: number, totalTurns: number) => void,
+  onStatusUpdate?: (msg: string) => void,
 ): Promise<CopycatDialogueTurn[]> {
   const turns = scenario.turns;
   if (!turns || turns.length === 0) {
@@ -47,6 +49,9 @@ async function runDialogue(
     if (abortSignal.aborted) break;
 
     const turn = turns[turnIdx];
+    const respondingNpc = scenario.npcs[turn.respondingNpcIndex];
+
+    onStatusUpdate?.(`Turn ${turnIdx + 1}/${turns.length}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"} — rendering prompt...`);
 
     accumulatedChat.push({
       type: turn.inputType === "player" ? "player" : "npc",
@@ -77,6 +82,8 @@ async function runDialogue(
     const renderData = await renderResponse.json();
     const messages: ChatMessage[] = renderData.messages;
 
+    onStatusUpdate?.(`Turn ${turnIdx + 1}/${turns.length}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"} — waiting for LLM...`);
+
     const log = await sendLlmRequestWithSlot({
       messages,
       agent: "default",
@@ -89,9 +96,7 @@ async function runDialogue(
 
     if (log.error) throw new Error(log.error);
 
-    const respondingNpc = scenario.npcs[turn.respondingNpcIndex];
-
-    results.push({
+    const turnResult: CopycatDialogueTurn = {
       label: `Turn ${turnIdx + 1}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"}`,
       messages: [...messages],
       response: log.response,
@@ -99,7 +104,10 @@ async function runDialogue(
       promptTokens: log.promptTokens,
       completionTokens: log.completionTokens,
       totalTokens: log.totalTokens,
-    });
+    };
+
+    results.push(turnResult);
+    onTurnComplete?.(turnResult, turnIdx, turns.length);
 
     accumulatedChat.push({
       type: "npc",
@@ -198,6 +206,8 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
             copycatApiKey,
             promptSetBase,
             abortController.signal,
+            (turn) => store.addRoundReferenceTurn(roundIdx, turn),
+            (msg) => store.setStatusMessage(`Reference: ${msg}`),
           );
 
           store.setCapturedReferenceDialogue(frozenReference);
@@ -235,6 +245,8 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
           copycatApiKey,
           promptSetBase,
           abortController.signal,
+          (turn) => store.addRoundTargetTurn(roundIdx, turn),
+          (msg) => store.setStatusMessage(`Target: ${msg}`),
         );
 
         store.setRoundTargetDialogue(roundIdx, targetDialogue);
@@ -250,6 +262,7 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
       // ── COMPARING PHASE ──
       store.setPhase("comparing");
       store.setRoundPhase(roundIdx, "comparing");
+      store.setStatusMessage("Comparing dialogue styles...");
       store.clearStreams();
 
       let promptContent = "";
@@ -318,6 +331,7 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
         // ── APPLY PHASE ──
         store.setPhase("applying");
         store.setRoundPhase(roundIdx, "applying");
+        store.setStatusMessage("Applying changes...");
 
         // Apply settings changes
         if (parsed.proposal.settingsChanges.length > 0) {
