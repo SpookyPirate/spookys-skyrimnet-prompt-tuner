@@ -29,6 +29,16 @@ export interface SceneConfig {
   scenePrompt: string;
 }
 
+export interface MultichatResponse {
+  profileId: string;
+  profileName: string;
+  model: string;
+  content: string;
+  latencyMs?: number;
+  totalTokens?: number;
+  error?: string;
+}
+
 export interface ChatEntry {
   id: string;
   type: "player" | "npc" | "system" | "narration";
@@ -39,6 +49,8 @@ export interface ChatEntry {
   action?: { name: string; params?: Record<string, string> };
   gmBeatIndex?: number;
   gmAction?: string;
+  /** When in multichat mode, NPC entries carry responses from all compared profiles */
+  multichatResponses?: MultichatResponse[];
 }
 
 export interface DemoAction {

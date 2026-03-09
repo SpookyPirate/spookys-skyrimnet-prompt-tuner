@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { InferenceMixer } from "@/components/chat/InferenceMixer";
+import { MultichatSelector } from "@/components/chat/MultichatSelector";
 
 const GM_STATUS_LABELS: Record<string, { label: string; color: string }> = {
   idle: { label: "Idle", color: "text-muted-foreground" },
@@ -74,6 +75,7 @@ export function GmControls() {
           </span>
         </label>
         <InferenceMixer />
+        <MultichatSelector />
       </div>
     );
   }
@@ -110,6 +112,7 @@ export function GmControls() {
         )}
 
         <InferenceMixer />
+        <MultichatSelector />
 
         {scenePlan && (
           <Badge

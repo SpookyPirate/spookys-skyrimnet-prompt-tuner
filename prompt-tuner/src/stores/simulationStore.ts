@@ -128,6 +128,9 @@ interface SimulationState {
   autochatDuration: number;  // minutes, 0 = infinite
   autochatStartedAt: number | null;  // timestamp ms
   autochatStatus: "idle" | "running" | "cooldown";
+  // Multichat comparison
+  multichatProfileIds: string[];
+  multichatStreaming: Record<string, string>;  // profileId → streamed text
 
   // Player
   setPlayerConfig: (config: Partial<PlayerConfig>) => void;
@@ -173,6 +176,10 @@ interface SimulationState {
   setAutochatDuration: (minutes: number) => void;
   setAutochatStartedAt: (timestamp: number | null) => void;
   setAutochatStatus: (status: "idle" | "running" | "cooldown") => void;
+  // Multichat
+  setMultichatProfileIds: (ids: string[]) => void;
+  setMultichatStreaming: (profileId: string, text: string) => void;
+  clearMultichatStreaming: () => void;
 }
 
 export const useSimulationStore = create<SimulationState>((set, get) => ({
@@ -214,6 +221,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   })(),
   autochatStartedAt: null,
   autochatStatus: "idle",
+  multichatProfileIds: [],
+  multichatStreaming: {},
 
   setPlayerConfig: (config) => {
     set((s) => ({ playerConfig: { ...s.playerConfig, ...config } }));
@@ -262,6 +271,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     set({
       chatHistory: [],
       llmCallLog: [],
+      multichatStreaming: {},
       lastAction: null,
       lastSpeakerPrediction: "",
       lastActionSelectorPreview: null,
@@ -375,6 +385,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   },
   setAutochatStartedAt: (timestamp) => set({ autochatStartedAt: timestamp }),
   setAutochatStatus: (status) => set({ autochatStatus: status }),
+  setMultichatProfileIds: (ids) => set({ multichatProfileIds: ids }),
+  setMultichatStreaming: (profileId, text) =>
+    set((s) => ({ multichatStreaming: { ...s.multichatStreaming, [profileId]: text } })),
+  clearMultichatStreaming: () => set({ multichatStreaming: {} }),
 }));
 
 // Hydrate persisted scene state on the client

@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       allowReasoning,
       reasoningEffort,
       requestTimeout,
+      connectTimeout,
     } = body;
 
     if (!apiKey) {
@@ -55,8 +56,10 @@ export async function POST(request: NextRequest) {
     // OpenRouter-specific settings
     if (apiEndpoint.includes("openrouter.ai")) {
       // Provider object controls routing preferences (sort, allow_fallbacks, etc.)
+      // sort disables load balancing and tries providers in order of the chosen metric.
       const provider: Record<string, unknown> = {
         sort: providerSorting || "latency",
+        require_parameters: true,
       };
 
       // Merge user-provided provider settings JSON (routing preferences only)
@@ -85,9 +88,11 @@ export async function POST(request: NextRequest) {
 
     // Use an AbortController so we can cancel the upstream fetch on timeout or client disconnect,
     // but clear the timeout once the response headers arrive (streaming may take much longer).
+    // connectTimeout: time to get first response headers (connection phase).
+    // requestTimeout: total time budget for non-streaming; unused for streaming (cleared after headers).
     const controller = new AbortController();
-    const timeoutMs = ((requestTimeout as number) || 30) * 1000;
-    const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
+    const connectMs = ((connectTimeout as number) || 10) * 1000;
+    const timer = setTimeout(() => controller.abort("timeout"), connectMs);
 
     // Also abort upstream if the client disconnects
     const onClientAbort = () => controller.abort("client_disconnect");
@@ -172,9 +177,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Non-streaming response
+    // Non-streaming response — enforce requestTimeout as total body read budget
+    const totalMs = ((requestTimeout as number) || 30) * 1000;
+    const bodyTimer = setTimeout(() => controller.abort("timeout"), totalMs);
+    let data;
+    try {
+      data = await response.json();
+    } finally {
+      clearTimeout(bodyTimer);
+    }
     request.signal.removeEventListener("abort", onClientAbort);
-    const data = await response.json();
     data.__requestPayload = payloadEcho;
     return Response.json(data);
   } catch (error) {
