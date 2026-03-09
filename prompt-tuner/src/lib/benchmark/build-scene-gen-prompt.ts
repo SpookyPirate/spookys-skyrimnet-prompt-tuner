@@ -23,7 +23,7 @@ const ENUMS = `Valid enums:
 - Gender: "Male", "Female"
 - Weather: "Clear", "Cloudy", "Rainy", "Snowy", "Foggy", "Stormy"
 - Time: "Dawn", "Morning", "Afternoon", "Evening", "Night", "Midnight"
-- ChatEntry type: "player", "npc", "narration"
+- ChatEntry type: "player" (player dialogue), "npc" (NPC dialogue), "narration" (environmental events, combat, descriptions — use speaker "Narrator")
 - Turn inputType: "player", "npc"`;
 
 const UUID_NOTE = `NPC uuid format: lowercase_name_hexid (e.g. "hulda_66E", "lydia_A2C94"). Use plausible hex IDs.`;
@@ -39,43 +39,80 @@ Each turn object:
 Include at least 1-2 NPCs. Alternate between player and NPC turns for natural dialogue flow.`,
 
   meta_eval: `Category: meta_eval (target selection / speaker prediction)
-Populate "chatHistory" with 4-6 entries showing a multi-party conversation.
-Set "playerMessage" to the player's latest message that needs target/speaker evaluation.
-Set "lastSpeaker" to the name of who spoke most recently before the player message.
-Include 2-3 NPCs so target selection is non-trivial.
+This tests TWO sub-agents: (1) who the player is addressing, and (2) which NPC should speak next.
+
+Populate "chatHistory" with 4-6 entries showing a multi-party conversation. CRITICAL: include 2-3 NPCs ALL actively participating in the conversation — do NOT write a simple back-and-forth between the player and one NPC. Multiple NPCs should speak so it's genuinely ambiguous who the player might be addressing. Mix entry types:
+  - Use "npc" type for NPC lines (with different NPCs as speakers)
+  - Use "player" type for the player's lines
+  - Include at least one NPC-to-NPC exchange
+Set "playerMessage" to a new line from the player that could plausibly be directed at different NPCs — e.g. a question relevant to multiple NPCs' expertise, or an ambiguous remark like "What do you think?" Avoid making the target obvious.
+Set "lastSpeaker" to the name of who spoke most recently before the player message (this NPC is excluded from speaker prediction candidates).
+Include 2-3 NPCs. Give each NPC a reason to speak (personal stakes, expertise, personality trait) so speaker prediction is non-trivial.
 Leave turns, eligibleActions, scenePlan, npcResponse, npcName empty/default.`,
 
   action_eval: `Category: action_eval (action selection from dialogue)
-Populate "chatHistory" with 3-5 entries of conversation context.
-Set "playerMessage" to what the player just said.
-Set "npcResponse" to how the NPC responded.
+This tests whether the AI picks the correct game action (or "None") after an NPC's dialogue response.
+
+Populate "chatHistory" with 3-5 entries of conversation context leading up to the key exchange. Include both player and NPC lines that build toward the final action-triggering exchange. Use narration entries (type "narration", speaker "Narrator") where appropriate to set the scene (e.g. describing the NPC pulling out a weapon, or reaching for an item).
+Set "playerMessage" to what the player just said — this should prompt the NPC to do something specific (e.g. "Show me your wares", "Follow me", "Here, take this").
+Set "npcResponse" to how the NPC responded — the response should clearly imply a specific action (e.g. "Of course, take a look!" implies Trade, "I'll follow you." implies Follow).
 Set "npcName" to the responding NPC's display name.
-Set "eligibleActions" to 3-7 action objects: { "name": string, "description": string }.
-One action MUST be { "name": "None", "description": "No action needed" }.
-Other actions should be contextually appropriate (e.g. "Attack", "Trade", "Follow", "Give Item").
+Set "eligibleActions" to 4-7 action objects: { "name": string, "description": string }.
+  - Include the correct action that matches the dialogue exchange
+  - Include { "name": "None", "description": "No action needed" }
+  - Include 2-5 plausible distractor actions that don't match the context
+  - Example actions: "Attack", "Trade", "Follow", "Wait", "Give Item", "Gesture", "DrawWeapon", "Flee", "Heal"
+  - Optionally add "parameterSchema" as a JSON string for actions with parameters
 Leave turns, scenePlan, lastSpeaker empty/default.`,
 
-  game_master: `Category: game_master (scene planning / autonomous NPC direction)
-Populate "chatHistory" with 3-5 entries.
+  game_master: `Category: game_master (scene planning + autonomous NPC direction)
+This tests TWO sub-agents: (1) generating a scene plan with dramatic beats, and (2) selecting GM actions to execute those beats. The GM orchestrates NPC-only scenes — the player is present but uncontrollable.
+
+Populate "chatHistory" with 3-5 entries showing recent activity in the scene. CRITICAL: this should be primarily NPC-to-NPC interaction (type "npc") since the GM drives NPC behavior, not player dialogue. Include:
+  - NPC-to-NPC dialogue entries showing existing dynamics
+  - Optionally narration entries (type "narration", speaker "Narrator") for environmental context
+  - A player line is optional — the GM scene should work without player involvement
+Include 2-3 NPCs with distinct personalities or conflicting motivations that create dramatic potential.
 Set "scenePlan" to a JSON string (stringify it) with this structure:
-  { "scene_summary": string, "tone": string, "central_tension": string, "beats": [{ "description": string, "involved_npcs": string[] }] }
-Include 2-3 beats in the plan.
-Set "isContinuousMode" to true or false.
-Leave turns, eligibleActions, playerMessage, npcResponse, npcName, lastSpeaker empty/default.`,
+  { "scene_summary": string, "tone": string, "central_tension": string, "beats": [{ "type": "dialogue", "description": string, "primary_characters": string[], "purpose": string }] }
+Include 3-4 beats. Beats should heavily favor type "dialogue" (NPC-to-NPC conversation). Each beat should name the involved NPCs and explain its narrative purpose.
+Set "isContinuousMode" to true (has scene plan) or false (freestyle GM decisions).
+Leave turns, playerMessage, npcResponse, npcName, lastSpeaker empty/default.
+Note: eligibleActions for GM are auto-populated (StartConversation, ContinueConversation, Narrate, None).`,
 
   memory_gen: `Category: memory_gen (generate memories from conversation)
-Populate "chatHistory" with 4-8 entries showing a meaningful conversation worth remembering.
-Include emotionally significant or plot-relevant exchanges.
+This tests the memory generation agent, which creates structured memories from an NPC's experiences. Memories include content, emotion, importance score, and tags.
+
+Populate "chatHistory" with 4-8 entries showing events the first NPC experienced. CRITICAL: do NOT write a simple back-and-forth dialogue. Include varied entry types that represent different kinds of experiences:
+  - "npc" entries for NPC dialogue (multiple NPCs if relevant)
+  - "player" entries for player dialogue
+  - "narration" entries (speaker "Narrator") for environmental events, combat, or significant happenings (e.g. "A dragon attacks Whiterun", "The guards arrest the thief", "Rain begins to fall")
+Include at least one emotionally significant event and optionally some mundane lines to test importance scoring.
+The first NPC is the one generating memories, so make sure they witness or participate in the key moments.
+Include 1-2 NPCs (first NPC = the rememberer).
 Leave turns, eligibleActions, scenePlan, playerMessage, npcResponse, npcName, lastSpeaker empty/default.`,
 
   diary: `Category: diary (generate diary entries)
-Populate "chatHistory" with 4-8 entries showing events an NPC would want to write about.
-Include a mix of notable happenings: combat, trade, personal moments, or lore discoveries.
+This tests the diary agent, which writes first-person diary entries for an NPC based on their recent experiences.
+
+Populate "chatHistory" with 4-8 entries showing events the first NPC experienced. CRITICAL: include a variety of event types, not just dialogue. A diary covers an NPC's whole day:
+  - "npc" entries for meaningful conversations the NPC had
+  - "player" entries for player interactions
+  - "narration" entries (speaker "Narrator") for non-dialogue events: combat, trade, travel, weather, discoveries, arrivals/departures (e.g. "A courier arrives with a letter", "Hulda serves the last customer and begins cleaning")
+Mix significant moments with ordinary ones — the diary agent should prioritize what's worth writing about.
+The first NPC is the diary writer. Make sure their day includes events worth reflecting on.
+Include 1-2 NPCs (first NPC = the diary author).
 Leave turns, eligibleActions, scenePlan, playerMessage, npcResponse, npcName, lastSpeaker empty/default.`,
 
-  bio_update: `Category: bio_update (update character bios)
-Populate "chatHistory" with 4-8 entries revealing character development or new information.
-Include dialogue that shows personality traits, relationship changes, or new facts about the NPC.
+  bio_update: `Category: bio_update (update character bios dynamically)
+This tests the bio update agent, which conservatively updates an NPC's character bio based on new experiences. Most events should NOT trigger bio changes.
+
+Populate "chatHistory" with 4-8 entries. CRITICAL: include mostly routine events that should NOT change the bio, with one or two potentially significant moments:
+  - "npc" / "player" entries for routine dialogue (small talk, trading, greetings)
+  - "narration" entries (speaker "Narrator") for routine happenings (opening shop, eating, walking)
+  - One or two entries that reveal something new: a relationship change, a personality shift, new information about the NPC, or a significant event
+The first NPC is the bio update target. The scenario should test whether the agent correctly identifies which events are bio-worthy vs routine.
+Include 1-2 NPCs (first NPC = bio update target).
 Leave turns, eligibleActions, scenePlan, playerMessage, npcResponse, npcName, lastSpeaker empty/default.`,
 };
 

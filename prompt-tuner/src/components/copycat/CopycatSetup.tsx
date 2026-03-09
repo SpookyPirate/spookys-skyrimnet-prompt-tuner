@@ -39,6 +39,7 @@ const ALL_SETTINGS_KEYS: { key: keyof AiTuningSettings; label: string }[] = [
   { key: "stopSequences", label: "Stop Sequences" },
   { key: "structuredOutputs", label: "Structured Outputs" },
   { key: "allowReasoning", label: "Allow Reasoning" },
+  { key: "reasoningEffort", label: "Reasoning Effort" },
 ];
 
 export function CopycatSetup() {
@@ -333,6 +334,26 @@ export function CopycatSetup() {
                   />
                   <span className="text-[10px] text-muted-foreground">Allow Reasoning</span>
                 </div>
+
+                {/* Reasoning Effort — only when reasoning is on */}
+                {startingSettings.allowReasoning && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground">Effort:</span>
+                    <select
+                      value={startingSettings.reasoningEffort || "medium"}
+                      onChange={(e) => updateStartingSetting("reasoningEffort", e.target.value as AiTuningSettings["reasoningEffort"])}
+                      disabled={isRunning}
+                      className="h-5 rounded border border-input bg-background text-foreground px-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="none">None</option>
+                      <option value="minimal">Minimal</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="xhigh">Extra High</option>
+                    </select>
+                  </div>
+                )}
               </div>
             )}
           </div>

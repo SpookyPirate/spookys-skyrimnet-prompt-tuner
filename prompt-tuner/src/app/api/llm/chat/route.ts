@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
       providerSettings,
       providerSorting,
       allowReasoning,
+      reasoningEffort,
+      requestTimeout,
     } = body;
 
     if (!apiKey) {
@@ -73,26 +75,45 @@ export async function POST(request: NextRequest) {
       payload.provider = provider;
 
       // Reasoning is a top-level parameter, not inside provider.
-      // Must explicitly disable for models that reason by default (e.g. grok).
+      // Only send when explicitly enabled — omitting lets the model use its default.
+      // Some models (e.g. DeepSeek R1) mandate reasoning and reject effort:"none".
       if (allowReasoning) {
-        payload.reasoning = { effort: "medium" };
-      } else {
-        payload.reasoning = { effort: "none" };
+        const effort = reasoningEffort || "medium";
+        payload.reasoning = { effort };
       }
     }
 
-    const response = await fetch(apiEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "SkyrimNet Prompt Tuner",
-      },
-      body: JSON.stringify(payload),
-    });
+    // Use an AbortController so we can cancel the upstream fetch on timeout or client disconnect,
+    // but clear the timeout once the response headers arrive (streaming may take much longer).
+    const controller = new AbortController();
+    const timeoutMs = ((requestTimeout as number) || 30) * 1000;
+    const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
+
+    // Also abort upstream if the client disconnects
+    const onClientAbort = () => controller.abort("client_disconnect");
+    request.signal.addEventListener("abort", onClientAbort);
+
+    let response: Response;
+    try {
+      response = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "http://localhost:3000",
+          "X-Title": "SkyrimNet Prompt Tuner",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } finally {
+      // Response headers received (or fetch threw) — clear the connection timeout.
+      // Streaming will continue without a timeout; only client disconnect aborts it.
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
+      request.signal.removeEventListener("abort", onClientAbort);
       const errorText = await response.text();
       let errorMessage: string;
       try {
@@ -112,26 +133,34 @@ export async function POST(request: NextRequest) {
     const payloadEcho = { ...payload };
 
     if (stream && response.body) {
-      // Inject the request payload as the first SSE event, then proxy the rest
+      // Inject the request payload as the first SSE event, then proxy the rest.
+      // The client abort listener stays active so disconnection cancels the stream.
       const payloadEvent = `event: __request_payload\ndata: ${JSON.stringify(payloadEcho)}\n\n`;
       const encoder = new TextEncoder();
       const prefix = new ReadableStream({
-        start(controller) {
-          controller.enqueue(encoder.encode(payloadEvent));
-          controller.close();
+        start(ctrl) {
+          ctrl.enqueue(encoder.encode(payloadEvent));
+          ctrl.close();
         },
       });
       const merged = new ReadableStream({
-        async start(controller) {
-          for (const s of [prefix, response.body!]) {
-            const reader = s.getReader();
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              controller.enqueue(value);
+        async start(ctrl) {
+          try {
+            for (const s of [prefix, response.body!]) {
+              const reader = s.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                ctrl.enqueue(value);
+              }
             }
+            ctrl.close();
+          } catch {
+            // Stream read failed (client disconnected, etc.) — close gracefully
+            try { ctrl.close(); } catch { /* already closed */ }
+          } finally {
+            request.signal.removeEventListener("abort", onClientAbort);
           }
-          controller.close();
         },
       });
       return new Response(merged, {
@@ -144,10 +173,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Non-streaming response
+    request.signal.removeEventListener("abort", onClientAbort);
     const data = await response.json();
     data.__requestPayload = payloadEcho;
     return Response.json(data);
   } catch (error) {
+    // Distinguish timeout/abort errors from other failures
+    if (error instanceof DOMException && error.name === "AbortError") {
+      const reason = (error as DOMException).message;
+      if (reason === "timeout" || String((error as unknown as Record<string, unknown>).cause) === "timeout") {
+        return Response.json(
+          { error: "Request timed out waiting for a response. Increase the timeout in Settings or try a faster model." },
+          { status: 504 }
+        );
+      }
+      return Response.json(
+        { error: "Request was cancelled." },
+        { status: 499 }
+      );
+    }
+    // Node/undici uses a different error type for aborts
+    if ((error as Record<string, unknown>)?.cause === "timeout") {
+      return Response.json(
+        { error: "Request timed out waiting for a response. Increase the timeout in Settings or try a faster model." },
+        { status: 504 }
+      );
+    }
+    if ((error as Record<string, unknown>)?.cause === "client_disconnect") {
+      return Response.json(
+        { error: "Request was cancelled." },
+        { status: 499 }
+      );
+    }
     console.error("LLM proxy error:", error);
     return Response.json(
       { error: `LLM proxy error: ${(error as Error).message}` },

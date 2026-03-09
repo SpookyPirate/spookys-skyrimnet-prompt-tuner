@@ -234,6 +234,41 @@ export function InferenceMixer() {
                 </div>
               );
             })}
+
+            {/* Reasoning Effort — only visible when Allow Reasoning is on */}
+            {effective.allowReasoning && (
+              <div className="flex items-center justify-between">
+                <Label
+                  className={`text-[10px] ${isOverridden("reasoningEffort") ? "text-amber-400" : "text-muted-foreground"}`}
+                >
+                  Reasoning Effort
+                </Label>
+                <select
+                  value={effective.reasoningEffort || "medium"}
+                  onChange={(e) => {
+                    const val = e.target.value as AiTuningSettings["reasoningEffort"];
+                    const profileVal = profileSlot.tuning.reasoningEffort;
+                    const current = inferenceOverrides ?? {};
+                    if (val === profileVal) {
+                      const { reasoningEffort: _, ...rest } = current;
+                      setInferenceOverrides(Object.keys(rest).length > 0 ? rest : null);
+                    } else {
+                      setInferenceOverrides({ ...current, reasoningEffort: val });
+                    }
+                  }}
+                  className={`h-5 rounded border px-1 text-[10px] bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                    isOverridden("reasoningEffort") ? "border-amber-500/50" : "border-input"
+                  }`}
+                >
+                  <option value="none">None</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">Extra High</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Actions */}

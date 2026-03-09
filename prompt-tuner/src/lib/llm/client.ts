@@ -49,6 +49,9 @@ async function _sendLlmRequestInternal({
     providerSettings: slot.api.providerSettings,
     providerSorting: slot.api.providerSorting,
     allowReasoning: slot.tuning.allowReasoning,
+    reasoningEffort: slot.tuning.reasoningEffort,
+    requestTimeout: slot.api.requestTimeout,
+    connectTimeout: slot.api.connectTimeout,
   };
 
   const response = await fetch("/api/llm/chat", {

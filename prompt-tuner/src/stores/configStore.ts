@@ -154,11 +154,16 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   },
 
   applyProfile: (globalApiKey, profileSlots) => {
+    const defaults = createDefaultSlots();
     set((state) => {
       const newSlots = { ...state.slots };
       for (const agent of SKYRIMNET_AGENTS) {
         if (profileSlots[agent]) {
-          newSlots[agent] = JSON.parse(JSON.stringify(profileSlots[agent]));
+          // Deep-merge with defaults to fill in any missing fields from older profiles
+          newSlots[agent] = {
+            api: { ...defaults[agent].api, ...profileSlots[agent].api },
+            tuning: { ...defaults[agent].tuning, ...profileSlots[agent].tuning },
+          };
         }
       }
       return { globalApiKey, slots: newSlots };
@@ -192,7 +197,17 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       if (raw) {
         const data = JSON.parse(raw);
         const defaults = createDefaultSlots();
-        const mergedSlots = { ...defaults, ...data.slots };
+        const mergedSlots = { ...defaults };
+
+        // Deep-merge each slot: fill in any missing tuning/api fields from defaults
+        for (const agent of ALL_AGENTS) {
+          if (data.slots[agent]) {
+            mergedSlots[agent] = {
+              api: { ...defaults[agent].api, ...data.slots[agent].api },
+              tuning: { ...defaults[agent].tuning, ...data.slots[agent].tuning },
+            };
+          }
+        }
 
         // Migrate: remove reasoning/cache from providerSettings (these were incorrectly
         // placed there in older versions — reasoning is a top-level API parameter)

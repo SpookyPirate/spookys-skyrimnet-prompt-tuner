@@ -14,6 +14,7 @@ const PARAM_ALIASES: Record<string, keyof AiTuningSettings> = {
   stop_sequences: "stopSequences",
   structured_outputs: "structuredOutputs",
   allow_reasoning: "allowReasoning",
+  reasoning_effort: "reasoningEffort",
 };
 
 function normalizeParamKey(key: string): keyof AiTuningSettings {

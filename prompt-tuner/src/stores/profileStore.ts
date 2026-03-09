@@ -5,7 +5,15 @@ import type {
   SkyrimNetAgentType,
   ModelSlot,
 } from "@/types/config";
-import { SKYRIMNET_AGENTS, AGENT_LABELS } from "@/types/config";
+import {
+  SKYRIMNET_AGENTS,
+  AGENT_LABELS,
+  DEFAULT_API_SETTINGS,
+  DEFAULT_TUNING_SETTINGS,
+  DEFAULT_MODEL_NAMES,
+  DEFAULT_AGENT_TUNING_OVERRIDES,
+  DEFAULT_AGENT_API_OVERRIDES,
+} from "@/types/config";
 
 const STORAGE_KEY = "skyrimnet-profiles";
 
@@ -45,6 +53,28 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         const activeProfileId: string = data.activeProfileId || "";
 
         if (profiles.length > 0) {
+          // Hydrate: fill in any missing tuning/api fields from defaults
+          // (handles profiles saved before new fields like allowReasoning were added)
+          for (const profile of profiles) {
+            for (const agent of SKYRIMNET_AGENTS) {
+              if (profile.slots[agent]) {
+                const defaultApi = {
+                  ...DEFAULT_API_SETTINGS,
+                  modelNames: DEFAULT_MODEL_NAMES[agent],
+                  ...(DEFAULT_AGENT_API_OVERRIDES[agent] || {}),
+                };
+                const defaultTuning = {
+                  ...DEFAULT_TUNING_SETTINGS,
+                  ...(DEFAULT_AGENT_TUNING_OVERRIDES[agent] || {}),
+                };
+                profile.slots[agent] = {
+                  api: { ...defaultApi, ...profile.slots[agent].api },
+                  tuning: { ...defaultTuning, ...profile.slots[agent].tuning },
+                };
+              }
+            }
+          }
+
           // Ensure activeProfileId points to a valid profile
           const valid = profiles.some((p) => p.id === activeProfileId);
           set({
@@ -201,6 +231,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       lines.push(`stopSequences    = "${slot.tuning.stopSequences}"`);
       lines.push(`structuredOutputs = ${slot.tuning.structuredOutputs}`);
       lines.push(`allowReasoning   = ${slot.tuning.allowReasoning}`);
+      lines.push(`reasoningEffort  = "${slot.tuning.reasoningEffort}"`);
       lines.push("```");
       lines.push("");
     }

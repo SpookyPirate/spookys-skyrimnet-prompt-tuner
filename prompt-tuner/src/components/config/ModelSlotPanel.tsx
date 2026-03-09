@@ -307,6 +307,25 @@ export function ModelSlotPanel({ agent }: ModelSlotPanelProps) {
             </select>
           </Field>
 
+          {slot.tuning.allowReasoning && (
+            <Field label="Reasoning Effort">
+              <select
+                value={slot.tuning.reasoningEffort || "medium"}
+                onChange={(e) =>
+                  updateTuning(agent, { reasoningEffort: e.target.value as "none" | "minimal" | "low" | "medium" | "high" | "xhigh" })
+                }
+                className="h-7 w-full rounded-md border bg-background text-foreground px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-background [&>option]:text-foreground"
+              >
+                <option value="none">None (~0%)</option>
+                <option value="minimal">Minimal (~10%)</option>
+                <option value="low">Low (~20%)</option>
+                <option value="medium">Medium (~50%)</option>
+                <option value="high">High (~80%)</option>
+                <option value="xhigh">Extra High (~95%)</option>
+              </select>
+            </Field>
+          )}
+
         </div>
       </div>
     </div>

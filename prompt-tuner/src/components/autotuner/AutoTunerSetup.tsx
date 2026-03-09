@@ -56,6 +56,7 @@ const ALL_SETTINGS_KEYS: { key: keyof AiTuningSettings; label: string }[] = [
   { key: "stopSequences", label: "Stop Sequences" },
   { key: "structuredOutputs", label: "Structured Outputs" },
   { key: "allowReasoning", label: "Allow Reasoning" },
+  { key: "reasoningEffort", label: "Reasoning Effort" },
 ];
 
 export function AutoTunerSetup() {

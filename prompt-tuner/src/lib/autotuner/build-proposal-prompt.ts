@@ -15,6 +15,7 @@ const SETTINGS_DESCRIPTIONS: Record<keyof AiTuningSettings, string> = {
   stopSequences: "JSON array of strings that stop generation when encountered.",
   structuredOutputs: "Whether to use structured/JSON output mode.",
   allowReasoning: "Whether to allow the model to use extended thinking/reasoning. In SkyrimNet, reasoning OFF usually produces better and faster roleplay results. Only enable if the task genuinely requires complex multi-step analysis.",
+  reasoningEffort: "Controls how much reasoning budget to allocate when allowReasoning is enabled. Values: 'none', 'minimal' (~10%), 'low' (~20%), 'medium' (~50%), 'high' (~80%), 'xhigh' (~95%). Lower effort = faster responses, higher effort = deeper analysis. Only relevant when allowReasoning is true.",
 };
 
 /**

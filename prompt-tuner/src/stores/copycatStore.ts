@@ -24,6 +24,7 @@ export const COPYCAT_DEFAULT_SETTINGS: AiTuningSettings = {
   stopSequences: "[]",
   structuredOutputs: false,
   allowReasoning: false,
+  reasoningEffort: "medium",
 };
 
 function loadPersisted(): {

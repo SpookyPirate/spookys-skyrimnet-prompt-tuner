@@ -13,6 +13,7 @@ const SETTINGS_DESCRIPTIONS: Record<keyof AiTuningSettings, string> = {
   stopSequences: "JSON array of strings that stop generation when encountered.",
   structuredOutputs: "Whether to use structured/JSON output mode.",
   allowReasoning: "Whether to allow the model to use extended thinking/reasoning.",
+  reasoningEffort: "Controls how much reasoning budget to allocate when allowReasoning is enabled. Values: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'. Lower effort = faster, higher = deeper analysis.",
 };
 
 /**

@@ -71,6 +71,7 @@ export interface AiTuningSettings {
   stopSequences: string;
   structuredOutputs: boolean;
   allowReasoning: boolean;
+  reasoningEffort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 }
 
 export interface ModelSlot {
@@ -101,6 +102,7 @@ export const DEFAULT_TUNING_SETTINGS: AiTuningSettings = {
   stopSequences: "[]",
   structuredOutputs: false,
   allowReasoning: false,
+  reasoningEffort: "medium",
 };
 
 export const DEFAULT_MODEL_NAMES: Record<AgentType, string> = {
