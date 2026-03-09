@@ -1,34 +1,226 @@
 import { NextRequest } from "next/server";
-import { proxyToLlm, handleProxyError } from "../proxy";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const {
+      messages,
+      model,
+      apiEndpoint,
+      apiKey,
+      temperature,
+      maxTokens,
+      topP,
+      topK,
+      frequencyPenalty,
+      presencePenalty,
+      stopSequences,
+      stream,
+      providerSettings,
+      providerSorting,
+      allowReasoning,
+      reasoningEffort,
+      requestTimeout,
+      connectTimeout,
+    } = body;
 
-    return await proxyToLlm(
-      {
-        model: body.model,
-        apiEndpoint: body.apiEndpoint,
-        apiKey: body.apiKey,
-        temperature: body.temperature,
-        maxTokens: body.maxTokens,
-        topP: body.topP,
-        topK: body.topK,
-        frequencyPenalty: body.frequencyPenalty,
-        presencePenalty: body.presencePenalty,
-        stopSequences: body.stopSequences,
-        stream: body.stream,
-        providerSettings: body.providerSettings,
-        providerSorting: body.providerSorting,
-        allowReasoning: body.allowReasoning,
-        reasoningEffort: body.reasoningEffort,
-        requestTimeout: body.requestTimeout,
-        connectTimeout: body.connectTimeout,
-      },
-      body.messages,
-      request
-    );
+    if (!apiKey) {
+      return Response.json(
+        { error: "No API key configured. Open Settings to add one." },
+        { status: 400 }
+      );
+    }
+
+    if (!model) {
+      return Response.json(
+        { error: "No model configured for this agent slot." },
+        { status: 400 }
+      );
+    }
+
+    // Build request payload (OpenAI-compatible format)
+    const payload: Record<string, unknown> = {
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      stream: stream ?? true,
+    };
+
+    if (topP !== undefined && topP !== 1) payload.top_p = topP;
+    if (topK !== undefined && topK > 0) payload.top_k = topK;
+    if (frequencyPenalty) payload.frequency_penalty = frequencyPenalty;
+    if (presencePenalty) payload.presence_penalty = presencePenalty;
+    if (stopSequences?.length) payload.stop = stopSequences;
+
+    // OpenRouter-specific settings
+    if (apiEndpoint.includes("openrouter.ai")) {
+      // Provider object controls routing preferences (sort, allow_fallbacks, etc.)
+      // sort disables load balancing and tries providers in order of the chosen metric.
+      const provider: Record<string, unknown> = {
+        sort: providerSorting || "latency",
+        require_parameters: true,
+      };
+
+      // Merge user-provided provider settings JSON (routing preferences only)
+      if (providerSettings) {
+        try {
+          const parsed =
+            typeof providerSettings === "string"
+              ? JSON.parse(providerSettings)
+              : providerSettings;
+          Object.assign(provider, parsed);
+        } catch {
+          // Ignore invalid JSON
+        }
+      }
+
+      payload.provider = provider;
+
+      // Reasoning is a top-level parameter, not inside provider.
+      // Only send when explicitly enabled — omitting lets the model use its default.
+      // Some models (e.g. DeepSeek R1) mandate reasoning and reject effort:"none".
+      if (allowReasoning) {
+        const effort = reasoningEffort || "medium";
+        payload.reasoning = { effort };
+      }
+    }
+
+    // Use an AbortController so we can cancel the upstream fetch on timeout or client disconnect,
+    // but clear the timeout once the response headers arrive (streaming may take much longer).
+    // connectTimeout: time to get first response headers (connection phase).
+    // requestTimeout: total time budget for non-streaming; unused for streaming (cleared after headers).
+    const controller = new AbortController();
+    const connectMs = ((connectTimeout as number) || 10) * 1000;
+    const timer = setTimeout(() => controller.abort("timeout"), connectMs);
+
+    // Also abort upstream if the client disconnects
+    const onClientAbort = () => controller.abort("client_disconnect");
+    request.signal.addEventListener("abort", onClientAbort);
+
+    let response: Response;
+    try {
+      response = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "http://localhost:3000",
+          "X-Title": "SkyrimNet Prompt Tuner",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } finally {
+      // Response headers received (or fetch threw) — clear the connection timeout.
+      // Streaming will continue without a timeout; only client disconnect aborts it.
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      request.signal.removeEventListener("abort", onClientAbort);
+      const errorText = await response.text();
+      let errorMessage: string;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage =
+          errorJson.error?.message || errorJson.error || errorText;
+      } catch {
+        errorMessage = errorText;
+      }
+      return Response.json(
+        { error: `LLM API error (${response.status}): ${errorMessage}` },
+        { status: response.status }
+      );
+    }
+
+    // Redact API key from payload echo
+    const payloadEcho = { ...payload };
+
+    if (stream && response.body) {
+      // Inject the request payload as the first SSE event, then proxy the rest.
+      // The client abort listener stays active so disconnection cancels the stream.
+      const payloadEvent = `event: __request_payload\ndata: ${JSON.stringify(payloadEcho)}\n\n`;
+      const encoder = new TextEncoder();
+      const prefix = new ReadableStream({
+        start(ctrl) {
+          ctrl.enqueue(encoder.encode(payloadEvent));
+          ctrl.close();
+        },
+      });
+      const merged = new ReadableStream({
+        async start(ctrl) {
+          try {
+            for (const s of [prefix, response.body!]) {
+              const reader = s.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                ctrl.enqueue(value);
+              }
+            }
+            ctrl.close();
+          } catch {
+            // Stream read failed (client disconnected, etc.) — close gracefully
+            try { ctrl.close(); } catch { /* already closed */ }
+          } finally {
+            request.signal.removeEventListener("abort", onClientAbort);
+          }
+        },
+      });
+      return new Response(merged, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
+    // Non-streaming response — enforce requestTimeout as total body read budget
+    const totalMs = ((requestTimeout as number) || 30) * 1000;
+    const bodyTimer = setTimeout(() => controller.abort("timeout"), totalMs);
+    let data;
+    try {
+      data = await response.json();
+    } finally {
+      clearTimeout(bodyTimer);
+    }
+    request.signal.removeEventListener("abort", onClientAbort);
+    data.__requestPayload = payloadEcho;
+    return Response.json(data);
   } catch (error) {
-    return handleProxyError(error);
+    // Distinguish timeout/abort errors from other failures
+    if (error instanceof DOMException && error.name === "AbortError") {
+      const reason = (error as DOMException).message;
+      if (reason === "timeout" || String((error as unknown as Record<string, unknown>).cause) === "timeout") {
+        return Response.json(
+          { error: "Request timed out waiting for a response. Increase the timeout in Settings or try a faster model." },
+          { status: 504 }
+        );
+      }
+      return Response.json(
+        { error: "Request was cancelled." },
+        { status: 499 }
+      );
+    }
+    // Node/undici uses a different error type for aborts
+    if ((error as Record<string, unknown>)?.cause === "timeout") {
+      return Response.json(
+        { error: "Request timed out waiting for a response. Increase the timeout in Settings or try a faster model." },
+        { status: 504 }
+      );
+    }
+    if ((error as Record<string, unknown>)?.cause === "client_disconnect") {
+      return Response.json(
+        { error: "Request was cancelled." },
+        { status: 499 }
+      );
+    }
+    console.error("LLM proxy error:", error);
+    return Response.json(
+      { error: `LLM proxy error: ${(error as Error).message}` },
+      { status: 500 }
+    );
   }
 }

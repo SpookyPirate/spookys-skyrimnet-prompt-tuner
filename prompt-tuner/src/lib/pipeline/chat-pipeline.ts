@@ -1,4 +1,4 @@
-import { sendLlmRequest, sendRenderAndChat } from "@/lib/llm/client";
+import { sendLlmRequest } from "@/lib/llm/client";
 import { buildEnabledSavesPayload } from "@/lib/pipeline/save-bio-payload";
 import type { ChatMessage, LlmCallLog } from "@/types/llm";
 import type { ChatEntry } from "@/types/simulation";
@@ -17,11 +17,15 @@ export async function runTargetSelection(
   setPreview: (preview: { renderedPrompt: string; messages: { role: string; content: string }[]; rawResponse: string } | null) => void,
   gameEvents?: unknown[]
 ) {
-  // Try combined render+LLM in one trip
+  let messages: ChatMessage[];
+
+  let renderedPrompt = "";
+
   try {
-    const result = await sendRenderAndChat({
-      renderEndpoint: "/api/prompts/render-target-selector",
-      renderBody: {
+    const renderRes = await fetch("/api/prompts/render-target-selector", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         playerMessage,
         chatHistory,
         npcs,
@@ -30,35 +34,22 @@ export async function runTargetSelection(
         gameEvents,
         promptSetBase: activePromptSet || undefined,
         enabledSaves: buildEnabledSavesPayload(),
-      },
-      agent: "meta_eval",
+      }),
     });
+    const renderData = await renderRes.json();
 
-    if (!result.error) {
-      if (result.renderResult) {
-        setPreview({
-          renderedPrompt: result.renderResult.renderedText,
-          messages: result.renderResult.messages,
-          rawResponse: result.response || "",
-        });
-      }
-      return { response: result.response, log: result };
+    if (renderData.messages && renderData.messages.length > 0) {
+      messages = renderData.messages;
+      renderedPrompt = renderData.renderedText || "";
+    } else {
+      throw new Error(renderData.error || "Empty render");
     }
-
-    // If it's an LLM error (not render), still return it
-    if (result.renderResult) {
-      setPreview(null);
-      return { response: result.response, log: result };
-    }
-
-    // Render failed — fall through to fallback
-    throw new Error(result.error);
   } catch (err) {
     // Fallback to hardcoded prompt
     toast.warning("Target selector pipeline failed", {
       description: `Could not render player_dialogue_target_selector.prompt — using simplified fallback. ${err instanceof Error ? err.message : ""}`,
     });
-    const messages: ChatMessage[] = [
+    messages = [
       {
         role: "system",
         content: `Select which NPC the player is addressing. Output only the NPC's name.\n\nCandidates:\n${npcs.map((n) => `- ${n.displayName} (${n.gender} ${n.race}, ${n.distance} units away)`).join("\n")}`,
@@ -68,15 +59,25 @@ export async function runTargetSelection(
         content: `Location: ${scene.location}\n\nRecent dialogue:\n${chatHistory.map((e) => e.type === "player" ? `${e.speaker || "Player"}: ${e.content}` : e.type === "npc" ? `${e.speaker}: ${e.content}` : e.content).join("\n")}\n\nPlayer says: "${playerMessage}"\n\nWho is the player addressing? Output only the name.`,
       },
     ];
-
-    const log = await sendLlmRequest({ messages, agent: "meta_eval" });
-    setPreview(null);
-    return { response: log.response, log };
   }
+
+  const log = await sendLlmRequest({ messages, agent: "meta_eval" });
+
+  if (renderedPrompt) {
+    setPreview({
+      renderedPrompt,
+      messages,
+      rawResponse: log.response || "",
+    });
+  } else {
+    setPreview(null);
+  }
+
+  return { response: log.response, log };
 }
 
 /**
- * Action selector through rendered pipeline.
+ * Action selector through rendered pipeline (already wired).
  */
 export async function runRealActionSelector(
   targetNpc: { displayName: string; uuid: string },
@@ -100,9 +101,10 @@ export async function runRealActionSelector(
   chatHistory?: ChatEntry[],
   gameEvents?: unknown[]
 ) {
-  const result = await sendRenderAndChat({
-    renderEndpoint: "/api/prompts/render-action-selector",
-    renderBody: {
+  const renderRes = await fetch("/api/prompts/render-action-selector", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       npcName: targetNpc.displayName,
       npcUUID: targetNpc.uuid,
       playerMessage,
@@ -120,14 +122,14 @@ export async function runRealActionSelector(
       selectedNpcs: selectedNpcs || [],
       chatHistory: chatHistory || [],
       gameEvents,
-    },
-    agent: "action_eval",
+    }),
   });
 
-  // Handle render failure
-  if (result.error && !result.renderResult) {
+  const renderData = await renderRes.json();
+
+  if (renderData.error) {
     setLastActionSelectorPreview({
-      renderedPrompt: `Error: ${result.error}`,
+      renderedPrompt: `Error: ${renderData.error}`,
       messages: [],
       rawResponse: "",
       parsedAction: "",
@@ -135,15 +137,27 @@ export async function runRealActionSelector(
     return;
   }
 
-  addLlmCall(result);
+  const messages = renderData.messages || [];
+  if (messages.length === 0) {
+    setLastActionSelectorPreview({
+      renderedPrompt: renderData.renderedText || "(empty)",
+      messages: [],
+      rawResponse: "",
+      parsedAction: "Template produced no messages",
+    });
+    return;
+  }
 
-  const rawResponse = result.response || "";
+  const log = await sendLlmRequest({ messages, agent: "action_eval" });
+  addLlmCall(log);
+
+  const rawResponse = log.response || "";
   const actionMatch = rawResponse.match(/ACTION:\s*(\w+)/);
   const parsedAction = actionMatch ? actionMatch[1] : "None";
 
   setLastActionSelectorPreview({
-    renderedPrompt: result.renderResult?.renderedText || "",
-    messages: result.renderResult?.messages || [],
+    renderedPrompt: renderData.renderedText || "",
+    messages,
     rawResponse,
     parsedAction,
   });
@@ -175,11 +189,14 @@ export async function runSpeakerPrediction(
   setPreview: (preview: { renderedPrompt: string; messages: { role: string; content: string }[]; rawResponse: string } | null) => void,
   gameEvents?: unknown[]
 ) {
-  // Try combined render+LLM in one trip
+  let messages: ChatMessage[];
+  let renderedPrompt = "";
+
   try {
-    const result = await sendRenderAndChat({
-      renderEndpoint: "/api/prompts/render-speaker-selector",
-      renderBody: {
+    const renderRes = await fetch("/api/prompts/render-speaker-selector", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         lastSpeaker,
         chatHistory,
         npcs,
@@ -188,34 +205,23 @@ export async function runSpeakerPrediction(
         gameEvents,
         promptSetBase: activePromptSet || undefined,
         enabledSaves: buildEnabledSavesPayload(),
-      },
-      agent: "meta_eval",
+      }),
     });
+    const renderData = await renderRes.json();
 
-    if (!result.error) {
-      if (result.renderResult) {
-        setPreview({
-          renderedPrompt: result.renderResult.renderedText,
-          messages: result.renderResult.messages,
-          rawResponse: result.response || "",
-        });
-      }
-      return { response: result.response, log: result };
+    if (renderData.messages && renderData.messages.length > 0) {
+      messages = renderData.messages;
+      renderedPrompt = renderData.renderedText || "";
+    } else {
+      throw new Error(renderData.error || "Empty render");
     }
-
-    if (result.renderResult) {
-      setPreview(null);
-      return { response: result.response, log: result };
-    }
-
-    throw new Error(result.error);
   } catch (err) {
     // Fallback to hardcoded prompt
     toast.warning("Speaker selector pipeline failed", {
       description: `Could not render dialogue_speaker_selector.prompt — using simplified fallback. ${err instanceof Error ? err.message : ""}`,
     });
     const candidates = npcs.filter((n) => n.displayName !== lastSpeaker);
-    const messages: ChatMessage[] = [
+    messages = [
       {
         role: "system",
         content: `Select who speaks next. Output: 0 (silence) or [speaker]>[target]\nDo NOT select ${lastSpeaker} as speaker.\n\nCandidates:\n${candidates.map((n) => `- ${n.displayName} (${n.gender} ${n.race})`).join("\n")}`,
@@ -225,9 +231,19 @@ export async function runSpeakerPrediction(
         content: `Location: ${scene.location}\n\nRecent dialogue:\n${chatHistory.map((e) => e.type === "player" ? `${e.speaker || "Player"}: ${e.content}` : e.type === "npc" ? `${e.speaker}: ${e.content}` : e.content).join("\n")}\n\nWho speaks next? Output 0 or [Name]>[target]`,
       },
     ];
-
-    const log = await sendLlmRequest({ messages, agent: "meta_eval" });
-    setPreview(null);
-    return { response: log.response, log };
   }
+
+  const log = await sendLlmRequest({ messages, agent: "meta_eval" });
+
+  if (renderedPrompt) {
+    setPreview({
+      renderedPrompt,
+      messages,
+      rawResponse: log.response || "",
+    });
+  } else {
+    setPreview(null);
+  }
+
+  return { response: log.response, log };
 }

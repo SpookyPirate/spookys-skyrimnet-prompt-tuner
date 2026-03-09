@@ -9,7 +9,7 @@ import { parseCopycatResponse } from "./parse-copycat-response";
 import { applySettingsChanges, applyPromptChanges } from "@/lib/autotuner/apply-changes";
 import { fetchPromptContent } from "@/lib/autotuner/fetch-prompt-content";
 import { createTunerTempSet, deleteTunerTempSet, TUNER_TEMP_SET } from "@/lib/autotuner/save-results";
-import { sendLlmRequest, sendDialogueRequest } from "@/lib/llm/client";
+import { sendLlmRequest, sendLlmRequestWithSlot } from "@/lib/llm/client";
 import { useCopycatStore } from "@/stores/copycatStore";
 import { useConfigStore } from "@/stores/configStore";
 
@@ -55,15 +55,30 @@ async function runDialogue(
       target: turn.inputTarget,
     });
 
-    const renderParams = buildMultiTurnRenderBody(
+    const renderBody = buildMultiTurnRenderBody(
       turn,
       scenario,
       accumulatedChat,
       promptSetBase,
     );
 
-    const log = await sendDialogueRequest({
-      renderParams,
+    const renderResponse = await fetch("/api/prompts/render-dialogue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(renderBody),
+      signal: abortSignal,
+    });
+
+    if (!renderResponse.ok) {
+      const errData = await renderResponse.json().catch(() => ({}));
+      throw new Error(errData.error || `Render failed on turn ${turnIdx + 1}: HTTP ${renderResponse.status}`);
+    }
+
+    const renderData = await renderResponse.json();
+    const messages: ChatMessage[] = renderData.messages;
+
+    const log = await sendLlmRequestWithSlot({
+      messages,
       agent: "default",
       slot,
       model,
@@ -78,7 +93,7 @@ async function runDialogue(
 
     results.push({
       label: `Turn ${turnIdx + 1}: ${turn.inputSpeaker} → ${respondingNpc?.displayName || "NPC"}`,
-      messages: log.renderResult?.messages ? [...log.renderResult.messages] : [...log.messages],
+      messages: [...messages],
       response: log.response,
       latencyMs: log.latencyMs,
       promptTokens: log.promptTokens,

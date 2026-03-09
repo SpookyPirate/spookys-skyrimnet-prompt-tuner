@@ -5,7 +5,7 @@ import { useSimulationStore } from "@/stores/simulationStore";
 import { useConfigStore } from "@/stores/configStore";
 import { useAppStore } from "@/stores/appStore";
 import { useTriggerStore } from "@/stores/triggerStore";
-import { sendLlmRequest, sendDialogueRequest } from "@/lib/llm/client";
+import { sendLlmRequest } from "@/lib/llm/client";
 import { buildAutochatMessages } from "@/lib/autochat/system-prompt";
 import { parseAutochatResponse } from "@/lib/autochat/response-parser";
 import {
@@ -14,7 +14,7 @@ import {
   runSpeakerPrediction,
 } from "@/lib/pipeline/chat-pipeline";
 import type { ChatEntry } from "@/types/simulation";
-
+import type { ChatMessage } from "@/types/llm";
 
 /** Fixed interval between autochat messages (seconds). */
 const TICK_INTERVAL_S = 15;
@@ -187,29 +187,58 @@ export function useAutochat() {
           return;
         }
 
-        // Step B: Generate NPC dialogue response (combined render + LLM)
-        const dialogueLog = await sendDialogueRequest({
-          renderParams: {
-            npc: targetNpc,
-            player: playerConfig,
-            scene,
-            selectedNpcs,
-            chatHistory: fullChatHistory,
-            eligibleActions: getEligibleActions().map((a) => ({
-              name: a.name,
-              description: a.description,
-              parameterSchema: a.parameterSchema,
-            })),
-            gameEvents,
-            promptSetBase: activePromptSet || undefined,
-          },
-          agent: "default",
-          onRenderResult: (result) => {
+        // Step B: Generate NPC dialogue response (no streaming for autochat)
+        let dialogueMessages: ChatMessage[];
+
+        try {
+          const renderRes = await fetch("/api/prompts/render-dialogue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              npc: targetNpc,
+              player: playerConfig,
+              scene,
+              selectedNpcs,
+              chatHistory: fullChatHistory,
+              eligibleActions: getEligibleActions().map((a) => ({
+                name: a.name,
+                description: a.description,
+                parameterSchema: a.parameterSchema,
+              })),
+              gameEvents,
+              promptSetBase: activePromptSet || undefined,
+            }),
+          });
+          const renderData = await renderRes.json();
+
+          if (renderData.messages && renderData.messages.length > 0) {
+            dialogueMessages = renderData.messages;
             setLastDialoguePreview({
-              renderedPrompt: result.renderedText,
-              messages: result.messages,
+              renderedPrompt: renderData.renderedText || "",
+              messages: dialogueMessages,
             });
-          },
+          } else {
+            throw new Error(renderData.error || "Empty render result");
+          }
+        } catch {
+          // Fallback
+          dialogueMessages = [
+            {
+              role: "system",
+              content: `You are ${targetNpc.displayName}, a ${targetNpc.gender} ${targetNpc.race} in Skyrim. Location: ${scene.location}. Respond in character. Keep responses concise (1-3 sentences).`,
+            },
+            ...chatHistory.slice(-20).map((e): ChatMessage => ({
+              role: e.type === "player" ? "user" : "assistant",
+              content: e.type === "player" ? e.content : `${e.speaker}: ${e.content}`,
+            })),
+            { role: "user", content: parsed.dialogue },
+          ];
+          setLastDialoguePreview(null);
+        }
+
+        const dialogueLog = await sendLlmRequest({
+          messages: dialogueMessages,
+          agent: "default",
         });
         addLlmCall(dialogueLog);
 
