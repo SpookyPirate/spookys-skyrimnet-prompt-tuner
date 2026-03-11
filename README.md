@@ -49,6 +49,13 @@ Run full multi-NPC dialogue simulations with configurable scenes — set the loc
   <img src="graphics/ui-photos/3-preview-ui.png" alt="Live Preview" width="900" />
 </p>
 
+### Multichat Comparison
+Compare how different models respond to the same dialogue in real time. Select multiple profiles and see their responses side-by-side with per-model latency and token stats.
+
+<p align="center">
+  <img src="graphics/ui-photos/3.2-multichat-ui-1.png" alt="Multichat Comparison" width="900" />
+</p>
+
 ### Benchmark
 Compare multiple model profiles side-by-side on the same dialogue scenarios. Run every SkyrimNet agent type (dialogue, meta evaluation, action selection, game master, memory generation, diary, bio update) and see per-turn latency, token usage, and AI quality assessments.
 
