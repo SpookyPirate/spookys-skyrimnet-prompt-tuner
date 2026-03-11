@@ -219,8 +219,9 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("LLM proxy error:", error);
+    const msg = error instanceof Error ? error.message : String(error ?? "Unknown error");
     return Response.json(
-      { error: `LLM proxy error: ${(error as Error).message}` },
+      { error: `LLM proxy error: ${msg}` },
       { status: 500 }
     );
   }
