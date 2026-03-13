@@ -1,6 +1,17 @@
 import { render, extractBlocks, type RenderContext, type InjaValue } from "@/lib/inja/renderer";
 import { parseSections } from "./section-parser";
 import type { ChatMessage } from "@/types/llm";
+import type { EnrichedNpc } from "./npc-enricher";
+import {
+  equipmentToInjaValue,
+  spellsToInjaValue,
+  describeOutfit,
+  buildSimpleInventory,
+  buildMerchantInventory,
+  buildOmnisightDescription,
+  getRelationshipRank,
+} from "./npc-enricher";
+import { MOOD_DESCRIPTIONS, MOODS_LIST, getItemByFormID } from "./skyrim-data";
 
 export interface FileLoader {
   readFile: (path: string) => Promise<string>;
@@ -41,6 +52,7 @@ export interface SimulationState {
   scenePlan: Record<string, InjaValue> | null;
   isContinuousMode: boolean;
   hasScenePlan: boolean;
+  enrichedNpcMap?: Map<string, EnrichedNpc>;
 }
 
 /**
@@ -117,6 +129,8 @@ function buildContextVariables(simState: SimulationState): Record<string, InjaVa
     is_continuous_mode: simState.isContinuousMode,
     has_scene_plan: simState.hasScenePlan,
     isTimePaused: false,
+    moodsList: MOODS_LIST as unknown as InjaValue,
+    moodDescriptions: MOOD_DESCRIPTIONS as unknown as InjaValue,
     ...simState.customVariables,
   };
 }
@@ -156,6 +170,10 @@ function resolveActor(uuid: InjaValue, simState: SimulationState): Record<string
     }
   }
   return null;
+}
+
+function getEnrichedNpc(uuid: InjaValue, simState: SimulationState): EnrichedNpc | null {
+  return simState.enrichedNpcMap?.get(String(uuid)) || null;
 }
 
 const BASE_GAME_PLUGINS = new Set([
@@ -485,25 +503,70 @@ function buildDecoratorFunctions(
 
     // ===== Equipment & inventory =====
 
-    get_worn_equipment: () => ({}),
-    get_inventory: () => ({}),
-    get_merchant_inventory: () => ({ isMerchant: false }),
-    worn_has_keyword: () => false,
+    get_worn_equipment: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return equipmentToInjaValue(enriched.equipment);
+      return {};
+    },
+    get_inventory: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return buildSimpleInventory(enriched);
+      return { items: [], totalWeight: 0, totalValue: 0 };
+    },
+    get_merchant_inventory: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return buildMerchantInventory(enriched);
+      return { isMerchant: false };
+    },
+    worn_has_keyword: (uuid: InjaValue, keyword: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return enriched.equipmentKeywords.has(String(keyword));
+      return false;
+    },
 
     // ===== Keywords & factions =====
 
-    actor_has_keyword: () => false,
-    is_in_faction: () => false,
-    get_faction_rank: () => -1,
-    get_relationship_rank: () => 0,
+    actor_has_keyword: (uuid: InjaValue, keyword: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return enriched.keywords.includes(String(keyword));
+      return false;
+    },
+    is_in_faction: (uuid: InjaValue, faction: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return enriched.factionSet.has(String(faction));
+      return false;
+    },
+    get_faction_rank: (uuid: InjaValue, faction: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched && enriched.factionSet.has(String(faction))) return 0;
+      return -1;
+    },
+    get_relationship_rank: (uuid1: InjaValue, uuid2: InjaValue) => {
+      const e1 = getEnrichedNpc(uuid1, simState);
+      const e2 = getEnrichedNpc(uuid2, simState);
+      if (e1 && e2) {
+        const actor2 = resolveActor(uuid2, simState);
+        const isFollower = actor2 ? !!actor2.isFollowing : false;
+        return getRelationshipRank(e1.factionSet, e2.factionSet, isFollower);
+      }
+      return 0;
+    },
     get_crime_gold: () => ({ total: 0, violent: 0, nonViolent: 0 }),
     get_civil_war_side: () => "Neutral",
 
     // ===== Magic & perks =====
 
     has_magic_effect: () => false,
-    has_spell: () => false,
-    get_spell_list: () => [],
+    has_spell: (uuid: InjaValue, spellName: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return enriched.spells.some((s) => s.name === String(spellName));
+      return false;
+    },
+    get_spell_list: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return spellsToInjaValue(enriched.spells);
+      return [];
+    },
     has_perk: () => false,
     get_all_perks: () => [],
 
@@ -568,5 +631,146 @@ function buildDecoratorFunctions(
 
     get_global_value: () => 0,
     get_form_name: () => "Item",
+
+    // ===== Papyrus / Game Engine Stubs =====
+    // These functions exist in the real SkyrimNet C++ engine and query actual
+    // game state. In our simulation they return sensible defaults so template
+    // conditionals evaluate cleanly instead of dumping raw Inja fragments.
+
+    // StorageUtil access — returns 0/empty for all keys so bounty/debt/gold
+    // conditionals evaluate to falsy and skip guard-specific blocks.
+    papyrus_util: (..._args: InjaValue[]) => 0,
+
+    // Quest script property access — returns 0 so quest conditionals skip
+    get_script_property: (..._args: InjaValue[]) => 0,
+
+    // OmniSight visual descriptions — generate contextual description using enriched data
+    get_omnisight_description: (type: InjaValue, uuid?: InjaValue) => {
+      const kind = String(type || "");
+      if (kind === "actor" && uuid) {
+        const actor = resolveActor(uuid, simState);
+        const enriched = getEnrichedNpc(uuid, simState);
+        if (actor && enriched) {
+          return buildOmnisightDescription(enriched, actor);
+        }
+        if (actor) {
+          const name = String(actor.name || "NPC");
+          const race = String(actor.race || "");
+          const gender = String(actor.gender || "");
+          const parts = [gender, race].filter(Boolean).join(" ");
+          return parts ? `${name}, a ${parts.toLowerCase()}.` : `${name}.`;
+        }
+      }
+      if (kind === "location") {
+        return simState.location || "";
+      }
+      if (kind === "scene") {
+        return simState.sceneContext || "";
+      }
+      return "";
+    },
+
+    has_omnisight_description: (type: InjaValue, _uuid?: InjaValue) => {
+      return String(type) === "actor";
+    },
+
+    get_visible_npc_list: () => {
+      return simState.nearbyNpcs;
+    },
+
+    // Guard judgment mode — always false in simulation (no guards confronting player)
+    inJudgmentMode: () => false,
+
+    // Latest diary entry — return empty string so diary conditionals skip cleanly
+    get_latest_diary_entry: (..._args: InjaValue[]) => "",
+
+    // NPC property checks that appear in character bio files
+    is_essential: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      return enriched?.isEssential ?? false;
+    },
+    is_protected: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      return enriched?.isEssential ?? false;
+    },
+    is_child: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      return enriched?.isChild ?? false;
+    },
+    get_voice_type: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      return enriched?.voiceType ?? "MaleNord";
+    },
+    get_outfit: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      if (enriched) return describeOutfit(enriched.equipment);
+      return "";
+    },
+
+    // ===== Mood system =====
+
+    mood_description: (mood: InjaValue) => {
+      return MOOD_DESCRIPTIONS[String(mood)] || String(mood);
+    },
+
+    // ===== Position (plausible stubs) =====
+
+    get_actor_position_relative_to_camera: (uuid: InjaValue) => {
+      const actor = resolveActor(uuid, simState);
+      const dist = actor ? Number(actor.distance || 200) : 200;
+      const meters = Math.round(dist * 0.01428);
+      return {
+        distance: dist,
+        meters,
+        angle: 0,
+        pan: 0,
+        direction: "ahead",
+        cardinalDirection: "North",
+      };
+    },
+    get_actor_position_relative_to_actor: (uuid1: InjaValue, uuid2: InjaValue) => {
+      const a1 = resolveActor(uuid1, simState);
+      const a2 = resolveActor(uuid2, simState);
+      const d1 = a1 ? Number(a1.distance || 200) : 200;
+      const d2 = a2 ? Number(a2.distance || 200) : 200;
+      const dist = Math.abs(d1 - d2) + 50;
+      return {
+        distance: dist,
+        meters: Math.round(dist * 0.01428),
+        angle: 0,
+        pan: 0,
+        direction: "nearby",
+        cardinalDirection: "North",
+      };
+    },
+
+    // ===== Item descriptions =====
+
+    get_item_name: (formID: InjaValue) => {
+      const item = getItemByFormID(String(formID));
+      return item?.name ?? "Item";
+    },
+    get_item_name_for_wearer: (formID: InjaValue, _uuid: InjaValue) => {
+      const item = getItemByFormID(String(formID));
+      return item?.name ?? "Item";
+    },
+    get_item_description_for_wearer: () => "",
+    is_item_enabled: () => true,
+
+    // ===== Minor additions =====
+
+    to_number: (val: InjaValue) => {
+      const n = Number(val);
+      return isNaN(n) ? 0 : n;
+    },
+    is_array: (val: InjaValue) => Array.isArray(val),
+    get_diary_entries: () => [],
+    is_walking: () => false,
+    has_magic_archetype: () => false,
+    is_caching_enabled: () => false,
+    is_nude: (uuid: InjaValue) => {
+      const enriched = getEnrichedNpc(uuid, simState);
+      return enriched ? !enriched.equipment.body : false;
+    },
   };
 }

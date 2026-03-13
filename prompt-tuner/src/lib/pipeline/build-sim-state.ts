@@ -3,6 +3,7 @@ import type { NpcConfig, SceneConfig, ChatEntry, PlayerConfig } from "@/types/si
 import type { SimulatedEvent } from "@/types/yaml-configs";
 import type { SimulationState } from "./assembler";
 import { buildPlayerObject } from "./player-defaults";
+import { enrichNpc, enrichLocation, type EnrichedNpc } from "./npc-enricher";
 
 // --- Time helpers ---
 
@@ -84,13 +85,23 @@ export function deriveWeather(weather: string) {
 
 // --- NPC builder ---
 
-export function buildNpcObject(npc: NpcConfig): Record<string, InjaValue> {
+export function buildNpcObject(
+  npc: NpcConfig,
+  scene?: SceneConfig,
+  allNpcs?: NpcConfig[]
+): { npcObj: Record<string, InjaValue>; enriched: EnrichedNpc } {
   const isFemale = npc.gender === "Female";
-  return {
-    name: npc.displayName || npc.name,
+  const displayName = npc.displayName || npc.name;
+
+  // Enrich NPC with plausible game data
+  const dummyScene: SceneConfig = scene || { location: "", weather: "Clear", timeOfDay: "Afternoon", worldPrompt: "", scenePrompt: "" };
+  const enriched = enrichNpc(npc, dummyScene, allNpcs || []);
+
+  const npcObj: Record<string, InjaValue> = {
+    name: displayName,
     UUID: npc.uuid,
-    firstName: (npc.displayName || npc.name).split(" ")[0],
-    lastName: (npc.displayName || npc.name).split(" ").slice(1).join(" ") || "",
+    firstName: displayName.split(" ")[0],
+    lastName: displayName.split(" ").slice(1).join(" ") || "",
     gender: npc.gender,
     sex: npc.gender,
     race: npc.race,
@@ -99,14 +110,14 @@ export function buildNpcObject(npc: NpcConfig): Record<string, InjaValue> {
     objectivePronoun: isFemale ? "her" : "him",
     possessiveAdjective: isFemale ? "her" : "his",
     reflexivePronoun: isFemale ? "herself" : "himself",
-    level: 10,
-    class: "Citizen",
-    health: 100,
-    maxHealth: 100,
-    magicka: 50,
-    maxMagicka: 50,
-    stamina: 100,
-    maxStamina: 100,
+    level: enriched.level,
+    class: enriched.class,
+    health: enriched.health,
+    maxHealth: enriched.health,
+    magicka: enriched.magicka,
+    maxMagicka: enriched.magicka,
+    stamina: enriched.stamina,
+    maxStamina: enriched.stamina,
     isInCombat: false,
     isDead: false,
     isVirtual: npc.isVirtual || false,
@@ -114,18 +125,39 @@ export function buildNpcObject(npc: NpcConfig): Record<string, InjaValue> {
     universalTranslatorSpeechPattern: "",
     distance: npc.distance || 200,
     isFollowing: false,
+    isGuard: enriched.isGuard,
+    isEssential: enriched.isEssential,
+    isBusy: false,
+    isHostile: false,
+    gold: enriched.gold,
     furniture: "None",
-    // Default empty collections
-    factions: [] as InjaValue,
-    keywords: [] as InjaValue,
-    skills: {
-      OneHanded: 25, TwoHanded: 20, Marksman: 20, Block: 20,
-      Smithing: 20, HeavyArmor: 20, LightArmor: 25, Pickpocket: 15,
-      Lockpicking: 15, Sneak: 20, Alchemy: 15, Speech: 25,
-      Alteration: 15, Conjuration: 15, Destruction: 15, Illusion: 15,
-      Restoration: 15, Enchanting: 15,
-    } as unknown as InjaValue,
+    voiceType: enriched.voiceType,
+    // Collections
+    factions: enriched.factions as unknown as InjaValue,
+    keywords: enriched.keywords as unknown as InjaValue,
+    skills: enriched.skills as unknown as InjaValue,
+    // Flat skill properties for template compatibility
+    oneHanded: enriched.skills.OneHanded ?? 20,
+    twoHanded: enriched.skills.TwoHanded ?? 15,
+    marksman: enriched.skills.Marksman ?? 15,
+    block: enriched.skills.Block ?? 15,
+    smithing: enriched.skills.Smithing ?? 15,
+    heavyArmor: enriched.skills.HeavyArmor ?? 15,
+    lightArmor: enriched.skills.LightArmor ?? 20,
+    pickpocket: enriched.skills.Pickpocket ?? 15,
+    lockpicking: enriched.skills.Lockpicking ?? 15,
+    sneak: enriched.skills.Sneak ?? 15,
+    alchemy: enriched.skills.Alchemy ?? 15,
+    speech: enriched.skills.Speech ?? 20,
+    alteration: enriched.skills.Alteration ?? 15,
+    conjuration: enriched.skills.Conjuration ?? 15,
+    destruction: enriched.skills.Destruction ?? 15,
+    illusion: enriched.skills.Illusion ?? 15,
+    restoration: enriched.skills.Restoration ?? 15,
+    enchanting: enriched.skills.Enchanting ?? 15,
   };
+
+  return { npcObj, enriched };
 }
 
 // --- Event array builder ---
@@ -392,27 +424,37 @@ export function buildFullSimulationState(params: BuildSimStateParams): Simulatio
   const playerObj = buildPlayerObject(player);
   const playerUUID = playerObj.UUID;
 
-  // Build NPC objects
+  // Build NPC objects with enrichment
   const npcMap = new Map<string, Record<string, InjaValue>>();
+  const enrichedNpcMap = new Map<string, EnrichedNpc>();
   for (const n of selectedNpcs) {
-    npcMap.set(n.uuid, buildNpcObject(n));
+    const { npcObj, enriched } = buildNpcObject(n, scene, selectedNpcs);
+    npcMap.set(n.uuid, npcObj);
+    enrichedNpcMap.set(n.uuid, enriched);
   }
 
   // Primary NPC
-  const primaryNpc = npc
-    ? buildNpcObject(npc)
-    : selectedNpcs.length > 0
-      ? buildNpcObject(selectedNpcs[0])
-      : { name: "NPC", UUID: "npc_001", gender: "Unknown", race: "Unknown" };
+  let primaryNpc: Record<string, InjaValue>;
+  if (npc) {
+    const { npcObj, enriched } = buildNpcObject(npc, scene, selectedNpcs);
+    primaryNpc = npcObj;
+    enrichedNpcMap.set(npc.uuid, enriched);
+  } else if (selectedNpcs.length > 0) {
+    primaryNpc = npcMap.get(selectedNpcs[0].uuid) || buildNpcObject(selectedNpcs[0], scene, selectedNpcs).npcObj;
+  } else {
+    primaryNpc = { name: "NPC", UUID: "npc_001", gender: "Unknown", race: "Unknown" };
+  }
 
   // Nearby NPCs (all selected minus the primary)
+  const primaryUuid = npc?.uuid || selectedNpcs[0]?.uuid;
   const nearbyNpcs = selectedNpcs
-    .filter((n) => n.uuid !== (npc?.uuid || selectedNpcs[0]?.uuid))
-    .map((n) => npcMap.get(n.uuid) || buildNpcObject(n)) as InjaValue[];
+    .filter((n) => n.uuid !== primaryUuid)
+    .map((n) => npcMap.get(n.uuid) || buildNpcObject(n, scene, selectedNpcs).npcObj) as InjaValue[];
 
-  // Derive time, weather
+  // Derive time, weather, location
   const time = deriveGameTime(scene.timeOfDay || "Afternoon");
   const weather = deriveWeather(scene.weather || "Clear");
+  const enrichedLoc = enrichLocation(scene.location);
 
   // Build event array from chat history
   const chatEvents = buildEventArray(
@@ -474,10 +516,25 @@ export function buildFullSimulationState(params: BuildSimStateParams): Simulatio
     distance: n.distance || 200,
   })) as InjaValue[];
 
-  // Scene plan
-  const scenePlanObj = scenePlan
+  // Scene plan — ensure beat index fields have defaults so templates
+  // don't render "NaN" when current_beat_index is missing
+  let scenePlanObj = scenePlan
     ? (typeof scenePlan === "string" ? JSON.parse(scenePlan) : scenePlan)
     : null;
+  if (scenePlanObj) {
+    const beats = Array.isArray(scenePlanObj.beats) ? scenePlanObj.beats : [];
+    if (scenePlanObj.current_beat_index === undefined || scenePlanObj.current_beat_index === null) {
+      scenePlanObj = { ...scenePlanObj, current_beat_index: 0 };
+    }
+    if (scenePlanObj.total_beats === undefined || scenePlanObj.total_beats === null) {
+      scenePlanObj = { ...scenePlanObj, total_beats: beats.length || 1 };
+    }
+    // Also ensure current_beat exists for templates that reference it
+    if (!scenePlanObj.current_beat && beats.length > 0) {
+      const idx = Math.min(scenePlanObj.current_beat_index, beats.length - 1);
+      scenePlanObj = { ...scenePlanObj, current_beat: beats[idx] };
+    }
+  }
 
   return {
     npc: primaryNpc,
@@ -507,11 +564,12 @@ export function buildFullSimulationState(params: BuildSimStateParams): Simulatio
     gameTimeNumeric: time.gameTimeNumeric,
     timeDesc: time.time_desc,
     currentWeather: weather.currentWeather,
-    isIndoors: weather.is_indoors,
+    isIndoors: enrichedLoc.isIndoors,
     locationObject,
     shortLivedEvents,
     scenePlan: scenePlanObj as Record<string, InjaValue> | null,
     isContinuousMode,
     hasScenePlan: !!scenePlanObj,
+    enrichedNpcMap,
   };
 }
