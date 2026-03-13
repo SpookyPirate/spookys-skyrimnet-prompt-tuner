@@ -190,7 +190,11 @@ Prompt files use the Inja template engine (similar to Jinja2 but NOT identical).
 9. **Avoid enabling reasoning.** For SkyrimNet roleplay agents, \`allowReasoning: false\` produces better results 9 times out of 10. Reasoning adds latency and token cost without improving dialogue quality. Only enable it if the task requires complex multi-step logical analysis (not creative text generation).
 10. **Ignore self-explanation quality.** The model's self-explanation is generated in a separate diagnostic call with its own token budget. Changing inference settings (especially maxTokens) will NOT affect explanation verbosity. Focus only on the actual benchmark response quality.${ignoreFormatScoring ? `
 11. **IGNORE FORMAT.** The user has opted to skip format scoring. Do NOT propose changes aimed at fixing format, JSON structure, metadata fields, importance scores, emotion fields, or any output format aspects. The output format is dictated by SkyrimNet's engine requirements and is correct as-is. Focus exclusively on content quality, accuracy, and efficiency.` : ""}
+${customInstructions.trim() ? `
+## User Instructions (PRIORITY — follow these above all other guidelines)
 
+${customInstructions.trim()}
+` : ""}
 ## Response Format
 
 Respond with a JSON object (no markdown fences):
@@ -207,13 +211,7 @@ Respond with a JSON object (no markdown fences):
   ]` : ""}
 }
 
-If no changes are needed for a category, use an empty array. Always include all fields.${!canModifyPrompts ? " Do NOT include prompt_changes — you are only tuning inference settings." : ""}${customInstructions.trim() ? `
-
-## User Instructions (PRIORITY)
-
-The user has provided the following instructions. Follow them carefully:
-
-${customInstructions.trim()}` : ""}`;
+If no changes are needed for a category, use an empty array. Always include all fields.${!canModifyPrompts ? " Do NOT include prompt_changes — you are only tuning inference settings." : ""}`;
 
   const userContent = `## This Round's Benchmark Result
 

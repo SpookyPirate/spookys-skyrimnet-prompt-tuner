@@ -149,6 +149,20 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
   // Build model slots: both use the copycat slot's API config with model overridden
   const baseApi = { ...copycatSlot.api };
 
+  // Per-model API overrides (endpoint + key) from store
+  const refOverride = store.referenceApiOverride;
+  const tgtOverride = store.targetApiOverride;
+  const referenceApi = {
+    ...baseApi,
+    ...(refOverride.apiEndpoint ? { apiEndpoint: refOverride.apiEndpoint } : {}),
+  };
+  const referenceApiKey = refOverride.apiKey || copycatApiKey;
+  const targetApi = {
+    ...baseApi,
+    ...(tgtOverride.apiEndpoint ? { apiEndpoint: tgtOverride.apiEndpoint } : {}),
+  };
+  const targetApiKey = tgtOverride.apiKey || copycatApiKey;
+
   // Snapshot original settings from the store's startingSettings
   const originalSettings = { ...store.startingSettings };
   let workingSettings = { ...originalSettings };
@@ -195,7 +209,7 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
 
         try {
           const referenceSlot: ModelSlot = {
-            api: { ...baseApi, modelNames: referenceModelId },
+            api: { ...referenceApi, modelNames: referenceModelId },
             tuning: { ...originalSettings },
           };
 
@@ -203,7 +217,7 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
             activeScenario,
             referenceSlot,
             referenceModelId,
-            copycatApiKey,
+            referenceApiKey,
             promptSetBase,
             abortController.signal,
             (turn) => store.addRoundReferenceTurn(roundIdx, turn),
@@ -234,7 +248,7 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
       let targetDialogue: CopycatDialogueTurn[];
       try {
         const targetSlot: ModelSlot = {
-          api: { ...baseApi, modelNames: targetModelId },
+          api: { ...targetApi, modelNames: targetModelId },
           tuning: { ...workingSettings },
         };
 
@@ -242,7 +256,7 @@ export async function runCopycatLoop(params: CopycatLoopParams) {
           activeScenario,
           targetSlot,
           targetModelId,
-          copycatApiKey,
+          targetApiKey,
           promptSetBase,
           abortController.signal,
           (turn) => store.addRoundTargetTurn(roundIdx, turn),

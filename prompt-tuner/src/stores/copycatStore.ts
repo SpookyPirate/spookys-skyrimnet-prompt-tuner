@@ -27,6 +27,13 @@ export const COPYCAT_DEFAULT_SETTINGS: AiTuningSettings = {
   reasoningEffort: "medium",
 };
 
+export interface ApiOverride {
+  apiKey: string;
+  apiEndpoint: string;
+}
+
+const EMPTY_API_OVERRIDE: ApiOverride = { apiKey: "", apiEndpoint: "" };
+
 function loadPersisted(): {
   referenceModelId: string;
   targetModelId: string;
@@ -37,6 +44,8 @@ function loadPersisted(): {
   lockedSettings: (keyof AiTuningSettings)[];
   customInstructions: string;
   startingSettings: AiTuningSettings;
+  referenceApiOverride: ApiOverride;
+  targetApiOverride: ApiOverride;
 } {
   const defaults = {
     referenceModelId: "",
@@ -45,9 +54,11 @@ function loadPersisted(): {
     selectedPromptSet: "__active__",
     tuningTarget: "settings" as TuningTarget,
     maxRounds: 5,
-    lockedSettings: [] as (keyof AiTuningSettings)[],
+    lockedSettings: ["maxTokens", "allowReasoning", "reasoningEffort", "structuredOutputs", "stopSequences"] as (keyof AiTuningSettings)[],
     customInstructions: "",
     startingSettings: { ...COPYCAT_DEFAULT_SETTINGS },
+    referenceApiOverride: { ...EMPTY_API_OVERRIDE },
+    targetApiOverride: { ...EMPTY_API_OVERRIDE },
   };
   if (typeof window === "undefined") return defaults;
   try {
@@ -66,6 +77,8 @@ function loadPersisted(): {
         startingSettings: data.startingSettings
           ? { ...COPYCAT_DEFAULT_SETTINGS, ...data.startingSettings }
           : { ...COPYCAT_DEFAULT_SETTINGS },
+        referenceApiOverride: data.referenceApiOverride ?? { ...EMPTY_API_OVERRIDE },
+        targetApiOverride: data.targetApiOverride ?? { ...EMPTY_API_OVERRIDE },
       };
     }
   } catch { /* ignore */ }
@@ -83,6 +96,8 @@ interface CopycatState {
   lockedSettings: (keyof AiTuningSettings)[];
   customInstructions: string;
   startingSettings: AiTuningSettings;
+  referenceApiOverride: ApiOverride;
+  targetApiOverride: ApiOverride;
 
   // Run state (volatile)
   isRunning: boolean;
@@ -118,6 +133,8 @@ interface CopycatState {
   setCustomInstructions: (text: string) => void;
   setStartingSettings: (settings: AiTuningSettings) => void;
   updateStartingSetting: <K extends keyof AiTuningSettings>(key: K, value: AiTuningSettings[K]) => void;
+  setReferenceApiOverride: (override: Partial<ApiOverride>) => void;
+  setTargetApiOverride: (override: Partial<ApiOverride>) => void;
 
   // Actions - run state
   setIsRunning: (running: boolean) => void;
@@ -172,6 +189,8 @@ export const useCopycatStore = create<CopycatState>((set, get) => ({
   lockedSettings: _persisted.lockedSettings,
   customInstructions: _persisted.customInstructions,
   startingSettings: _persisted.startingSettings,
+  referenceApiOverride: _persisted.referenceApiOverride,
+  targetApiOverride: _persisted.targetApiOverride,
 
   // Run state
   isRunning: false,
@@ -236,6 +255,18 @@ export const useCopycatStore = create<CopycatState>((set, get) => ({
   updateStartingSetting: (key, value) => {
     set((s) => ({
       startingSettings: { ...s.startingSettings, [key]: value },
+    }));
+    get().persist();
+  },
+  setReferenceApiOverride: (override) => {
+    set((s) => ({
+      referenceApiOverride: { ...s.referenceApiOverride, ...override },
+    }));
+    get().persist();
+  },
+  setTargetApiOverride: (override) => {
+    set((s) => ({
+      targetApiOverride: { ...s.targetApiOverride, ...override },
     }));
     get().persist();
   },
@@ -411,7 +442,7 @@ export const useCopycatStore = create<CopycatState>((set, get) => ({
     const {
       referenceModelId, targetModelId, selectedScenarioId,
       selectedPromptSet, tuningTarget, maxRounds, lockedSettings,
-      customInstructions, startingSettings,
+      customInstructions, startingSettings, referenceApiOverride, targetApiOverride,
     } = get();
     try {
       localStorage.setItem(
@@ -419,7 +450,7 @@ export const useCopycatStore = create<CopycatState>((set, get) => ({
         JSON.stringify({
           referenceModelId, targetModelId, selectedScenarioId,
           selectedPromptSet, tuningTarget, maxRounds, lockedSettings,
-          customInstructions, startingSettings,
+          customInstructions, startingSettings, referenceApiOverride, targetApiOverride,
         })
       );
     } catch { /* ignore */ }

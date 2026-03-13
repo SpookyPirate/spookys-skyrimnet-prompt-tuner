@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useCopycatStore, COPYCAT_DEFAULT_SETTINGS } from "@/stores/copycatStore";
+import { useCopycatStore, COPYCAT_DEFAULT_SETTINGS, type ApiOverride } from "@/stores/copycatStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useAppStore } from "@/stores/appStore";
 import { useBenchmarkStore } from "@/stores/benchmarkStore";
@@ -62,6 +62,10 @@ export function CopycatSetup() {
   const setLockedSettings = useCopycatStore((s) => s.setLockedSettings);
   const customInstructions = useCopycatStore((s) => s.customInstructions);
   const setCustomInstructions = useCopycatStore((s) => s.setCustomInstructions);
+  const referenceApiOverride = useCopycatStore((s) => s.referenceApiOverride);
+  const setReferenceApiOverride = useCopycatStore((s) => s.setReferenceApiOverride);
+  const targetApiOverride = useCopycatStore((s) => s.targetApiOverride);
+  const setTargetApiOverride = useCopycatStore((s) => s.setTargetApiOverride);
   const isRunning = useCopycatStore((s) => s.isRunning);
   const reset = useCopycatStore((s) => s.reset);
 
@@ -74,6 +78,8 @@ export function CopycatSetup() {
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [inferenceExpanded, setInferenceExpanded] = useState(false);
   const [copyProfileOpen, setCopyProfileOpen] = useState(false);
+  const [refApiExpanded, setRefApiExpanded] = useState(false);
+  const [tgtApiExpanded, setTgtApiExpanded] = useState(false);
 
   useEffect(() => {
     fetch("/api/export/list-sets")
@@ -162,6 +168,14 @@ export function CopycatSetup() {
               placeholder="anthropic/claude-opus-4-6"
               className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground font-mono placeholder:text-muted-foreground/50 disabled:opacity-50"
             />
+            <ApiOverrideSection
+              label="API Override"
+              override={referenceApiOverride}
+              onChange={setReferenceApiOverride}
+              expanded={refApiExpanded}
+              onToggle={() => setRefApiExpanded((v) => !v)}
+              disabled={isRunning}
+            />
           </div>
 
           <Separator />
@@ -178,6 +192,14 @@ export function CopycatSetup() {
               disabled={isRunning}
               placeholder="deepseek/deepseek-chat-v3-0324"
               className="w-full rounded border bg-background px-2 py-1 text-xs text-foreground font-mono placeholder:text-muted-foreground/50 disabled:opacity-50"
+            />
+            <ApiOverrideSection
+              label="API Override"
+              override={targetApiOverride}
+              onChange={setTargetApiOverride}
+              expanded={tgtApiExpanded}
+              onToggle={() => setTgtApiExpanded((v) => !v)}
+              disabled={isRunning}
             />
           </div>
 
@@ -660,6 +682,63 @@ function SettingNumber({
         disabled={disabled}
         className="w-full rounded border bg-background px-2 py-0.5 text-[10px] text-foreground font-mono disabled:opacity-50"
       />
+    </div>
+  );
+}
+
+function ApiOverrideSection({
+  label,
+  override,
+  onChange,
+  expanded,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  override: ApiOverride;
+  onChange: (o: Partial<ApiOverride>) => void;
+  expanded: boolean;
+  onToggle: () => void;
+  disabled: boolean;
+}) {
+  const hasOverride = !!(override.apiKey || override.apiEndpoint);
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ChevronRight className={`h-2.5 w-2.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+        <span>{label}</span>
+        {hasOverride && <span className="ml-auto text-[8px] text-primary">active</span>}
+      </button>
+      {expanded && (
+        <div className="mt-1 space-y-1.5 pl-3.5">
+          <div className="space-y-0.5">
+            <div className="text-[9px] text-muted-foreground">API Endpoint</div>
+            <input
+              type="text"
+              value={override.apiEndpoint}
+              onChange={(e) => onChange({ apiEndpoint: e.target.value })}
+              disabled={disabled}
+              placeholder="Leave empty to use profile default"
+              className="w-full rounded border bg-background px-2 py-0.5 text-[10px] text-foreground font-mono placeholder:text-muted-foreground/40 disabled:opacity-50"
+            />
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-[9px] text-muted-foreground">API Key</div>
+            <input
+              type="password"
+              value={override.apiKey}
+              onChange={(e) => onChange({ apiKey: e.target.value })}
+              disabled={disabled}
+              placeholder="Leave empty to use profile default"
+              className="w-full rounded border bg-background px-2 py-0.5 text-[10px] text-foreground font-mono placeholder:text-muted-foreground/40 disabled:opacity-50"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

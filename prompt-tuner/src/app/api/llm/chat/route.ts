@@ -191,33 +191,42 @@ export async function POST(request: NextRequest) {
     data.__requestPayload = payloadEcho;
     return Response.json(data);
   } catch (error) {
-    // Distinguish timeout/abort errors from other failures
-    if (error instanceof DOMException && error.name === "AbortError") {
-      const reason = (error as DOMException).message;
-      if (reason === "timeout" || String((error as unknown as Record<string, unknown>).cause) === "timeout") {
+    // Classify abort errors — Node/undici, DOMException, and edge runtimes
+    // all represent aborts differently, so check multiple paths.
+    const err = error as Record<string, unknown>;
+    const isAbort =
+      (error instanceof DOMException && error.name === "AbortError") ||
+      err?.name === "AbortError" ||
+      err?.code === "ABORT_ERR" ||
+      err?.type === "aborted";
+
+    // Extract the abort reason from wherever the runtime put it
+    const reason = String(
+      err?.reason ?? err?.cause ?? (error instanceof DOMException ? error.message : "") ?? ""
+    );
+    const isTimeout = reason === "timeout" || String(err?.message ?? "").includes("timeout");
+    const isClientDisconnect = reason === "client_disconnect";
+
+    if (isAbort || isTimeout) {
+      if (isTimeout) {
         return Response.json(
           { error: "Request timed out waiting for a response. Increase the timeout in Settings or try a faster model." },
           { status: 504 }
         );
       }
+      if (isClientDisconnect) {
+        return Response.json(
+          { error: "Request was cancelled." },
+          { status: 499 }
+        );
+      }
+      // Generic abort (unknown reason)
       return Response.json(
         { error: "Request was cancelled." },
         { status: 499 }
       );
     }
-    // Node/undici uses a different error type for aborts
-    if ((error as Record<string, unknown>)?.cause === "timeout") {
-      return Response.json(
-        { error: "Request timed out waiting for a response. Increase the timeout in Settings or try a faster model." },
-        { status: 504 }
-      );
-    }
-    if ((error as Record<string, unknown>)?.cause === "client_disconnect") {
-      return Response.json(
-        { error: "Request was cancelled." },
-        { status: 499 }
-      );
-    }
+
     console.error("LLM proxy error:", error);
     const msg = error instanceof Error ? error.message : String(error ?? "Unknown error");
     return Response.json(

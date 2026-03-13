@@ -22,6 +22,7 @@ export function buildTunerAssessmentMessages({
   turnResults,
   previousRounds = [],
   ignoreFormatScoring = false,
+  customInstructions = "",
 }: {
   category: BenchmarkCategory;
   model: string;
@@ -35,6 +36,7 @@ export function buildTunerAssessmentMessages({
   turnResults?: TunerTurnResult[];
   previousRounds?: TunerRound[];
   ignoreFormatScoring?: boolean;
+  customInstructions?: string;
 }): ChatMessage[] {
   const catDef = getCategoryDef(category);
   const agentLabel = catDef?.label || category;
@@ -86,7 +88,13 @@ ${ignoreFormatScoring ? `
 **Efficiency** — Token usage of the benchmark response relative to output quality
 - Did the model's actual response use tokens wisely?
 - Note: completion token count reflects only the benchmark response, not the self-explanation.
+${customInstructions.trim() ? `
+## User Instructions (PRIORITY — follow these carefully)
 
+The user has provided these instructions that MUST guide your assessment. Adjust your scoring and feedback accordingly:
+
+${customInstructions.trim()}
+` : ""}
 ## Output Format
 
 Produce a concise markdown assessment with:

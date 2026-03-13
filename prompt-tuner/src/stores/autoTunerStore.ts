@@ -31,9 +31,9 @@ function loadPersisted(): {
     selectedPromptSet: "__active__",
     tuningTarget: "settings" as TuningTarget,
     maxRounds: 5,
-    lockedSettings: [] as (keyof AiTuningSettingsType)[],
+    lockedSettings: ["maxTokens", "allowReasoning", "reasoningEffort", "structuredOutputs", "stopSequences"] as (keyof AiTuningSettingsType)[],
     customInstructions: "",
-    ignoreFormatScoring: false,
+    ignoreFormatScoring: true,
   };
   if (typeof window === "undefined") return defaults;
   try {
@@ -47,9 +47,9 @@ function loadPersisted(): {
         selectedPromptSet: data.selectedPromptSet ?? "__active__",
         tuningTarget: data.tuningTarget ?? "settings",
         maxRounds: data.maxRounds ?? 5,
-        lockedSettings: data.lockedSettings ?? [],
+        lockedSettings: data.lockedSettings ?? ["maxTokens", "allowReasoning", "reasoningEffort"],
         customInstructions: data.customInstructions ?? "",
-        ignoreFormatScoring: data.ignoreFormatScoring ?? false,
+        ignoreFormatScoring: data.ignoreFormatScoring ?? true,
       };
     }
   } catch { /* ignore */ }

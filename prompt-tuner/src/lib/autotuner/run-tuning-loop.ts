@@ -423,6 +423,7 @@ export async function runTuningLoop(
           turnResults: isMultiPart ? roundTurnResults : undefined,
           previousRounds: assessPreviousRounds,
           ignoreFormatScoring,
+          customInstructions,
         });
 
         // Store assessment input messages

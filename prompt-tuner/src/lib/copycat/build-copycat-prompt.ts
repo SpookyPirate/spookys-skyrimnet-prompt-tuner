@@ -188,7 +188,11 @@ Prompt files use the Inja template engine (similar to Jinja2 but NOT identical).
 - Some files (especially in \\\`submodules/\\\`) are assembled by the engine into larger prompts
 
 **IMPORTANT:** When proposing prompt changes, only modify plain-text instruction content. Do NOT modify template syntax (\\\`{{ }}\\\`, \\\`{% %}\\\`), section markers, or decorator calls unless you fully understand the Inja engine. Adding or editing natural-language instructions between template blocks is safe.` : ""}
+${customInstructions.trim() ? `
+## User Instructions (PRIORITY — follow these above all other guidelines)
 
+${customInstructions.trim()}
+` : ""}
 ## Response Format
 
 Respond with a JSON object (no markdown fences):
@@ -208,11 +212,7 @@ Respond with a JSON object (no markdown fences):
   "verification_requests": ["custom dialogue line to test"]
 }
 
-Always include all fields.${!canModifyPrompts ? " Do NOT include prompt_changes." : ""}${customInstructions.trim() ? `
-
-## User Instructions (PRIORITY)
-
-${customInstructions.trim()}` : ""}`;
+Always include all fields.${!canModifyPrompts ? " Do NOT include prompt_changes." : ""}`;
 
   const userContent = `## Reference Model Dialogue (\`${referenceModelId}\`)
 

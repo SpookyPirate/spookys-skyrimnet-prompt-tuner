@@ -420,10 +420,56 @@ async function executeToolCall(
       const readData = await readRes.json();
       if (!readRes.ok) return `Error reading file: ${readData.error}`;
       const currentContent: string = readData.content;
-      if (!currentContent.includes(oldStr)) {
-        return `Error: Search string not found in file. Make sure to match the text exactly.`;
+
+      let newContent: string | null = null;
+      let matchMethod = "";
+
+      if (currentContent.includes(oldStr)) {
+        // Exact match
+        newContent = currentContent.replace(oldStr, newStr);
+        matchMethod = "exact";
+      } else {
+        // Fallback 1: flexible whitespace — split into tokens, match with \s+
+        const tokens = oldStr.split(/\s+/).filter(Boolean);
+        if (tokens.length > 0) {
+          const pattern = tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+");
+          const flexRegex = new RegExp(pattern, "s");
+          if (flexRegex.test(currentContent)) {
+            newContent = currentContent.replace(flexRegex, newStr);
+            matchMethod = "flexible whitespace";
+          }
+        }
+
+        // Fallback 2: trimmed line matching — trim each line and compare
+        if (newContent === null) {
+          const oldLines = oldStr.split("\n").map((l) => l.trim()).filter(Boolean);
+          if (oldLines.length >= 2) {
+            const contentLines = currentContent.split("\n");
+            // Find a window of content lines whose trimmed versions match
+            for (let i = 0; i <= contentLines.length - oldLines.length; i++) {
+              let match = true;
+              for (let j = 0; j < oldLines.length; j++) {
+                if (contentLines[i + j].trim() !== oldLines[j]) {
+                  match = false;
+                  break;
+                }
+              }
+              if (match) {
+                const before = contentLines.slice(0, i);
+                const after = contentLines.slice(i + oldLines.length);
+                newContent = [...before, newStr, ...after].join("\n");
+                matchMethod = "trimmed line";
+                break;
+              }
+            }
+          }
+        }
       }
-      const newContent = currentContent.replace(oldStr, newStr);
+
+      if (newContent === null) {
+        return `Error: Search string not found in file. The old_str text doesn't match the file content — check whitespace, line breaks, and special characters. Try using read_file first to see the exact content.`;
+      }
+
       const writeRes = await fetch("/api/files/write", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -437,7 +483,7 @@ async function executeToolCall(
         store.markFileSaved(filePath);
       }
       store.refreshTree();
-      return "Edit applied successfully";
+      return `Edit applied successfully${matchMethod !== "exact" ? ` (matched via ${matchMethod})` : ""}`;
     }
     case "search_characters": {
       const query = args.query || args.name || Object.values(args)[0] || "";
