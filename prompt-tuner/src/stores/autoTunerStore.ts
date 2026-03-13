@@ -22,6 +22,7 @@ function loadPersisted(): {
   maxRounds: number;
   lockedSettings: (keyof AiTuningSettingsType)[];
   customInstructions: string;
+  ignoreFormatScoring: boolean;
 } {
   const defaults = {
     selectedProfileId: "",
@@ -32,6 +33,7 @@ function loadPersisted(): {
     maxRounds: 5,
     lockedSettings: [] as (keyof AiTuningSettingsType)[],
     customInstructions: "",
+    ignoreFormatScoring: false,
   };
   if (typeof window === "undefined") return defaults;
   try {
@@ -47,6 +49,7 @@ function loadPersisted(): {
         maxRounds: data.maxRounds ?? 5,
         lockedSettings: data.lockedSettings ?? [],
         customInstructions: data.customInstructions ?? "",
+        ignoreFormatScoring: data.ignoreFormatScoring ?? false,
       };
     }
   } catch { /* ignore */ }
@@ -63,6 +66,7 @@ interface AutoTunerState {
   maxRounds: number;
   lockedSettings: (keyof AiTuningSettingsType)[];
   customInstructions: string;
+  ignoreFormatScoring: boolean;
 
   // Run state (volatile)
   isRunning: boolean;
@@ -91,6 +95,7 @@ interface AutoTunerState {
   setMaxRounds: (n: number) => void;
   setLockedSettings: (keys: (keyof AiTuningSettingsType)[]) => void;
   setCustomInstructions: (text: string) => void;
+  setIgnoreFormatScoring: (ignore: boolean) => void;
 
   // Actions - run state
   setIsRunning: (running: boolean) => void;
@@ -139,6 +144,7 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
   maxRounds: _persisted.maxRounds,
   lockedSettings: _persisted.lockedSettings,
   customInstructions: _persisted.customInstructions,
+  ignoreFormatScoring: _persisted.ignoreFormatScoring,
 
   // Run state
   isRunning: false,
@@ -189,6 +195,10 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
   },
   setCustomInstructions: (text) => {
     set({ customInstructions: text });
+    get().persist();
+  },
+  setIgnoreFormatScoring: (ignore) => {
+    set({ ignoreFormatScoring: ignore });
     get().persist();
   },
 
@@ -326,11 +336,11 @@ export const useAutoTunerStore = create<AutoTunerState>((set, get) => ({
 
   persist: () => {
     if (typeof window === "undefined") return;
-    const { selectedProfileId, selectedCategory, selectedScenarioId, selectedPromptSet, tuningTarget, maxRounds, lockedSettings, customInstructions } = get();
+    const { selectedProfileId, selectedCategory, selectedScenarioId, selectedPromptSet, tuningTarget, maxRounds, lockedSettings, customInstructions, ignoreFormatScoring } = get();
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ selectedProfileId, selectedCategory, selectedScenarioId, selectedPromptSet, tuningTarget, maxRounds, lockedSettings, customInstructions })
+        JSON.stringify({ selectedProfileId, selectedCategory, selectedScenarioId, selectedPromptSet, tuningTarget, maxRounds, lockedSettings, customInstructions, ignoreFormatScoring })
       );
     } catch { /* ignore */ }
   },

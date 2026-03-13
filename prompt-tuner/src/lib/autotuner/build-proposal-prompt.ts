@@ -36,6 +36,7 @@ export function buildProposalMessages({
   currentTokens,
   lockedSettings = [],
   customInstructions = "",
+  ignoreFormatScoring = false,
 }: {
   category: BenchmarkCategory;
   tuningTarget: TuningTarget;
@@ -49,6 +50,7 @@ export function buildProposalMessages({
   currentTokens: number;
   lockedSettings?: (keyof AiTuningSettings)[];
   customInstructions?: string;
+  ignoreFormatScoring?: boolean;
 }): ChatMessage[] {
   const catDef = getCategoryDef(category);
   const agentName = catDef?.label || category;
@@ -172,9 +174,22 @@ ${canModifyPrompts ? `7. **For prompt changes: prefer adding over replacing.** T
    - Make surgical wording changes to existing lines when a specific phrase is directly causing the problem
    - Only replace or rewrite a section if it directly conflicts with the improvement you're trying to make and a smaller edit won't fix it — and even then, preserve as much of the original intent as possible
    - Your \`search_text\` should be a SHORT, specific portion where possible; avoid replacing entire files or large blocks unnecessarily
-8. **Prompt changes must be universal.** These prompts are used for THOUSANDS of different NPC dialogues across all of Skyrim — guards, merchants, innkeepers, quest characters, companions, etc. Proposed changes must improve dialogue quality for ANY NPC in ANY context. NEVER propose changes that are specific to the current benchmark scenario (e.g., referencing specific locations, quests, or NPC names from the test). Test your proposed instruction mentally: would it help a blacksmith AND a jarl AND a bard? If not, don't propose it.` : ""}
+8. **Prompt changes must be universal.** These prompts are used for THOUSANDS of different NPC dialogues across all of Skyrim — guards, merchants, innkeepers, quest characters, companions, etc. Proposed changes must improve dialogue quality for ANY NPC in ANY context. NEVER propose changes that are specific to the current benchmark scenario (e.g., referencing specific locations, quests, or NPC names from the test). Test your proposed instruction mentally: would it help a blacksmith AND a jarl AND a bard? If not, don't propose it.
+## SkyrimNet Template Syntax (Inja)
+
+Prompt files use the Inja template engine (similar to Jinja2 but NOT identical). Key syntax rules:
+- Variables: \`{{ variable_name }}\`, e.g. \`{{ decnpc(npc.UUID).name }}\`
+- Conditionals: \`{% if condition %}\`, \`{% else if condition %}\`, \`{% else %}\`, \`{% endif %}\` — NOTE: use \`else if\`, NOT \`elif\`
+- Loops: \`{% for item in list %}\`...\`{% endfor %}\`
+- Section markers: \`[ system ]\`, \`[ user ]\`, \`[ assistant ]\`, \`[ cache ]\` — these separate prompt sections
+- Common decorators: \`render_subcomponent(name, mode)\`, \`render_template(path)\`, \`render_character_profile(mode, UUID)\`, \`decnpc(UUID).name\`, \`is_in_combat(UUID)\`, \`is_narration_enabled()\`
+- The \`render_mode\` variable controls which variant of submodules to render (e.g. "full", "transform", "thoughts")
+- Some files (especially in \`submodules/\`) are assembled by the engine into larger prompts — a file like \`0020_format_rules.prompt\` may call \`render_subcomponent("guidelines", render_mode)\` to include files from \`submodules/guidelines/\`
+
+**IMPORTANT:** When proposing prompt changes, only modify plain-text instruction content. Do NOT modify template syntax (\`{{ }}\`, \`{% %}\`), section markers, or decorator calls unless you fully understand the Inja engine. Adding or editing natural-language instructions between template blocks is safe.` : ""}
 9. **Avoid enabling reasoning.** For SkyrimNet roleplay agents, \`allowReasoning: false\` produces better results 9 times out of 10. Reasoning adds latency and token cost without improving dialogue quality. Only enable it if the task requires complex multi-step logical analysis (not creative text generation).
-10. **Ignore self-explanation quality.** The model's self-explanation is generated in a separate diagnostic call with its own token budget. Changing inference settings (especially maxTokens) will NOT affect explanation verbosity. Focus only on the actual benchmark response quality.
+10. **Ignore self-explanation quality.** The model's self-explanation is generated in a separate diagnostic call with its own token budget. Changing inference settings (especially maxTokens) will NOT affect explanation verbosity. Focus only on the actual benchmark response quality.${ignoreFormatScoring ? `
+11. **IGNORE FORMAT.** The user has opted to skip format scoring. Do NOT propose changes aimed at fixing format, JSON structure, metadata fields, importance scores, emotion fields, or any output format aspects. The output format is dictated by SkyrimNet's engine requirements and is correct as-is. Focus exclusively on content quality, accuracy, and efficiency.` : ""}
 
 ## Response Format
 

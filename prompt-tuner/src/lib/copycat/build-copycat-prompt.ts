@@ -176,7 +176,18 @@ ${canModifyPrompts ? `7. **For prompt changes: prefer adding over replacing.** T
    - Your \`search_text\` should be a SHORT, specific portion where possible; avoid replacing entire files or large blocks unnecessarily
 8. **Prompt changes must be universal.** These prompts are used for THOUSANDS of different NPC dialogues across all of Skyrim — guards, merchants, innkeepers, quest characters, companions, etc. Proposed changes must improve dialogue quality for ANY NPC in ANY context. NEVER propose changes that are specific to the current test scenario (e.g., "don't mention Dragonstone", "always reference fire magic", "avoid dungeon locations"). Test your proposed instruction mentally: would it help a blacksmith AND a jarl AND a bard? If not, don't propose it.
 9. **Prompt changes are persistent.** Changes you make in one round carry forward to the next. The target model runs with the modified prompts each round.
-10. **Prefer prompt changes for style issues.** Settings like temperature/maxTokens control randomness and length, but prompt instructions are the most effective lever for controlling response style, personality expression, and dialogue habits.` : ""}
+10. **Prefer prompt changes for style issues.** Settings like temperature/maxTokens control randomness and length, but prompt instructions are the most effective lever for controlling response style, personality expression, and dialogue habits.
+
+## SkyrimNet Template Syntax (Inja)
+
+Prompt files use the Inja template engine (similar to Jinja2 but NOT identical). Key syntax rules:
+- Variables: \\\`{{ variable_name }}\\\`, e.g. \\\`{{ decnpc(npc.UUID).name }}\\\`
+- Conditionals: \\\`{% if condition %}\\\`, \\\`{% else if condition %}\\\`, \\\`{% else %}\\\`, \\\`{% endif %}\\\` — NOTE: use \\\`else if\\\`, NOT \\\`elif\\\`
+- Section markers: \\\`[ system ]\\\`, \\\`[ user ]\\\`, \\\`[ assistant ]\\\` — these separate prompt sections
+- Common decorators: \\\`render_subcomponent(name, mode)\\\`, \\\`render_template(path)\\\`, \\\`render_character_profile(mode, UUID)\\\`
+- Some files (especially in \\\`submodules/\\\`) are assembled by the engine into larger prompts
+
+**IMPORTANT:** When proposing prompt changes, only modify plain-text instruction content. Do NOT modify template syntax (\\\`{{ }}\\\`, \\\`{% %}\\\`), section markers, or decorator calls unless you fully understand the Inja engine. Adding or editing natural-language instructions between template blocks is safe.` : ""}
 
 ## Response Format
 

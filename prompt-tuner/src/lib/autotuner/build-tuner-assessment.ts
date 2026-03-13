@@ -21,6 +21,7 @@ export function buildTunerAssessmentMessages({
   completionTokens,
   turnResults,
   previousRounds = [],
+  ignoreFormatScoring = false,
 }: {
   category: BenchmarkCategory;
   model: string;
@@ -33,6 +34,7 @@ export function buildTunerAssessmentMessages({
   completionTokens: number;
   turnResults?: TunerTurnResult[];
   previousRounds?: TunerRound[];
+  ignoreFormatScoring?: boolean;
 }): ChatMessage[] {
   const catDef = getCategoryDef(category);
   const agentLabel = catDef?.label || category;
@@ -74,11 +76,12 @@ Rate the response on these dimensions (1-10 scale):
 - Does it respect the system prompt's rules?
 - Does it avoid hallucinations or lore breaks?
 - Is the output factually consistent with the provided context?
-
+${ignoreFormatScoring ? `
+**Format** — SKIPPED (user opted to ignore format scoring). Do NOT score this dimension. The output format is dictated by SkyrimNet's requirements and should not be a tuning target. Do not penalize or comment on JSON structure, metadata fields, importance scores, emotion fields, or any format-related aspects.` : `
 **Format** — Is the output well-structured and properly formatted?
 - JSON validity for structured outputs
 - Correct format as specified in the instructions
-- Appropriate length and structure
+- Appropriate length and structure`}
 
 **Efficiency** — Token usage of the benchmark response relative to output quality
 - Did the model's actual response use tokens wisely?

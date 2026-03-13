@@ -77,6 +77,8 @@ export function AutoTunerSetup() {
   const setLockedSettings = useAutoTunerStore((s) => s.setLockedSettings);
   const customInstructions = useAutoTunerStore((s) => s.customInstructions);
   const setCustomInstructions = useAutoTunerStore((s) => s.setCustomInstructions);
+  const ignoreFormatScoring = useAutoTunerStore((s) => s.ignoreFormatScoring);
+  const setIgnoreFormatScoring = useAutoTunerStore((s) => s.setIgnoreFormatScoring);
   const isRunning = useAutoTunerStore((s) => s.isRunning);
   const reset = useAutoTunerStore((s) => s.reset);
 
@@ -147,6 +149,7 @@ export function AutoTunerSetup() {
       resolvedPromptSet,
       lockedSettings,
       customInstructions,
+      ignoreFormatScoring,
     );
   };
 
@@ -395,6 +398,42 @@ export function AutoTunerSetup() {
                 )}
               </div>
             )}
+
+            {/* Ignore Format Scoring */}
+            <div className="px-1">
+              <button
+                onClick={() => setIgnoreFormatScoring(!ignoreFormatScoring)}
+                disabled={isRunning}
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent/50 ${
+                  isRunning ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                title="Skip format scoring in assessments. Useful when the agent's output format is dictated by SkyrimNet and shouldn't be changed."
+              >
+                <span
+                  className={`h-3 w-3 rounded-sm border flex items-center justify-center shrink-0 ${
+                    ignoreFormatScoring
+                      ? "bg-primary border-primary"
+                      : "border-muted-foreground/30"
+                  }`}
+                >
+                  {ignoreFormatScoring && (
+                    <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-primary-foreground">
+                      <path
+                        d="M10 3L4.5 8.5L2 6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </span>
+                <span className={`truncate ${ignoreFormatScoring ? "font-medium" : "text-muted-foreground"}`}>
+                  Ignore format scoring
+                </span>
+              </button>
+            </div>
           </div>
 
           <Separator />

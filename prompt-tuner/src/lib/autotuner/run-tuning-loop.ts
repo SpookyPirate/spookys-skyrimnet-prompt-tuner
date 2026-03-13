@@ -27,6 +27,7 @@ export async function runTuningLoop(
   selectedPromptSet?: string,
   lockedSettings?: (keyof import("@/types/config").AiTuningSettings)[],
   customInstructions?: string,
+  ignoreFormatScoring?: boolean,
 ) {
   const _t = (label: string) => console.log(`[tuner] ${label} @ ${Date.now()}`);
   _t("runTuningLoop START");
@@ -421,6 +422,7 @@ export async function runTuningLoop(
           completionTokens: benchCompletionTokens,
           turnResults: isMultiPart ? roundTurnResults : undefined,
           previousRounds: assessPreviousRounds,
+          ignoreFormatScoring,
         });
 
         // Store assessment input messages
@@ -483,6 +485,7 @@ export async function runTuningLoop(
           currentTokens: benchTotalTokens,
           lockedSettings,
           customInstructions,
+          ignoreFormatScoring,
         });
 
         // Store proposal input messages

@@ -154,7 +154,11 @@ export const DEFAULT_SCENARIOS: BenchmarkScenario[] = [
     player: DEFAULT_PLAYER,
     scene: DEFAULT_SCENE,
     npcs: DEFAULT_NPCS,
-    chatHistory: SHARED_CHAT_HISTORY,
+    chatHistory: [
+      ...SHARED_CHAT_HISTORY,
+      { type: "player" as const, speaker: "Dragonborn", content: "I could use some supplies. Do you have anything for sale?", target: "Hulda" },
+      { type: "npc" as const, speaker: "Hulda", content: "I always keep a few things behind the counter. What are you looking for?", target: "Dragonborn" },
+    ],
     playerMessage: "Show me what you have for sale.",
     npcResponse: "Of course! Take a look at what I have.",
     npcName: "Hulda",

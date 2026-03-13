@@ -5,6 +5,7 @@ import { buildFullSimulationState, deriveGameTime } from "@/lib/pipeline/build-s
 import { createFileLoader, readTemplate } from "@/lib/pipeline/file-loader-factory";
 import type { SaveBioConfig } from "@/lib/pipeline/file-loader-factory";
 import type { InjaValue } from "@/lib/inja/renderer";
+import { render, extractBlocks, type RenderContext } from "@/lib/inja/renderer";
 
 const ALL_UPDATABLE_BLOCKS = [
   "name",
@@ -64,6 +65,46 @@ export async function POST(request: NextRequest) {
       UUID: (targetNpc?.uuid || "npc_001") as InjaValue,
     };
 
+    // Render the character's existing bio content so the LLM has context
+    // about what it's updating. In the real SkyrimNet engine, this comes from
+    // the character's bio file rendered through the character_bio submodule.
+    let originalBioContent = "";
+    try {
+      const charUuid = targetNpc?.uuid || "npc_001";
+      const charSource = await fileLoader.readFile(`characters/${charUuid}.prompt`);
+      const charBlocks = extractBlocks(charSource);
+
+      // Render each bio submodule file with the character's block definitions
+      const bioDir = "submodules/character_bio";
+      const bioFiles = (await fileLoader.listDir(bioDir))
+        .filter((f: string) => f.endsWith(".prompt"))
+        .sort();
+
+      const bioParts: string[] = [];
+      for (const file of bioFiles) {
+        const bioSource = await fileLoader.readFile(`${bioDir}/${file}`);
+        const innerCtx: RenderContext = {
+          variables: {
+            render_mode: "full" as InjaValue,
+            actorUUID: charUuid as InjaValue,
+            npc: actor as unknown as InjaValue,
+            player: {} as InjaValue,
+          },
+          blocks: charBlocks,
+          functions: {},
+        };
+        try {
+          const rendered = await render(bioSource, innerCtx);
+          if (rendered.trim()) bioParts.push(rendered.trim());
+        } catch {
+          // Skip files that fail to render without full context
+        }
+      }
+      originalBioContent = bioParts.join("\n");
+    } catch {
+      // Character file not found — leave empty
+    }
+
     const simState = buildFullSimulationState({
       npc: targetNpc,
       player,
@@ -77,7 +118,7 @@ export async function POST(request: NextRequest) {
         currentGameTime: time.gameTime as InjaValue,
         factions: [] as unknown as InjaValue,
         recentMemories: [] as unknown as InjaValue,
-        originalBioContent: "" as InjaValue,
+        originalBioContent: originalBioContent as InjaValue,
         currentDynamicContent: "" as InjaValue,
         updatableBlocks: ALL_UPDATABLE_BLOCKS as unknown as InjaValue,
         preserveCorePersonality: true as InjaValue,

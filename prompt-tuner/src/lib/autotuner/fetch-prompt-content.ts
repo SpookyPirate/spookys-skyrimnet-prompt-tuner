@@ -5,38 +5,70 @@ import { getCategoryDef } from "@/lib/benchmark/categories";
  * Maps agent types to prompt paths for tuning.
  * Entries ending in .prompt are individual files; others are directories to list.
  */
+/**
+ * Maps agent types to prompt paths that are ACTUALLY rendered by each agent's
+ * pipeline. Entries ending in .prompt are individual files; others are
+ * directories to list. Only include files that are part of the rendered prompt
+ * — the tuner should see exactly what the model sees.
+ *
+ * Character bios (submodules/character_bio/*, characters/*.prompt) are handled
+ * separately as read-only context further down.
+ */
 const AGENT_PROMPT_PATHS: Record<string, string[]> = {
+  // dialogue_response.prompt renders: system_head (full), event_history,
+  // user_final_instructions, character bio, scene context.
+  // system_head/0020_format_rules.prompt internally calls
+  // render_subcomponent("guidelines") which loads the guidelines submodule —
+  // include it explicitly so the tuner can see and edit the actual rules.
   default: [
     "submodules/system_head",
+    "submodules/guidelines",
     "submodules/user_final_instructions",
     "dialogue_response.prompt",
+    "components/event_history.prompt",
   ],
+  // meta_eval renders two standalone target selectors — NO system_head
+  // Both use event_history_compact
+  meta_eval: [
+    "target_selectors",
+    "components/event_history_compact.prompt",
+  ],
+  // native_action_selector.prompt is standalone — NO system_head
+  // Uses event_history_compact
+  action_eval: [
+    "native_action_selector.prompt",
+    "components/event_history_compact.prompt",
+  ],
+  // Both GM templates are standalone — NO system_head
+  // Both use event_history_compact
   game_master: [
-    "submodules/system_head",
     "gamemaster_action_selector.prompt",
     "gamemaster_scene_planner.prompt",
+    "components/event_history_compact.prompt",
   ],
+  // memory/generate_memory.prompt uses ONLY 0010_setting.prompt (not full system_head)
+  // Uses event_history_verbose
   memory_gen: [
-    "submodules/system_head",
-    "memory",
+    "submodules/system_head/0010_setting.prompt",
+    "memory/generate_memory.prompt",
+    "components/event_history_verbose.prompt",
   ],
-  profile_gen: [
-    "submodules/system_head",
-    "character_profile_update.prompt",
-    "dynamic_bio_update.prompt",
-    "helpers/generate_profile.prompt",
-  ],
-  action_eval: [
-    "submodules/system_head",
-    "native_action_selector.prompt",
-  ],
-  meta_eval: [
-    "submodules/system_head",
-    "target_selectors",
-  ],
+  // diary_entry.prompt renders: system_head (full), event_history_verbose
+  // system_head includes guidelines via render_subcomponent("guidelines")
   diary: [
     "submodules/system_head",
+    "submodules/guidelines",
     "diary_entry.prompt",
+    "components/event_history_verbose.prompt",
+  ],
+  // dynamic_bio_update.prompt uses ONLY 0010_setting.prompt (not full system_head)
+  // Uses event_history_verbose
+  // character_profile_update.prompt and helpers/generate_profile.prompt are NOT
+  // used by the render-bio-update endpoint
+  profile_gen: [
+    "submodules/system_head/0010_setting.prompt",
+    "dynamic_bio_update.prompt",
+    "components/event_history_verbose.prompt",
   ],
 };
 
@@ -144,7 +176,7 @@ export async function fetchPromptContent(
 
   const allFiles: { path: string; name: string; content: string }[] = [];
   let totalLength = 0;
-  const MAX_TOTAL = 12000;
+  const MAX_TOTAL = 24000;
 
   for (const entry of paths) {
     if (totalLength > MAX_TOTAL) break;
